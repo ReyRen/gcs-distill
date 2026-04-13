@@ -44,6 +44,7 @@ type ContainerConfig struct {
 	Env          []string          // 环境变量
 	Mounts       []Mount           // 卷挂载
 	GPUCount     int               // GPU 数量
+	GPUDeviceIDs string            // GPU 设备 ID，如 "0,1,2" 或 "0"
 	MemoryGB     int               // 内存（GB）
 	CPUCores     int               // CPU 核心数
 	Labels       map[string]string // 标签
@@ -93,13 +94,23 @@ func (c *Client) CreateContainer(ctx context.Context, cfg *ContainerConfig) (str
 	}
 
 	// GPU 配置
-	if cfg.GPUCount > 0 {
-		hostCfg.DeviceRequests = []container.DeviceRequest{
-			{
-				Count:        -1, // 所有 GPU
-				Capabilities: [][]string{{"gpu"}},
-			},
+	if cfg.GPUCount > 0 || cfg.GPUDeviceIDs != "" {
+		deviceReq := container.DeviceRequest{
+			Capabilities: [][]string{{"gpu"}},
 		}
+
+		// 如果指定了具体的 GPU 设备 ID
+		if cfg.GPUDeviceIDs != "" {
+			deviceReq.DeviceIDs = []string{cfg.GPUDeviceIDs}
+		} else if cfg.GPUCount == -1 {
+			// -1 表示所有 GPU
+			deviceReq.Count = -1
+		} else {
+			// 指定数量的 GPU
+			deviceReq.Count = cfg.GPUCount
+		}
+
+		hostCfg.DeviceRequests = []container.DeviceRequest{deviceReq}
 	}
 
 	// 内存配置

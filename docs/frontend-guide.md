@@ -356,7 +356,8 @@ Content-Type: application/json
     }
   },
   "resource_request": {
-    "gpu_count": 1,
+    "gpu_count": 2,
+    "gpu_device_ids": "0,1",
     "gpu_type": "A100",
     "memory_gb": 32,
     "cpu_cores": 8
@@ -795,11 +796,17 @@ interface LoRAConfig {
 ```typescript
 interface ResourceRequest {
   gpu_count: number;
+  gpu_device_ids?: string;   // "0,1,2" - 指定使用的 GPU 设备 ID
   gpu_type?: string;         // "A100", "V100"
   memory_gb?: number;
   cpu_cores?: number;
 }
 ```
+
+**gpu_device_ids 说明**:
+- 如果指定，格式为逗号分隔的设备 ID，如 `"0,1,2"`
+- 优先级高于 `gpu_count`，即如果同时指定，使用 `gpu_device_ids`
+- 未指定则由系统根据 `gpu_count` 自动分配
 
 #### StageRun
 
@@ -1206,6 +1213,13 @@ const CreatePipelineWizard = () => {
         <Form layout="vertical">
           <Form.Item label="GPU 数量" name={['resource_request', 'gpu_count']}>
             <InputNumber min={0} max={8} />
+          </Form.Item>
+          <Form.Item
+            label="GPU 设备 ID"
+            name={['resource_request', 'gpu_device_ids']}
+            tooltip="指定使用的 GPU 设备，如 '0,1' 表示使用 GPU 0 和 1，留空则自动分配"
+          >
+            <Input placeholder="0,1,2" />
           </Form.Item>
           <Form.Item label="内存 (GB)" name={['resource_request', 'memory_gb']}>
             <InputNumber min={8} max={512} />

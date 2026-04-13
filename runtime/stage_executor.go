@@ -238,9 +238,10 @@ func (e *StageExecutor) executeTeacherInfer(
 		VolumeMounts: map[string]string{
 			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
 		},
-		GPUs:    pipeline.ResourceRequest.GPUCount,
-		Memory:  pipeline.ResourceRequest.MemoryGB,
-		CPUs:    pipeline.ResourceRequest.CPUCores,
+		GPUs:         pipeline.ResourceRequest.GPUCount,
+		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs,
+		Memory:       pipeline.ResourceRequest.MemoryGB,
+		CPUs:         pipeline.ResourceRequest.CPUCores,
 	})
 
 	if err != nil {
@@ -361,9 +362,10 @@ func (e *StageExecutor) executeStudentTrain(
 		VolumeMounts: map[string]string{
 			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
 		},
-		GPUs:    pipeline.ResourceRequest.GPUCount,
-		Memory:  pipeline.ResourceRequest.MemoryGB,
-		CPUs:    pipeline.ResourceRequest.CPUCores,
+		GPUs:         pipeline.ResourceRequest.GPUCount,
+		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs,
+		Memory:       pipeline.ResourceRequest.MemoryGB,
+		CPUs:         pipeline.ResourceRequest.CPUCores,
 	})
 
 	if err != nil {
@@ -426,9 +428,10 @@ func (e *StageExecutor) executeEvaluate(
 		VolumeMounts: map[string]string{
 			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
 		},
-		GPUs:    1, // 评估只需要1个GPU
-		Memory:  pipeline.ResourceRequest.MemoryGB,
-		CPUs:    pipeline.ResourceRequest.CPUCores,
+		GPUs:         1, // 评估只需要1个GPU
+		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs, // 但可以指定使用哪个GPU
+		Memory:       pipeline.ResourceRequest.MemoryGB,
+		CPUs:         pipeline.ResourceRequest.CPUCores,
 	})
 
 	if err != nil {
@@ -464,6 +467,7 @@ type ContainerRequest struct {
 	WorkDir      string
 	VolumeMounts map[string]string
 	GPUs         int
+	GPUDeviceIDs string // GPU 设备 ID，如 "0,1,2"
 	Memory       int
 	CPUs         int
 }
@@ -499,6 +503,7 @@ func (e *StageExecutor) runDockerContainer(
 		WorkDir:      req.WorkDir,
 		VolumeMounts: volumes,
 		GpuCount:     int32(req.GPUs),
+		GpuDeviceIds: req.GPUDeviceIDs,
 		MemoryGb:     int32(req.Memory),
 		CpuCores:     int32(req.CPUs),
 	})
@@ -562,4 +567,49 @@ func (e *StageExecutor) waitForContainer(
 			}
 		}
 	}
+}
+
+// ReadLogFile 从工作空间读取日志文件
+func (e *StageExecutor) ReadLogFile(projectID, runID, stageName string) (string, error) {
+	logPath := e.configGen.GetLogPath(projectID, runID, stageName)
+
+	// 检查日志文件是否存在
+	if _, err := os.Stat(logPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("日志文件不存在: %s", logPath)
+	}
+
+	// 读取日志文件
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		return "", fmt.Errorf("读取日志文件失败: %w", err)
+	}
+
+	return string(content), nil
+}
+
+// TailLogFile 读取日志文件的最后 N 行
+func (e *StageExecutor) TailLogFile(projectID, runID, stageName string, lines int) (string, error) {
+	logPath := e.configGen.GetLogPath(projectID, runID, stageName)
+
+	// 检查日志文件是否存在
+	if _, err := os.Stat(logPath); os.IsNotExist(err) {
+		return "", fmt.Errorf("日志文件不存在: %s", logPath)
+	}
+
+	// 读取整个文件
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		return "", fmt.Errorf("读取日志文件失败: %w", err)
+	}
+
+	// 按行分割
+	allLines := strings.Split(string(content), "\n")
+
+	// 获取最后 N 行
+	start := len(allLines) - lines
+	if start < 0 {
+		start = 0
+	}
+
+	return strings.Join(allLines[start:], "\n"), nil
 }
