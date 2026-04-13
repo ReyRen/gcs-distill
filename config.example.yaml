@@ -1,0 +1,47 @@
+# GCS-Distill 配置文件
+
+# HTTP 服务配置
+server:
+  host: 0.0.0.0          # 监听地址
+  port: 8080             # 监听端口
+  mode: release          # 运行模式: debug, release, test
+
+# 数据库配置
+database:
+  host: localhost        # 数据库主机
+  port: 5432             # 数据库端口
+  user: postgres         # 用户名
+  password: postgres     # 密码
+  dbname: gcs_distill    # 数据库名
+  sslmode: disable       # SSL 模式
+  max_conns: 25          # 最大连接数
+  min_conns: 5           # 最小连接数
+
+# Redis 配置
+redis:
+  host: localhost        # Redis 主机
+  port: 6379             # Redis 端口
+  password: ""           # 密码 (留空表示无密码)
+  db: 0                  # 数据库编号
+  pool_size: 10          # 连接池大小
+
+# 共享存储配置
+storage:
+  type: nfs              # 存储类型: nfs, ceph, local
+  base_path: /mnt/shared/distill  # 基础路径
+
+# gRPC 配置
+grpc:
+  port: 50051            # gRPC 端口
+  max_recv_msg_size: 10  # 最大接收消息大小 (MB)
+  max_send_msg_size: 10  # 最大发送消息大小 (MB)
+  connection_timeout: 30 # 连接超时 (秒)
+
+# 日志配置
+logging:
+  level: info            # 日志级别: debug, info, warn, error
+  output: stdout         # 输出: stdout, file
+  file_path: /var/log/gcs-distill/server.log  # 日志文件路径 (output=file 时使用)
+  max_size: 100          # 单个日志文件最大大小 (MB)
+  max_age: 7             # 日志文件保留天数
+  compress: true         # 是否压缩旧日志

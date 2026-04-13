@@ -1,0 +1,94 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/ReyRen/gcs-distill/proto";
+
+// WorkerService Worker 节点容器执行服务
+service WorkerService {
+  // RunContainer 运行容器
+  rpc RunContainer(RunContainerRequest) returns (RunContainerResponse);
+
+  // GetContainerStatus 获取容器状态
+  rpc GetContainerStatus(GetContainerStatusRequest) returns (GetContainerStatusResponse);
+
+  // GetContainerLogs 获取容器日志
+  rpc GetContainerLogs(GetContainerLogsRequest) returns (GetContainerLogsResponse);
+
+  // StopContainer 停止容器
+  rpc StopContainer(StopContainerRequest) returns (StopContainerResponse);
+
+  // ReportResources Worker 上报资源状态
+  rpc ReportResources(ReportResourcesRequest) returns (ReportResourcesResponse);
+}
+
+// RunContainerRequest 容器运行请求
+message RunContainerRequest {
+  string image = 1;               // 镜像名称
+  repeated string command = 2;    // 命令
+  string work_dir = 3;            // 工作目录
+  repeated string env = 4;        // 环境变量
+  repeated VolumeMount volume_mounts = 5; // 挂载卷
+  int32 gpu_count = 6;            // GPU 数量
+  int32 memory_gb = 7;            // 内存 (GB)
+  int32 cpu_cores = 8;            // CPU 核心数
+}
+
+// VolumeMount 卷挂载
+message VolumeMount {
+  string host_path = 1;           // 主机路径
+  string container_path = 2;      // 容器内路径
+}
+
+// RunContainerResponse 容器运行响应
+message RunContainerResponse {
+  string container_id = 1;        // 容器 ID
+}
+
+// GetContainerStatusRequest 状态查询请求
+message GetContainerStatusRequest {
+  string container_id = 1;        // 容器 ID
+}
+
+// GetContainerStatusResponse 状态查询响应
+message GetContainerStatusResponse {
+  string status = 1;              // 状态: "running", "exited", "failed"
+  bool running = 2;               // 是否运行中
+  int32 exit_code = 3;            // 退出码
+  string error = 4;               // 错误信息
+  string started_at = 5;          // 启动时间
+  string finished_at = 6;         // 结束时间
+}
+
+// GetContainerLogsRequest 日志请求
+message GetContainerLogsRequest {
+  string container_id = 1;        // 容器 ID
+  int32 tail_lines = 2;           // 尾部行数
+}
+
+// GetContainerLogsResponse 日志响应
+message GetContainerLogsResponse {
+  string logs = 1;                // 日志内容
+}
+
+// StopContainerRequest 停止容器请求
+message StopContainerRequest {
+  string container_id = 1;        // 容器 ID
+  int32 timeout_seconds = 2;      // 超时时间 (秒)
+}
+
+// StopContainerResponse 停止容器响应
+message StopContainerResponse {
+  bool success = 1;               // 是否成功
+}
+
+// ReportResourcesRequest Worker 资源信息
+message ReportResourcesRequest {
+  string node_name = 1;           // 节点名称
+  string node_addr = 2;           // 节点地址
+}
+
+// ReportResourcesResponse 确认响应
+message ReportResourcesResponse {
+  bool success = 1;               // 是否成功
+}
