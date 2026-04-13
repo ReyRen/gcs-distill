@@ -181,7 +181,10 @@ gcs-distill/
 ├── docker/                # Docker 相关资源
 │   └── easydistill/       # EasyDistill 镜像
 ├── docs/                  # 文档
-│   └── implementation-plan.md  # 实施计划
+│   ├── api-reference.md       # API 接口参考
+│   ├── frontend-guide.md      # 前端实现指南
+│   ├── deployment.md          # 部署指南
+│   └── quickstart.md          # 快速启动指南
 └── README.md
 ```
 
