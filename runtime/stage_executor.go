@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ReyRen/gcs-distill/internal/logger"
@@ -14,6 +15,21 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
+
+func getExtraParamString(config types.ModelConfig, key string) string {
+	if config.ExtraParams == nil {
+		return ""
+	}
+	value, ok := config.ExtraParams[key]
+	if !ok || value == nil {
+		return ""
+	}
+	text, ok := value.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(text)
+}
 
 // StageExecutor 阶段执行器
 type StageExecutor struct {
@@ -74,7 +90,7 @@ func (e *StageExecutor) executeTeacherConfig(
 	logger.Info("验证教师模型配置")
 
 	// 验证教师模型配置
-	if project.TeacherModelConfig == nil {
+	if project.TeacherModelConfig.ModelName == "" {
 		return fmt.Errorf("教师模型配置为空")
 	}
 
@@ -90,32 +106,32 @@ func (e *StageExecutor) executeTeacherConfig(
 	}
 
 	// API 类型验证
-	if config.ProviderType == "api" {
-		if config.BaseURL == "" {
-			return fmt.Errorf("API 类型教师模型需要提供 base_url")
+	if config.ProviderType == types.ProviderAPI {
+		if strings.TrimSpace(config.Endpoint) == "" {
+			return fmt.Errorf("API 类型教师模型需要提供 endpoint")
 		}
-		if config.APIKey == "" {
-			return fmt.Errorf("API 类型教师模型需要提供 api_key")
+		if strings.TrimSpace(config.APISecretRef) == "" {
+			return fmt.Errorf("API 类型教师模型需要提供 api_secret_ref")
 		}
 	}
 
 	// 本地类型验证
-	if config.ProviderType == "local" {
-		if config.ModelPath == "" {
+	if config.ProviderType == types.ProviderLocal {
+		if getExtraParamString(config, "model_path") == "" {
 			return fmt.Errorf("本地类型教师模型需要提供 model_path")
 		}
 	}
 
 	logger.Info("教师模型配置验证通过",
 		zap.String("model", config.ModelName),
-		zap.String("provider", config.ProviderType),
+		zap.String("provider", string(config.ProviderType)),
 	)
 
 	// 保存配置到清单
-	stage.Manifest = map[string]interface{}{
-		"teacher_model":    config.ModelName,
-		"provider_type":    config.ProviderType,
-		"validated_at":     time.Now().Format(time.RFC3339),
+	stage.OutputManifest = map[string]string{
+		"teacher_model": config.ModelName,
+		"provider_type": string(config.ProviderType),
+		"validated_at":  time.Now().Format(time.RFC3339),
 	}
 
 	return nil
@@ -177,10 +193,10 @@ func (e *StageExecutor) executeDatasetBuild(
 	logger.Info("种子数据清单创建完成", zap.Int("count", len(instructions)))
 
 	// 保存清单信息
-	stage.Manifest = map[string]interface{}{
-		"seed_count":   len(instructions),
-		"workspace":    workspace,
-		"created_at":   time.Now().Format(time.RFC3339),
+	stage.OutputManifest = map[string]string{
+		"seed_count": fmt.Sprintf("%d", len(instructions)),
+		"workspace":  workspace,
+		"created_at": time.Now().Format(time.RFC3339),
 	}
 
 	return nil
@@ -210,6 +226,7 @@ func (e *StageExecutor) executeTeacherInfer(
 	if err := os.WriteFile(configPath, configData, 0644); err != nil {
 		return fmt.Errorf("保存配置文件失败: %w", err)
 	}
+	stage.ConfigPath = configPath
 
 	logger.Info("配置文件已生成", zap.String("config", configPath))
 
@@ -242,9 +259,11 @@ func (e *StageExecutor) executeTeacherInfer(
 	// 统计生成的数据
 	stats, _ := e.manifestMgr.GetManifestStats(projectID, runID)
 
-	stage.Manifest = map[string]interface{}{
+	stage.ContainerID = containerID
+	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "teacher_infer")
+	stage.OutputManifest = map[string]string{
 		"container_id":  containerID,
-		"labeled_count": stats["labeled"],
+		"labeled_count": fmt.Sprintf("%d", stats["labeled"]),
 		"config_path":   configPath,
 	}
 
@@ -287,11 +306,20 @@ func (e *StageExecutor) executeDataGovern(
 	)
 
 	// 保存统计信息
-	stage.Manifest = map[string]interface{}{
-		"stats":        stats,
-		"train_count":  len(train),
-		"test_count":   len(test),
-		"filter_rate":  float64(stats["filtered"]) / float64(stats["total"]),
+	filterRate := 0.0
+	if stats["total"] > 0 {
+		filterRate = float64(stats["filtered"]) / float64(stats["total"])
+	}
+	stage.OutputManifest = map[string]string{
+		"train_count": fmt.Sprintf("%d", len(train)),
+		"test_count":  fmt.Sprintf("%d", len(test)),
+		"filter_rate": fmt.Sprintf("%.4f", filterRate),
+	}
+	stage.Metrics = map[string]interface{}{
+		"stats":       stats,
+		"train_count": len(train),
+		"test_count":  len(test),
+		"filter_rate": filterRate,
 	}
 
 	return nil
@@ -321,6 +349,7 @@ func (e *StageExecutor) executeStudentTrain(
 	if err := os.WriteFile(configPath, configData, 0644); err != nil {
 		return fmt.Errorf("保存配置文件失败: %w", err)
 	}
+	stage.ConfigPath = configPath
 
 	logger.Info("训练配置已生成", zap.String("config", configPath))
 
@@ -350,7 +379,9 @@ func (e *StageExecutor) executeStudentTrain(
 
 	logger.Info("学生模型训练完成")
 
-	stage.Manifest = map[string]interface{}{
+	stage.ContainerID = containerID
+	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "student_train")
+	stage.OutputManifest = map[string]string{
 		"container_id":    containerID,
 		"checkpoint_path": "/workspace/models/checkpoints/",
 		"config_path":     configPath,
@@ -383,6 +414,7 @@ func (e *StageExecutor) executeEvaluate(
 	if err := os.WriteFile(configPath, configData, 0644); err != nil {
 		return fmt.Errorf("保存配置文件失败: %w", err)
 	}
+	stage.ConfigPath = configPath
 
 	logger.Info("评估配置已生成", zap.String("config", configPath))
 
@@ -414,10 +446,12 @@ func (e *StageExecutor) executeEvaluate(
 
 	// TODO: 解析评估结果并保存到 stage.Metrics
 
-	stage.Manifest = map[string]interface{}{
-		"container_id":  containerID,
-		"result_path":   "/workspace/eval/results.json",
-		"config_path":   configPath,
+	stage.ContainerID = containerID
+	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "evaluate")
+	stage.OutputManifest = map[string]string{
+		"container_id": containerID,
+		"result_path":  "/workspace/eval/results.json",
+		"config_path":  configPath,
 	}
 
 	return nil

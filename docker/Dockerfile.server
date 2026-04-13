@@ -1,5 +1,6 @@
 # GCS-Distill Server (Control 节点) Dockerfile
-FROM golang:1.21-alpine AS builder
+ARG GO_VERSION=1.25
+FROM golang:${GO_VERSION}-alpine AS builder
 
 # 安装编译依赖
 RUN apk add --no-cache git make

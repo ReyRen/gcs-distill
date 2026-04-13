@@ -98,7 +98,7 @@ func (g *ConfigGenerator) GenerateTeacherInferConfig(
 ) ([]byte, error) {
 	// 教师模型配置
 	teacherConfig := project.TeacherModelConfig
-	if teacherConfig == nil {
+	if teacherConfig.ModelName == "" {
 		return nil, fmt.Errorf("教师模型配置为空")
 	}
 
@@ -139,13 +139,16 @@ func (g *ConfigGenerator) GenerateStudentTrainConfig(
 	// 教师和学生模型配置
 	teacherConfig := project.TeacherModelConfig
 	studentConfig := project.StudentModelConfig
-	if teacherConfig == nil || studentConfig == nil {
+	if teacherConfig.ModelName == "" || studentConfig.ModelName == "" {
 		return nil, fmt.Errorf("模型配置不完整")
 	}
 
 	// 训练配置
 	trainConfig := pipeline.TrainingConfig
-	if trainConfig == nil {
+	if trainConfig.NumTrainEpochs == 0 &&
+		trainConfig.PerDeviceTrainBatchSize == 0 &&
+		trainConfig.LearningRate == 0 &&
+		trainConfig.SaveSteps == 0 {
 		return nil, fmt.Errorf("训练配置为空")
 	}
 
@@ -166,8 +169,7 @@ func (g *ConfigGenerator) GenerateStudentTrainConfig(
 			PerDeviceTrainBatchSize: trainConfig.PerDeviceTrainBatchSize,
 			LearningRate:            trainConfig.LearningRate,
 			SaveSteps:               trainConfig.SaveSteps,
-			WarmupSteps:             trainConfig.WarmupSteps,
-			LoggingSteps:            100, // 默认值
+			LoggingSteps:            trainConfig.LoggingSteps,
 		},
 	}
 
@@ -183,6 +185,9 @@ func (g *ConfigGenerator) GenerateStudentTrainConfig(
 	}
 	if config.Training.SaveSteps == 0 {
 		config.Training.SaveSteps = 1000
+	}
+	if config.Training.LoggingSteps == 0 {
+		config.Training.LoggingSteps = 100
 	}
 
 	return json.MarshalIndent(config, "", "  ")
