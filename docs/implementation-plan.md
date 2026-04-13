@@ -470,3 +470,191 @@ distill/
 - 数据治理必须独立成阶段
 - 首版优先单 worker 多卡，避免直接进入多节点复杂度
 - 每次运行必须生成可复现的 manifest 和配置快照
+
+## 15. EasyDistill 核心命令理解
+
+基于对 EasyDistill 源码的分析，其核心功能和命令映射如下：
+
+### 15.1 命令行入口
+
+EasyDistill 通过统一的 CLI 入口执行：
+```bash
+easydistill --config <config-file-path>
+```
+
+配置文件中的 `job_type` 字段决定执行哪种类型的蒸馏任务。
+
+### 15.2 支持的任务类型
+
+#### 知识蒸馏训练
+- `kd_black_box_train_only`: 黑盒蒸馏训练（仅训练阶段）
+- `kd_white_box_train_only`: 白盒蒸馏训练（仅训练阶段）
+- `kd_black_box_local`: 黑盒蒸馏完整流程（推理+训练）
+- `kd_white_box_local`: 白盒蒸馏完整流程（推理+训练）
+
+#### 排序优化
+- `rank_dpo`: DPO (Direct Preference Optimization) 训练
+- `rank_orpo`: ORPO 排序优化训练
+
+#### 强化学习
+- `rl_ppo`: PPO (Proximal Policy Optimization) 训练
+- `rl_grpo`: GRPO 训练
+- `rl_reward_train`: 奖励模型训练
+- `rl_reward_infer`: 奖励模型推理
+
+#### 评估
+- `cot_eval_api`: CoT (Chain-of-Thought) 评估
+- `mmcot_eval_api`: 多模态 CoT 评估
+
+#### AgentKD 数据生成
+- `agentkd_data_gen`: 生成工具使用任务和轨迹数据
+
+### 15.3 配置文件结构
+
+EasyDistill 的配置文件为 JSON 格式，主要包含以下部分：
+
+```json
+{
+    "job_type": "kd_black_box_local",
+    "dataset": {
+        "instruction_path": "输入数据路径",
+        "labeled_path": "标注数据路径",
+        "template": "chat_template/chat_template_kd.jinja",
+        "seed": 42
+    },
+    "inference": {
+        "enable_chunked_prefill": true,
+        "temperature": 0.8,
+        "max_model_len": 4096,
+        "max_new_tokens": 512
+    },
+    "models": {
+        "teacher": "教师模型路径",
+        "student": "学生模型路径"
+    },
+    "training": {
+        "output_dir": "./result/",
+        "num_train_epochs": 3,
+        "per_device_train_batch_size": 1,
+        "learning_rate": 2e-5
+    }
+}
+```
+
+### 15.4 gcs-distill 六阶段与 EasyDistill 的映射
+
+基于 EasyDistill 的实际能力，将 gcs-distill 六阶段映射如下：
+
+| gcs-distill 阶段 | EasyDistill 任务类型 | 说明 |
+|-----------------|---------------------|------|
+| 1. 教师模型配置 | 无需容器 | 仅配置验证和存储 |
+| 2. 蒸馏数据构建 | 自定义 Python 脚本 | 数据预处理和标准化 |
+| 3. 教师推理与样本生成 | kd_black_box_local (推理阶段) | 教师模型生成训练样本 |
+| 4. 蒸馏数据治理 | 自定义过滤脚本 | 数据清洗和质量筛选 |
+| 5. 学生模型训练 | kd_black_box_train_only | 学生模型微调训练 |
+| 6. 蒸馏效果评估 | cot_eval_api | 模型效果评测 |
+
+### 15.5 容器执行策略
+
+**阶段 3: 教师推理**
+```bash
+docker run --rm \
+  -v /shared/projects/{project_id}/runs/{run_id}:/workspace \
+  --gpus all \
+  gcs-distill/easydistill:latest \
+  --config /workspace/configs/teacher_infer.json
+```
+
+配置文件示例：
+```json
+{
+    "job_type": "kd_black_box_local",
+    "dataset": {
+        "instruction_path": "/workspace/data/seed/instructions.json",
+        "labeled_path": "/workspace/data/generated/labeled.json"
+    },
+    "inference": {
+        "temperature": 0.8,
+        "max_new_tokens": 512
+    },
+    "models": {
+        "teacher": "Qwen/Qwen2.5-7B-Instruct"
+    }
+}
+```
+
+**阶段 5: 学生训练**
+```bash
+docker run --rm \
+  -v /shared/projects/{project_id}/runs/{run_id}:/workspace \
+  --gpus all \
+  gcs-distill/easydistill:latest \
+  --config /workspace/configs/student_train.json
+```
+
+配置文件示例：
+```json
+{
+    "job_type": "kd_black_box_train_only",
+    "dataset": {
+        "instruction_path": "/workspace/data/filtered/train.json",
+        "template": "chat_template/chat_template_kd.jinja"
+    },
+    "models": {
+        "teacher": "Qwen/Qwen2.5-7B-Instruct",
+        "student": "Qwen/Qwen2.5-0.5B-Instruct"
+    },
+    "training": {
+        "output_dir": "/workspace/models/checkpoints/",
+        "num_train_epochs": 3,
+        "per_device_train_batch_size": 4,
+        "learning_rate": 2e-5,
+        "save_steps": 1000
+    }
+}
+```
+
+**阶段 6: 效果评估**
+```bash
+docker run --rm \
+  -v /shared/projects/{project_id}/runs/{run_id}:/workspace \
+  --gpus device=0 \
+  gcs-distill/easydistill:latest \
+  --config /workspace/configs/evaluate.json
+```
+
+### 15.6 关键实现要点
+
+1. **配置生成器**: gcs-distill 控制面需要根据用户输入和阶段参数动态生成 EasyDistill 配置文件
+2. **路径映射**: 容器内 `/workspace` 目录必须映射到共享存储的运行实例目录
+3. **资源分配**: GPU 分配通过 Docker `--gpus` 参数控制，需要在 gRPC 调度请求中明确指定
+4. **日志收集**: 容器标准输出需要实时收集并存储到 `/workspace/logs/stage_N/` 目录
+5. **状态监控**: 通过容器退出码判断阶段执行成功与否，非零退出码表示失败
+6. **产物管理**: 训练产物（checkpoint、模型）自动保存到配置指定的 output_dir，评估结果需要解析并存入数据库
+
+### 15.7 数据流转示意
+
+```
+用户上传种子数据
+  ↓
+阶段2: 数据标准化脚本处理
+  ↓ /workspace/data/seed/instructions.json
+阶段3: EasyDistill 教师推理 (kd_black_box_local)
+  ↓ /workspace/data/generated/labeled.json
+阶段4: 数据治理脚本过滤
+  ↓ /workspace/data/filtered/train.json
+阶段5: EasyDistill 学生训练 (kd_black_box_train_only)
+  ↓ /workspace/models/checkpoints/
+阶段6: EasyDistill 评估 (cot_eval_api)
+  ↓ /workspace/eval/results.json
+```
+
+### 15.8 首版实现建议调整
+
+基于对 EasyDistill 的深入理解，首版实现应：
+
+1. **优先支持 API 型教师模型**: 避免在 worker 上加载大模型，降低资源需求
+2. **简化数据治理**: 实现基础的规则过滤（空响应、长度限制、去重），高级质量评分后续迭代
+3. **使用 EasyDistill 原生配置**: 不做额外封装，直接生成标准 JSON 配置文件
+4. **复用 EasyDistill 的模板系统**: 使用其自带的 Jinja 模板而非自定义格式
+5. **监控容器执行**: 重点关注 EasyDistill 的日志输出，识别训练进度和错误信息

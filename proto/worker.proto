@@ -1,0 +1,120 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "github.com/ReyRen/gcs-distill/proto";
+
+// WorkerExecutor Worker 节点容器执行服务
+service WorkerExecutor {
+  // RunContainer 运行容器
+  rpc RunContainer(ContainerRequest) returns (ContainerResponse);
+
+  // GetContainerStatus 获取容器状态
+  rpc GetContainerStatus(StatusRequest) returns (StatusResponse);
+
+  // GetContainerLogs 获取容器日志（流式）
+  rpc GetContainerLogs(LogsRequest) returns (stream LogChunk);
+
+  // StopContainer 停止容器
+  rpc StopContainer(StopRequest) returns (StopResponse);
+
+  // ReportResources Worker 上报资源状态
+  rpc ReportResources(ResourceInfo) returns (Ack);
+}
+
+// ContainerRequest 容器运行请求
+message ContainerRequest {
+  string container_name = 1;     // 容器名称
+  string image = 2;               // 镜像名称
+  repeated string command = 3;    // 命令
+  repeated string args = 4;       // 参数
+  map<string, string> envs = 5;   // 环境变量
+  repeated VolumeMount mounts = 6; // 挂载卷
+  string workdir = 7;             // 工作目录
+  int64 shm_size = 8;             // 共享内存大小 (bytes)
+  string network = 9;             // 网络模式
+  ResourceSpec resource_request = 10; // 资源请求
+  string log_path = 11;           // 日志路径
+  string artifact_path = 12;      // 产物路径
+}
+
+// VolumeMount 卷挂载
+message VolumeMount {
+  string host_path = 1;           // 主机路径
+  string container_path = 2;      // 容器内路径
+  bool read_only = 3;             // 是否只读
+}
+
+// ResourceSpec 资源规格
+message ResourceSpec {
+  repeated string gpus = 1;       // GPU 设备列表 (如 ["0", "1"] 或 ["all"])
+  int32 memory_mb = 2;            // 内存限制 (MB)
+  int32 cpu_cores = 3;            // CPU 核心数
+}
+
+// ContainerResponse 容器运行响应
+message ContainerResponse {
+  bool success = 1;               // 是否成功
+  string container_id = 2;        // 容器 ID
+  string container_ip = 3;        // 容器 IP
+  string error_message = 4;       // 错误信息
+}
+
+// StatusRequest 状态查询请求
+message StatusRequest {
+  string container_id = 1;        // 容器 ID
+}
+
+// StatusResponse 状态查询响应
+message StatusResponse {
+  string container_id = 1;        // 容器 ID
+  string status = 2;              // 状态: "running", "exited", "failed"
+  int32 exit_code = 3;            // 退出码
+  string error_message = 4;       // 错误信息
+  int64 started_at = 5;           // 启动时间戳
+  int64 finished_at = 6;          // 结束时间戳
+}
+
+// LogsRequest 日志请求
+message LogsRequest {
+  string container_id = 1;        // 容器 ID
+  bool follow = 2;                // 是否持续跟踪
+  int32 tail_lines = 3;           // 尾部行数
+}
+
+// LogChunk 日志块
+message LogChunk {
+  string content = 1;             // 日志内容
+  int64 timestamp = 2;            // 时间戳
+}
+
+// StopRequest 停止容器请求
+message StopRequest {
+  string container_id = 1;        // 容器 ID
+  int32 timeout_seconds = 2;      // 超时时间 (秒)
+}
+
+// StopResponse 停止容器响应
+message StopResponse {
+  bool success = 1;               // 是否成功
+  string error_message = 2;       // 错误信息
+}
+
+// ResourceInfo Worker 资源信息
+message ResourceInfo {
+  string node_name = 1;           // 节点名称
+  string node_addr = 2;           // 节点地址
+  int32 total_gpu = 3;            // 总 GPU 数
+  int32 available_gpu = 4;        // 可用 GPU 数
+  int32 total_memory_gb = 5;      // 总内存 (GB)
+  int32 available_memory_gb = 6;  // 可用内存 (GB)
+  int32 total_cpu = 7;            // 总 CPU 核心数
+  int32 available_cpu = 8;        // 可用 CPU 核心数
+  repeated string running_containers = 9; // 运行中的容器列表
+}
+
+// Ack 确认响应
+message Ack {
+  bool success = 1;               // 是否成功
+  string message = 2;             // 消息
+}
