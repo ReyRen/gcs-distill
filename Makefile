@@ -27,11 +27,17 @@ help:
 	@echo "  make docker-restart - 重启 Docker Compose 环境"
 	@echo "  make docker-logs    - 查看 Docker Compose 日志"
 	@echo "  make docker-build   - 构建 EasyDistill Docker 镜像"
+	@echo "  make docker-test    - 测试 EasyDistill Docker 镜像"
 	@echo "  make docker-build-all - 构建所有 Docker 镜像"
+	@echo ""
+	@echo "测试和验证:"
+	@echo "  make test           - 运行 Go 单元测试"
+	@echo "  make test-integration - 运行集成测试"
+	@echo "  make test-e2e       - 运行端到端测试"
+	@echo "  make test-all       - 运行所有测试"
 	@echo ""
 	@echo "开发工具:"
 	@echo "  make proto          - 生成 gRPC 代码"
-	@echo "  make test           - 运行 Go 单元测试"
 	@echo "  make clean          - 清理编译产物"
 	@echo "  make fmt            - 格式化代码"
 	@echo "  make tidy           - 整理 Go 依赖"
@@ -77,8 +83,14 @@ clean:
 ## docker-build: 构建 EasyDistill Docker 镜像
 docker-build:
 	@echo "构建 EasyDistill Docker 镜像..."
-	@docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f docker/easydistill/Dockerfile docker/easydistill/
+	@docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f docker/easydistill/Dockerfile .
 	@echo "镜像构建完成: $(DOCKER_IMAGE):$(DOCKER_TAG)"
+
+## docker-test: 测试 EasyDistill Docker 镜像
+docker-test:
+	@echo "测试 EasyDistill Docker 镜像..."
+	@docker run --rm $(DOCKER_IMAGE):$(DOCKER_TAG) --help
+	@echo "镜像测试完成"
 
 ## run-server: 运行服务端 (开发模式)
 run-server: server
@@ -146,3 +158,19 @@ docker-build-all:
 
 ## docker-restart: 重启 Docker Compose 环境
 docker-restart: docker-down docker-up
+
+## test-integration: 运行集成测试
+test-integration:
+	@echo "运行集成测试..."
+	@bash tests/integration/test_easydistill.sh
+	@echo "集成测试完成"
+
+## test-e2e: 运行端到端测试
+test-e2e:
+	@echo "运行端到端测试..."
+	@bash tests/integration/test_e2e_workflow.sh
+	@echo "端到端测试完成"
+
+## test-all: 运行所有测试
+test-all: test test-integration test-e2e
+	@echo "所有测试完成"

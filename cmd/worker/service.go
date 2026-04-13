@@ -32,13 +32,14 @@ func (s *WorkerService) RunContainer(ctx context.Context, req *pb.RunContainerRe
 
 	// 转换配置
 	cfg := &docker.ContainerConfig{
-		Image:    req.Image,
-		Command:  req.Command,
-		WorkDir:  req.WorkDir,
-		Env:      req.Env,
-		GPUCount: int(req.GpuCount),
-		MemoryGB: int(req.MemoryGb),
-		CPUCores: int(req.CpuCores),
+		Image:        req.Image,
+		Command:      req.Command,
+		WorkDir:      req.WorkDir,
+		Env:          req.Env,
+		GPUCount:     int(req.GpuCount),
+		GPUDeviceIDs: req.GpuDeviceIds,
+		MemoryGB:     int(req.MemoryGb),
+		CPUCores:     int(req.CpuCores),
 		Labels: map[string]string{
 			"managed-by": "gcs-distill",
 		},

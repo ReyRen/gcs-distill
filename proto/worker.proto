@@ -29,9 +29,10 @@ message RunContainerRequest {
   string work_dir = 3;            // 工作目录
   repeated string env = 4;        // 环境变量
   repeated VolumeMount volume_mounts = 5; // 挂载卷
-  int32 gpu_count = 6;            // GPU 数量
+  int32 gpu_count = 6;            // GPU 数量（-1 表示所有 GPU）
   int32 memory_gb = 7;            // 内存 (GB)
   int32 cpu_cores = 8;            // CPU 核心数
+  string gpu_device_ids = 9;      // GPU 设备 ID，如 "0,1,2" 或 "0"
 }
 
 // VolumeMount 卷挂载
