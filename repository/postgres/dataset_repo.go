@@ -34,18 +34,19 @@ func (r *datasetRepo) Create(ctx context.Context, dataset *types.Dataset) error 
 		INSERT INTO datasets (
 			id, project_id, name, description, source_type, file_path, record_count
 		) VALUES (
-			gen_random_uuid(), $1, $2, $3, $4, $5, $6
-		) RETURNING id, created_at
+			$1, $2, $3, $4, $5, $6, $7
+		) RETURNING created_at
 	`
 
 	err := r.db.Pool.QueryRow(ctx, query,
+		dataset.ID,
 		dataset.ProjectID,
 		dataset.Name,
 		dataset.Description,
 		dataset.SourceType,
 		dataset.FilePath,
 		dataset.RecordCount,
-	).Scan(&dataset.ID, &dataset.CreatedAt)
+	).Scan(&dataset.CreatedAt)
 
 	if err != nil {
 		return fmt.Errorf("创建数据集失败: %w", err)

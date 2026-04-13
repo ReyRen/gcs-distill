@@ -1,15 +1,19 @@
 package service
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
 	"github.com/ReyRen/gcs-distill/repository/postgres"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -17,6 +21,8 @@ import (
 type DatasetService interface {
 	// CreateDataset 创建数据集
 	CreateDataset(ctx context.Context, dataset *types.Dataset) error
+	// CreateUploadedDataset 创建并保存上传的数据集文件
+	CreateUploadedDataset(ctx context.Context, dataset *types.Dataset, file multipart.File, originalFilename string) error
 	// GetDataset 获取数据集
 	GetDataset(ctx context.Context, id string) (*types.Dataset, error)
 	// ListDatasets 列出项目的数据集
@@ -51,21 +57,8 @@ func NewDatasetService(
 
 // CreateDataset 创建数据集
 func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Dataset) error {
-	// 验证数据集信息
-	if err := s.validateDataset(dataset); err != nil {
+	if err := s.prepareDataset(ctx, dataset); err != nil {
 		return err
-	}
-
-	// 检查项目是否存在
-	_, err := s.projectRepo.GetByID(ctx, dataset.ProjectID)
-	if err != nil {
-		return fmt.Errorf("项目不存在: %s", dataset.ProjectID)
-	}
-
-	// 创建存储目录
-	datasetPath := s.GetDatasetPath(dataset.ProjectID, dataset.ID)
-	if err := os.MkdirAll(filepath.Dir(datasetPath), 0755); err != nil {
-		return fmt.Errorf("创建数据集目录失败: %w", err)
 	}
 
 	// 创建数据集
@@ -82,6 +75,65 @@ func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Datas
 		zap.String("dataset_id", dataset.ID),
 		zap.String("project_id", dataset.ProjectID),
 		zap.String("name", dataset.Name),
+	)
+
+	return nil
+}
+
+// CreateUploadedDataset 创建并保存上传的数据集文件
+func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *types.Dataset, file multipart.File, originalFilename string) error {
+	if err := s.prepareDataset(ctx, dataset); err != nil {
+		return err
+	}
+
+	safeFilename := filepath.Base(strings.TrimSpace(originalFilename))
+	if safeFilename == "." || safeFilename == string(filepath.Separator) || safeFilename == "" {
+		return fmt.Errorf("上传文件名不能为空")
+	}
+
+	datasetDir := s.GetDatasetPath(dataset.ProjectID, dataset.ID)
+	if err := os.MkdirAll(datasetDir, 0755); err != nil {
+		return fmt.Errorf("创建数据集目录失败: %w", err)
+	}
+
+	dataset.FilePath = filepath.Join(datasetDir, safeFilename)
+	targetFile, err := os.Create(dataset.FilePath)
+	if err != nil {
+		return fmt.Errorf("创建数据集文件失败: %w", err)
+	}
+
+	copyErr := func() error {
+		defer targetFile.Close()
+		_, err := targetFile.ReadFrom(file)
+		return err
+	}()
+	if copyErr != nil {
+		_ = os.Remove(dataset.FilePath)
+		return fmt.Errorf("保存上传文件失败: %w", copyErr)
+	}
+
+	recordCount, err := countDatasetRecords(dataset.FilePath)
+	if err != nil {
+		_ = os.Remove(dataset.FilePath)
+		return fmt.Errorf("统计数据集记录数失败: %w", err)
+	}
+	dataset.RecordCount = recordCount
+
+	if err := s.datasetRepo.Create(ctx, dataset); err != nil {
+		_ = os.Remove(dataset.FilePath)
+		logger.Error("创建上传数据集失败",
+			zap.String("project_id", dataset.ProjectID),
+			zap.String("file_path", dataset.FilePath),
+			zap.Error(err),
+		)
+		return fmt.Errorf("创建数据集失败: %w", err)
+	}
+
+	logger.Info("上传数据集创建成功",
+		zap.String("dataset_id", dataset.ID),
+		zap.String("project_id", dataset.ProjectID),
+		zap.String("file_path", dataset.FilePath),
+		zap.Int("record_count", dataset.RecordCount),
 	)
 
 	return nil
@@ -202,6 +254,55 @@ func (s *datasetService) DeleteDataset(ctx context.Context, id string) error {
 func (s *datasetService) GetDatasetPath(projectID, datasetID string) string {
 	// /shared/distill/projects/{project_id}/datasets/{dataset_id}/
 	return filepath.Join(s.storageCfg.BasePath, "projects", projectID, "datasets", datasetID)
+}
+
+func (s *datasetService) prepareDataset(ctx context.Context, dataset *types.Dataset) error {
+	if dataset.ID == "" {
+		dataset.ID = uuid.New().String()
+	}
+
+	if err := s.validateDataset(dataset); err != nil {
+		return err
+	}
+
+	if dataset.Name == "" && dataset.FilePath != "" {
+		dataset.Name = filepath.Base(dataset.FilePath)
+	}
+
+	_, err := s.projectRepo.GetByID(ctx, dataset.ProjectID)
+	if err != nil {
+		return fmt.Errorf("项目不存在: %s", dataset.ProjectID)
+	}
+
+	return nil
+}
+
+func countDatasetRecords(filePath string) (int, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	buffer := make([]byte, 1024*64)
+	scanner.Buffer(buffer, 1024*1024)
+
+	count := 0
+	for scanner.Scan() {
+		if strings.TrimSpace(scanner.Text()) != "" {
+			count++
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+
+	if count == 0 {
+		return 1, nil
+	}
+
+	return count, nil
 }
 
 // validateDataset 验证数据集信息

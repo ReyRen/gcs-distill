@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/ReyRen/gcs-distill/internal/types"
 	"github.com/ReyRen/gcs-distill/service"
@@ -24,6 +25,11 @@ func NewDatasetHandler(datasetSvc service.DatasetService) *DatasetHandler {
 
 // CreateDataset 创建数据集
 func (h *DatasetHandler) CreateDataset(c *gin.Context) {
+	if strings.HasPrefix(c.ContentType(), "multipart/form-data") {
+		h.createUploadedDataset(c)
+		return
+	}
+
 	var req types.Dataset
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -48,6 +54,64 @@ func (h *DatasetHandler) CreateDataset(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,
 		"message": "数据集创建成功",
+		"data":    req,
+	})
+}
+
+func (h *DatasetHandler) createUploadedDataset(c *gin.Context) {
+	projectID := c.Param("id")
+	if projectID == "" {
+		projectID = c.PostForm("project_id")
+	}
+	if projectID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    http.StatusBadRequest,
+			"message": "项目ID不能为空",
+		})
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    http.StatusBadRequest,
+			"message": "上传文件不能为空: " + err.Error(),
+		})
+		return
+	}
+
+	uploadedFile, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    http.StatusInternalServerError,
+			"message": "打开上传文件失败: " + err.Error(),
+		})
+		return
+	}
+	defer uploadedFile.Close()
+
+	req := types.Dataset{
+		ID:          uuid.New().String(),
+		ProjectID:   projectID,
+		Name:        strings.TrimSpace(c.PostForm("name")),
+		Description: strings.TrimSpace(c.PostForm("description")),
+		SourceType:  "upload",
+	}
+	if req.Name == "" {
+		req.Name = fileHeader.Filename
+	}
+
+	if err := h.datasetSvc.CreateUploadedDataset(c.Request.Context(), &req, uploadedFile, fileHeader.Filename); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    http.StatusOK,
+		"message": "数据集上传成功",
 		"data":    req,
 	})
 }

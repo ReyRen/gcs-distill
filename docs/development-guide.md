@@ -327,7 +327,7 @@ docker logs -f <container-id>
 docker ps | grep postgres
 
 # 测试连接
-psql -h localhost -U postgres -d gcs_distill
+psql -h 172.18.36.230 -U postgres -d gcs_distill
 ```
 
 ### 2. gRPC 代码生成失败

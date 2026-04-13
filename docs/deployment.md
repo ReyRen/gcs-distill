@@ -64,12 +64,12 @@ docker-compose logs -f
 
 ### 4. 访问 API 服务
 
-API 服务将在 `http://localhost:8080` 上运行。
+API 服务将在 `http://172.18.36.230:18080` 上运行。
 
 验证服务是否启动：
 
 ```bash
-curl http://localhost:8080/health
+curl http://172.18.36.230:18080/health
 ```
 
 预期响应：
@@ -113,7 +113,7 @@ redis:
 # 共享存储配置
 storage:
   type: local            # 存储类型: local, nfs, ceph
-  base_path: /mnt/shared/distill  # 工作空间基础路径
+  base_path: /mnt/shared/distill  # 容器内路径，映射到宿主机 /storage-md0/renyuan/gcs-distill-data/shared-workspace
 
 # gRPC 配置
 grpc:
@@ -126,7 +126,7 @@ grpc:
 logging:
   level: info            # 日志级别: debug, info, warn, error
   output: stdout         # 输出方式: stdout, file
-  file_path: /var/log/gcs-distill/server.log
+  file_path: /var/log/gcs-distill/server.log  # 容器内路径，映射到宿主机 /storage-md0/renyuan/gcs-distill-data/logs/server.log
   max_size: 100          # 单个日志文件最大大小 (MB)
   max_age: 7             # 日志保留天数
   compress: true         # 是否压缩旧日志
@@ -193,20 +193,20 @@ docker-compose down -v
 
 ```bash
 # 检查 API 服务
-curl http://localhost:8080/health
+curl http://172.18.36.230:18080/health
 
 # 检查数据库连接
 docker-compose exec gcs-server sh -c 'wget -qO- http://localhost:8080/health'
 
 # 检查 Worker 节点注册
-curl http://localhost:8080/api/v1/nodes
+curl http://172.18.36.230:18080/api/v1/nodes
 ```
 
 ### 2. 创建测试项目
 
 ```bash
 # 创建项目
-curl -X POST http://localhost:8080/api/v1/projects \
+curl -X POST http://172.18.36.230:18080/api/v1/projects \
   -H "Content-Type: application/json" \
   -d '{
     "name": "test-project",
@@ -216,14 +216,14 @@ curl -X POST http://localhost:8080/api/v1/projects \
   }'
 
 # 查看项目列表
-curl http://localhost:8080/api/v1/projects
+curl http://172.18.36.230:18080/api/v1/projects
 ```
 
 ### 3. 检查 Worker 节点
 
 ```bash
 # 查看 Worker 节点状态
-curl http://localhost:8080/api/v1/nodes
+curl http://172.18.36.230:18080/api/v1/nodes
 
 # 预期输出包含 worker-1 节点信息
 ```
@@ -251,9 +251,9 @@ curl http://localhost:8080/api/v1/nodes
       - "50053:50053"
     volumes:
       - ./config.yaml:/app/config.yaml:ro
-      - shared_workspace:/mnt/shared/distill
+      - /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./logs:/var/log/gcs-distill
+      - /storage-md0/renyuan/gcs-distill-data/logs:/var/log/gcs-distill
     networks:
       - gcs-network
     restart: unless-stopped
@@ -279,7 +279,7 @@ docker run -d \
   --privileged \
   -p 50053:50053 \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
-  -v /mnt/shared:/mnt/shared/distill \
+  -v /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -e NODE_NAME=worker-2 \
   -e NODE_ADDR=<主机IP>:50053 \
@@ -358,7 +358,7 @@ docker-compose logs gcs-worker-1
 docker-compose exec redis redis-cli ping
 
 # 手动测试心跳
-docker-compose exec gcs-worker-1 /app/worker -config /app/config.yaml -name worker-test -addr localhost:50052
+docker-compose exec gcs-worker-1 /app/worker -config /app/config.yaml -name worker-test -addr gcs-worker-1:50052
 ```
 
 ### 问题 3: 容器权限问题

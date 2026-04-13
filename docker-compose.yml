@@ -12,7 +12,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - /storage-md0/renyuan/gcs-distill-data/postgres:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
@@ -29,7 +29,7 @@ services:
     ports:
       - "6379:6379"
     volumes:
-      - redis_data:/data
+      - /storage-md0/renyuan/gcs-distill-data/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -43,6 +43,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.server
+      args:
+        GOPROXY: "${GOPROXY:-https://goproxy.cn|https://proxy.golang.org|direct}"
     container_name: gcs-server
     depends_on:
       postgres:
@@ -52,12 +54,12 @@ services:
     environment:
       - CONFIG_PATH=/app/config.yaml
     ports:
-      - "8080:8080"   # HTTP API
+      - "18080:8080"  # HTTP API
       - "50051:50051" # gRPC
     volumes:
-      - ./config.example.yaml:/app/config.yaml:ro
-      - shared_workspace:/mnt/shared/distill
-      - ./logs:/var/log/gcs-distill
+      - ./config.docker.yaml:/app/config.yaml:ro
+      - /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill
+      - /storage-md0/renyuan/gcs-distill-data/logs:/var/log/gcs-distill
     networks:
       - gcs-network
     restart: unless-stopped
@@ -67,6 +69,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.worker
+      args:
+        GOPROXY: "${GOPROXY:-https://goproxy.cn|https://proxy.golang.org|direct}"
     container_name: gcs-worker-1
     depends_on:
       - redis
@@ -78,10 +82,10 @@ services:
     ports:
       - "50052:50052" # gRPC
     volumes:
-      - ./config.example.yaml:/app/config.yaml:ro
-      - shared_workspace:/mnt/shared/distill
+      - ./config.docker.yaml:/app/config.yaml:ro
+      - /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill
       - /var/run/docker.sock:/var/run/docker.sock  # Docker socket 挂载
-      - ./logs:/var/log/gcs-distill
+      - /storage-md0/renyuan/gcs-distill-data/logs:/var/log/gcs-distill
     networks:
       - gcs-network
     restart: unless-stopped
@@ -104,10 +108,10 @@ services:
   #   ports:
   #     - "50053:50053"
   #   volumes:
-  #     - ./config.example.yaml:/app/config.yaml:ro
-  #     - shared_workspace:/mnt/shared/distill
+  #     - ./config.docker.yaml:/app/config.yaml:ro
+    #     - /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill
   #     - /var/run/docker.sock:/var/run/docker.sock
-  #     - ./logs:/var/log/gcs-distill
+    #     - /storage-md0/renyuan/gcs-distill-data/logs:/var/log/gcs-distill
   #   networks:
   #     - gcs-network
   #   restart: unless-stopped
@@ -116,11 +120,3 @@ services:
 networks:
   gcs-network:
     driver: bridge
-
-volumes:
-  postgres_data:
-    driver: local
-  redis_data:
-    driver: local
-  shared_workspace:
-    driver: local

@@ -39,7 +39,7 @@ GCS-Distill 是一个大模型蒸馏平台，核心流程包含 6 个阶段：
 ### Base URL
 
 ```
-http://localhost:8080/api/v1
+http://172.18.36.230:18080/api/v1
 ```
 
 ### 通用响应格式

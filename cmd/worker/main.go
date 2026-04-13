@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
 	"net"
 	"os"
 	"os/signal"
+	"runtime"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,11 +24,18 @@ import (
 	"google.golang.org/grpc"
 )
 
+type detectedResources struct {
+	TotalGPU      int
+	TotalMemoryGB int
+	TotalCPU      int
+}
+
 var (
 	configPath = flag.String("config", "config.yaml", "配置文件路径")
 	nodeName   = flag.String("name", "", "Worker 节点名称")
 	nodeAddr   = flag.String("addr", "", "Worker 节点地址 (host:port)")
 	version    = "v0.1.0"
+	workerStartedAt = time.Now()
 )
 
 func main() {
@@ -149,16 +160,43 @@ func startHeartbeat(ctx context.Context, nodeCache redis.NodeCache, nodeName, no
 
 // reportHeartbeat 上报心跳
 func reportHeartbeat(ctx context.Context, nodeCache redis.NodeCache, nodeName, nodeAddr string) {
-	// TODO: 检测实际的资源使用情况
-	// 这里使用示例数据
+	resources, err := detectNodeResources()
+	if err != nil {
+		logger.Warn("检测节点资源失败，使用回退值", zap.Error(err))
+	}
+
+	now := time.Now()
+	availableGPU := resources.TotalGPU
+	status := "online"
+
+	if existing, err := nodeCache.GetNode(ctx, nodeName); err == nil {
+		if existing.TotalGPU == resources.TotalGPU && !existing.UpdatedAt.IsZero() && !existing.UpdatedAt.Before(workerStartedAt) {
+			availableGPU = clampAvailableGPU(existing.AvailableGPU, resources.TotalGPU)
+		}
+		if existing.Status != "" && existing.TotalGPU == resources.TotalGPU && !existing.UpdatedAt.IsZero() && !existing.UpdatedAt.Before(workerStartedAt) {
+			status = existing.Status
+		}
+	}
+
+	if resources.TotalGPU == 0 {
+		availableGPU = 0
+		status = "online"
+	} else if availableGPU == 0 {
+		status = "busy"
+	} else {
+		status = "online"
+	}
 
 	node := &types.WorkerNode{
 		NodeName:      nodeName,
 		NodeAddr:      nodeAddr,
-		TotalGPU:      4,      // TODO: 从系统检测
-		AvailableGPU:  2,      // TODO: 动态计算
-		TotalMemoryGB: 128,    // TODO: 从系统检测
-		TotalCPU:      32,     // TODO: 从系统检测
+		Status:        status,
+		TotalGPU:      resources.TotalGPU,
+		AvailableGPU:  availableGPU,
+		TotalMemoryGB: resources.TotalMemoryGB,
+		TotalCPU:      resources.TotalCPU,
+		LastHeartbeat: now,
+		UpdatedAt:     now,
 	}
 
 	if err := nodeCache.SetNode(ctx, node); err != nil {
@@ -169,6 +207,108 @@ func reportHeartbeat(ctx context.Context, nodeCache redis.NodeCache, nodeName, n
 	} else {
 		logger.Debug("心跳上报成功", zap.String("node_name", nodeName))
 	}
+}
+
+func detectNodeResources() (*detectedResources, error) {
+	resources := &detectedResources{
+		TotalGPU:      detectGPUCount(),
+		TotalMemoryGB: detectTotalMemoryGB(),
+		TotalCPU:      detectTotalCPU(),
+	}
+
+	return resources, nil
+}
+
+func detectGPUCount() int {
+	if value, ok := parseNonNegativeEnvInt("TOTAL_GPU"); ok {
+		return value
+	}
+
+	entries, err := os.ReadDir("/proc/driver/nvidia/gpus")
+	if err == nil {
+		count := 0
+		for _, entry := range entries {
+			if entry.IsDir() {
+				count++
+			}
+		}
+		if count > 0 {
+			return count
+		}
+	}
+
+	return 0
+}
+
+func detectTotalMemoryGB() int {
+	if value, ok := parseNonNegativeEnvInt("TOTAL_MEMORY_GB"); ok {
+		return value
+	}
+
+	file, err := os.Open("/proc/meminfo")
+	if err != nil {
+		return 0
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !strings.HasPrefix(line, "MemTotal:") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return 0
+		}
+
+		memTotalKB, err := strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			return 0
+		}
+
+		const kbPerGB = 1024 * 1024
+		return int((memTotalKB + kbPerGB - 1) / kbPerGB)
+	}
+
+	return 0
+}
+
+func detectTotalCPU() int {
+	if value, ok := parseNonNegativeEnvInt("TOTAL_CPU"); ok {
+		return value
+	}
+
+	return runtime.NumCPU()
+}
+
+func parseNonNegativeEnvInt(name string) (int, bool) {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return 0, false
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed < 0 {
+		return 0, false
+	}
+
+	return parsed, true
+}
+
+func clampAvailableGPU(current, total int) int {
+	if total <= 0 {
+		return 0
+	}
+	if current < 0 {
+		return 0
+	}
+	if current > total {
+		return total
+	}
+
+	return current
 }
 
 // startContainerCleanup 启动容器清理

@@ -114,8 +114,8 @@ docker-up:
 	@docker-compose ps
 	@echo ""
 	@echo "✅ 服务已启动！"
-	@echo "API 服务: http://localhost:8080"
-	@echo "健康检查: curl http://localhost:8080/health"
+	@echo "API 服务: http://172.18.36.230:18080"
+	@echo "健康检查: curl http://172.18.36.230:18080/health"
 
 ## docker-down: 停止 Docker Compose 环境
 docker-down:

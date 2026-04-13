@@ -2,7 +2,7 @@
 
 ## 基础信息
 
-- **Base URL**: `http://localhost:8080/api/v1`
+- **Base URL**: `http://172.18.36.230:18080/api/v1`
 - **Content-Type**: `application/json`
 - **响应格式**: JSON
 
@@ -344,7 +344,7 @@
 #### 1. 创建项目
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/projects \
+curl -X POST http://172.18.36.230:18080/api/v1/projects \
   -H "Content-Type: application/json" \
   -d '{
     "name": "测试项目",
@@ -365,7 +365,7 @@ curl -X POST http://localhost:8080/api/v1/projects \
 #### 2. 创建数据集
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/datasets \
+curl -X POST http://172.18.36.230:18080/api/v1/datasets \
   -H "Content-Type: application/json" \
   -d '{
     "project_id": "项目ID",
@@ -379,7 +379,7 @@ curl -X POST http://localhost:8080/api/v1/datasets \
 
 ```bash
 # 创建流水线
-curl -X POST http://localhost:8080/api/v1/pipelines \
+curl -X POST http://172.18.36.230:18080/api/v1/pipelines \
   -H "Content-Type: application/json" \
   -d '{
     "project_id": "项目ID",
@@ -394,23 +394,23 @@ curl -X POST http://localhost:8080/api/v1/pipelines \
   }'
 
 # 启动流水线
-curl -X POST http://localhost:8080/api/v1/pipelines/{流水线ID}/start
+curl -X POST http://172.18.36.230:18080/api/v1/pipelines/{流水线ID}/start
 ```
 
 #### 4. 查询流水线状态
 
 ```bash
 # 获取流水线详情
-curl http://localhost:8080/api/v1/pipelines/{流水线ID}
+curl http://172.18.36.230:18080/api/v1/pipelines/{流水线ID}
 
 # 获取阶段列表
-curl http://localhost:8080/api/v1/pipelines/{流水线ID}/stages
+curl http://172.18.36.230:18080/api/v1/pipelines/{流水线ID}/stages
 ```
 
 #### 5. 查看可用节点
 
 ```bash
-curl http://localhost:8080/api/v1/resources/nodes
+curl http://172.18.36.230:18080/api/v1/resources/nodes
 ```
 
 ---

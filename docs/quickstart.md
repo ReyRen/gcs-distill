@@ -42,13 +42,13 @@ gcs-worker-1        "sh -c ./worker -con…"   gcs-worker-1        running      
 
 ```bash
 # 检查 API 服务健康状态
-curl http://localhost:8080/health
+curl http://172.18.36.230:18080/health
 
 # 预期输出：
 # {"status":"ok","timestamp":"2024-01-01T00:00:00Z"}
 
 # 检查 Worker 节点注册
-curl http://localhost:8080/api/v1/nodes
+curl http://172.18.36.230:18080/api/v1/nodes
 
 # 预期输出包含 worker-1 节点信息
 ```
@@ -57,7 +57,7 @@ curl http://localhost:8080/api/v1/nodes
 
 ```bash
 # 创建测试项目
-curl -X POST http://localhost:8080/api/v1/projects \
+curl -X POST http://172.18.36.230:18080/api/v1/projects \
   -H "Content-Type: application/json" \
   -d '{
     "name": "my-first-project",
@@ -67,7 +67,7 @@ curl -X POST http://localhost:8080/api/v1/projects \
   }'
 
 # 查看项目列表
-curl http://localhost:8080/api/v1/projects
+curl http://172.18.36.230:18080/api/v1/projects
 ```
 
 ## 🎉 完成！
@@ -94,9 +94,9 @@ cat > seeds.json <<EOF
 EOF
 
 # 上传种子数据（需要先获取项目ID）
-PROJECT_ID=$(curl -s http://localhost:8080/api/v1/projects | jq -r '.[0].id')
+PROJECT_ID=$(curl -s http://172.18.36.230:18080/api/v1/projects | jq -r '.[0].id')
 
-curl -X POST http://localhost:8080/api/v1/projects/$PROJECT_ID/runs \
+curl -X POST http://172.18.36.230:18080/api/v1/projects/$PROJECT_ID/runs \
   -F "file=@seeds.json" \
   -F "teacher_model=gpt-4" \
   -F "student_model=llama-7b"
@@ -106,20 +106,20 @@ curl -X POST http://localhost:8080/api/v1/projects/$PROJECT_ID/runs \
 
 ```bash
 # 获取 Run ID
-RUN_ID=$(curl -s http://localhost:8080/api/v1/projects/$PROJECT_ID/runs | jq -r '.[0].id')
+RUN_ID=$(curl -s http://172.18.36.230:18080/api/v1/projects/$PROJECT_ID/runs | jq -r '.[0].id')
 
 # 启动推理阶段
-curl -X POST http://localhost:8080/api/v1/runs/$RUN_ID/start
+curl -X POST http://172.18.36.230:18080/api/v1/runs/$RUN_ID/start
 ```
 
 #### 查看任务进度
 
 ```bash
 # 查看 Run 状态
-curl http://localhost:8080/api/v1/runs/$RUN_ID
+curl http://172.18.36.230:18080/api/v1/runs/$RUN_ID
 
 # 查看阶段日志
-curl http://localhost:8080/api/v1/runs/$RUN_ID/logs?stage=infer
+curl http://172.18.36.230:18080/api/v1/runs/$RUN_ID/logs?stage=infer
 ```
 
 ## 常用命令
@@ -269,16 +269,20 @@ sudo lsof -i :6379
 
 3. **启用持久化存储**
 
-   确保使用命名卷而非匿名卷：
+   将数据绑定到大盘目录，而不是落到 Docker 默认数据目录：
 
    ```yaml
-   volumes:
-     postgres_data:
-       driver: local
-       driver_opts:
-         type: none
-         device: /data/postgres
-         o: bind
+   services:
+     postgres:
+       volumes:
+         - /storage-md0/renyuan/gcs-distill-data/postgres:/var/lib/postgresql/data
+     redis:
+       volumes:
+         - /storage-md0/renyuan/gcs-distill-data/redis:/data
+     gcs-server:
+       volumes:
+         - /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill
+         - /storage-md0/renyuan/gcs-distill-data/logs:/var/log/gcs-distill
    ```
 
 4. **配置反向代理**

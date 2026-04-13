@@ -1,6 +1,10 @@
 # GCS-Distill Worker 节点 Dockerfile
 ARG GO_VERSION=1.25
+ARG GOPROXY=https://goproxy.cn|https://proxy.golang.org|direct
 FROM golang:${GO_VERSION}-alpine AS builder
+
+ARG GOPROXY
+ENV GOPROXY=${GOPROXY}
 
 # 安装编译依赖
 RUN apk add --no-cache git make

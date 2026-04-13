@@ -1,0 +1,787 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "GCS-Distill API",
+    "version": "v0.1.0",
+    "description": "GCS-Distill control plane HTTP API documentation."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    { "name": "health", "description": "Service health" },
+    { "name": "projects", "description": "Project management" },
+    { "name": "datasets", "description": "Dataset management" },
+    { "name": "pipelines", "description": "Pipeline management" },
+    { "name": "resources", "description": "Worker resource discovery" }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["health"],
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HealthResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "tags": ["projects"],
+        "summary": "List projects",
+        "parameters": [
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged project list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["projects"],
+        "summary": "Create project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Project" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/ProjectId" }
+      ],
+      "get": {
+        "tags": ["projects"],
+        "summary": "Get project",
+        "responses": {
+          "200": {
+            "description": "Project details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["projects"],
+        "summary": "Update project",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Project" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["projects"],
+        "summary": "Delete project",
+        "responses": {
+          "200": {
+            "description": "Project deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{id}/datasets": {
+      "parameters": [
+        { "$ref": "#/components/parameters/ProjectId" }
+      ],
+      "post": {
+        "tags": ["datasets"],
+        "summary": "Upload dataset file",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": { "$ref": "#/components/schemas/DatasetUploadRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dataset uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatasetResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid upload request",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets": {
+      "get": {
+        "tags": ["datasets"],
+        "summary": "List datasets",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProjectIdQuery" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged dataset list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatasetListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["datasets"],
+        "summary": "Create dataset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Dataset" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dataset created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatasetResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/datasets/{id}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/DatasetId" }
+      ],
+      "get": {
+        "tags": ["datasets"],
+        "summary": "Get dataset",
+        "responses": {
+          "200": {
+            "description": "Dataset details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatasetResponse" }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["datasets"],
+        "summary": "Update dataset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Dataset" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Dataset updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/DatasetResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["datasets"],
+        "summary": "Delete dataset",
+        "responses": {
+          "200": {
+            "description": "Dataset deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pipelines": {
+      "get": {
+        "tags": ["pipelines"],
+        "summary": "List pipelines",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProjectIdQuery" },
+          { "$ref": "#/components/parameters/Page" },
+          { "$ref": "#/components/parameters/PageSize" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paged pipeline list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PipelineListResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["pipelines"],
+        "summary": "Create pipeline",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PipelineRun" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pipeline created",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PipelineResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pipelines/{id}": {
+      "parameters": [
+        { "$ref": "#/components/parameters/PipelineId" }
+      ],
+      "get": {
+        "tags": ["pipelines"],
+        "summary": "Get pipeline",
+        "responses": {
+          "200": {
+            "description": "Pipeline details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/PipelineResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pipelines/{id}/start": {
+      "post": {
+        "tags": ["pipelines"],
+        "summary": "Start pipeline",
+        "parameters": [
+          { "$ref": "#/components/parameters/PipelineId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pipeline started",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pipelines/{id}/cancel": {
+      "post": {
+        "tags": ["pipelines"],
+        "summary": "Cancel pipeline",
+        "parameters": [
+          { "$ref": "#/components/parameters/PipelineId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pipeline cancelled",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pipelines/{id}/stages": {
+      "get": {
+        "tags": ["pipelines"],
+        "summary": "List pipeline stages",
+        "parameters": [
+          { "$ref": "#/components/parameters/PipelineId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pipeline stages",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StageListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/nodes": {
+      "get": {
+        "tags": ["resources"],
+        "summary": "List worker nodes",
+        "responses": {
+          "200": {
+            "description": "Worker nodes",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NodeListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/resources/nodes/{name}": {
+      "get": {
+        "tags": ["resources"],
+        "summary": "Get worker node",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Worker node details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/NodeResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": { "type": "integer", "default": 1, "minimum": 1 }
+      },
+      "PageSize": {
+        "name": "page_size",
+        "in": "query",
+        "schema": { "type": "integer", "default": 20, "minimum": 1 }
+      },
+      "ProjectIdQuery": {
+        "name": "project_id",
+        "in": "query",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "ProjectId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "DatasetId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "PipelineId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "example": "ok" }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "操作成功" }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 400 },
+          "message": { "type": "string", "example": "请求参数错误" }
+        }
+      },
+      "ModelConfig": {
+        "type": "object",
+        "properties": {
+          "provider_type": { "type": "string", "example": "api" },
+          "model_name": { "type": "string", "example": "Qwen/Qwen2.5-7B-Instruct" },
+          "endpoint": { "type": "string", "example": "https://api.openai.com/v1/chat/completions" },
+          "api_secret_ref": { "type": "string", "example": "openai_key" },
+          "temperature": { "type": "number", "format": "double", "example": 0.7 },
+          "max_tokens": { "type": "integer", "example": 2048 },
+          "concurrency": { "type": "integer", "example": 10 },
+          "timeout_seconds": { "type": "integer", "example": 60 },
+          "extra_params": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "EvaluationConfig": {
+        "type": "object",
+        "properties": {
+          "metrics": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["bleu", "rouge", "accuracy"]
+          },
+          "test_set_ratio": { "type": "number", "format": "double", "example": 0.2 },
+          "extra_params": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "uuid-project" },
+          "name": { "type": "string", "example": "客服问答蒸馏" },
+          "description": { "type": "string", "example": "将教师模型蒸馏到轻量学生模型" },
+          "business_scenario": { "type": "string", "example": "智能客服" },
+          "teacher_model_config": { "$ref": "#/components/schemas/ModelConfig" },
+          "student_model_config": { "$ref": "#/components/schemas/ModelConfig" },
+          "evaluation_config": { "$ref": "#/components/schemas/EvaluationConfig" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Dataset": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "uuid-dataset" },
+          "project_id": { "type": "string", "example": "uuid-project" },
+          "name": { "type": "string", "example": "训练数据集" },
+          "description": { "type": "string", "example": "种子或蒸馏数据" },
+          "source_type": { "type": "string", "example": "upload" },
+          "file_path": { "type": "string", "example": "/mnt/shared/distill/project-a/seeds.jsonl" },
+          "record_count": { "type": "integer", "example": 1000 },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "DatasetUploadRequest": {
+        "type": "object",
+        "required": ["file"],
+        "properties": {
+          "name": { "type": "string", "example": "real-upload-dataset" },
+          "description": { "type": "string", "example": "uploaded file test" },
+          "file": {
+            "type": "string",
+            "format": "binary"
+          }
+        }
+      },
+      "LoRAConfig": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "example": true },
+          "r": { "type": "integer", "example": 8 },
+          "alpha": { "type": "integer", "example": 16 },
+          "dropout": { "type": "number", "format": "double", "example": 0.05 },
+          "target_modules": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "TrainingConfig": {
+        "type": "object",
+        "properties": {
+          "num_train_epochs": { "type": "integer", "example": 3 },
+          "per_device_train_batch_size": { "type": "integer", "example": 4 },
+          "gradient_accumulation_steps": { "type": "integer", "example": 1 },
+          "learning_rate": { "type": "number", "format": "double", "example": 0.00002 },
+          "weight_decay": { "type": "number", "format": "double", "example": 0.01 },
+          "warmup_ratio": { "type": "number", "format": "double", "example": 0.03 },
+          "lr_scheduler_type": { "type": "string", "example": "cosine" },
+          "save_steps": { "type": "integer", "example": 100 },
+          "logging_steps": { "type": "integer", "example": 10 },
+          "max_length": { "type": "integer", "example": 4096 },
+          "lora_config": { "$ref": "#/components/schemas/LoRAConfig" }
+        }
+      },
+      "ResourceRequest": {
+        "type": "object",
+        "properties": {
+          "gpu_count": { "type": "integer", "example": 1 },
+          "gpu_type": { "type": "string", "example": "RTX 4090" },
+          "memory_gb": { "type": "integer", "example": 32 },
+          "cpu_cores": { "type": "integer", "example": 8 }
+        }
+      },
+      "PipelineRun": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "uuid-pipeline" },
+          "project_id": { "type": "string", "example": "uuid-project" },
+          "dataset_id": { "type": "string", "example": "uuid-dataset" },
+          "status": { "type": "string", "example": "pending" },
+          "current_stage": { "type": "integer", "example": 0 },
+          "trigger_mode": { "type": "string", "example": "manual" },
+          "training_config": { "$ref": "#/components/schemas/TrainingConfig" },
+          "resource_request": { "$ref": "#/components/schemas/ResourceRequest" },
+          "error_message": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "started_at": { "type": "string", "format": "date-time" },
+          "finished_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "StageRun": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "uuid-stage" },
+          "pipeline_run_id": { "type": "string", "example": "uuid-pipeline" },
+          "stage_type": { "type": "string", "example": "teacher_infer" },
+          "stage_order": { "type": "integer", "example": 3 },
+          "status": { "type": "string", "example": "running" },
+          "container_id": { "type": "string" },
+          "node_name": { "type": "string" },
+          "config_path": { "type": "string" },
+          "input_manifest": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "output_manifest": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          },
+          "metrics": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "log_path": { "type": "string" },
+          "retry_count": { "type": "integer", "example": 0 },
+          "error_message": { "type": "string" },
+          "started_at": { "type": "string", "format": "date-time" },
+          "finished_at": { "type": "string", "format": "date-time" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "WorkerNode": {
+        "type": "object",
+        "properties": {
+          "node_name": { "type": "string", "example": "worker-1" },
+          "node_addr": { "type": "string", "example": "gcs-worker-1:50052" },
+          "status": { "type": "string", "example": "online" },
+          "total_gpu": { "type": "integer", "example": 4 },
+          "available_gpu": { "type": "integer", "example": 2 },
+          "total_memory_gb": { "type": "integer", "example": 128 },
+          "total_cpu": { "type": "integer", "example": 32 },
+          "last_heartbeat": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ProjectResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "项目创建成功" },
+          "data": { "$ref": "#/components/schemas/Project" }
+        }
+      },
+      "ProjectListResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取项目列表成功" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/Project" }
+              },
+              "total": { "type": "integer", "example": 1 },
+              "page": { "type": "integer", "example": 1 },
+              "page_size": { "type": "integer", "example": 20 }
+            }
+          }
+        }
+      },
+      "DatasetResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "数据集创建成功" },
+          "data": { "$ref": "#/components/schemas/Dataset" }
+        }
+      },
+      "DatasetListResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取数据集列表成功" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/Dataset" }
+              },
+              "total": { "type": "integer", "example": 1 },
+              "page": { "type": "integer", "example": 1 },
+              "page_size": { "type": "integer", "example": 20 }
+            }
+          }
+        }
+      },
+      "PipelineResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取流水线成功" },
+          "data": { "$ref": "#/components/schemas/PipelineRun" }
+        }
+      },
+      "PipelineListResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取流水线列表成功" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/PipelineRun" }
+              },
+              "total": { "type": "integer", "example": 1 },
+              "page": { "type": "integer", "example": 1 },
+              "page_size": { "type": "integer", "example": 20 }
+            }
+          }
+        }
+      },
+      "StageListResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取阶段列表成功" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StageRun" }
+          }
+        }
+      },
+      "NodeResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取节点信息成功" },
+          "data": { "$ref": "#/components/schemas/WorkerNode" }
+        }
+      },
+      "NodeListResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取节点列表成功" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/WorkerNode" }
+          }
+        }
+      }
+    }
+  }
+}

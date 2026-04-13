@@ -18,7 +18,7 @@ GCS-Distill 环境变量配置参考
 
 | 环境变量 | 说明 | 默认值 | 必需 |
 |---------|------|--------|------|
-| `DB_HOST` | PostgreSQL 主机地址 | `localhost` | 否 |
+| `DB_HOST` | PostgreSQL 主机地址 | `172.18.36.230` | 否 |
 | `DB_PORT` | PostgreSQL 端口 | `5432` | 否 |
 | `DB_USER` | 数据库用户名 | `postgres` | 否 |
 | `DB_PASSWORD` | 数据库密码 | `postgres` | 否 |
@@ -31,7 +31,7 @@ GCS-Distill 环境变量配置参考
 
 | 环境变量 | 说明 | 默认值 | 必需 |
 |---------|------|--------|------|
-| `REDIS_HOST` | Redis 主机地址 | `localhost` | 否 |
+| `REDIS_HOST` | Redis 主机地址 | `172.18.36.230` | 否 |
 | `REDIS_PORT` | Redis 端口 | `6379` | 否 |
 | `REDIS_PASSWORD` | Redis 密码 | `` | 否 |
 | `REDIS_DB` | Redis 数据库编号 | `0` | 否 |
@@ -290,7 +290,7 @@ docker-compose exec gcs-server sh -c 'wget -qO- http://localhost:8080/health'
 docker-compose exec redis redis-cli ping
 
 # 测试 Worker 连接
-curl http://localhost:8080/api/v1/nodes
+curl http://172.18.36.230:18080/api/v1/nodes
 ```
 
 ## 故障排查

@@ -53,7 +53,7 @@ cd gcs-distill
 docker-compose up -d
 
 # 3. 验证部署
-curl http://localhost:8080/health
+curl http://172.18.36.230:18080/health
 
 # 详细说明请参考: docs/quickstart.md
 ```
@@ -109,7 +109,7 @@ go build -o gcs-distill-worker ./cmd/worker
 
 1. 创建蒸馏项目
 ```bash
-curl -X POST http://localhost:8080/api/v1/projects \
+curl -X POST http://172.18.36.230:18080/api/v1/projects \
   -H "Content-Type: application/json" \
   -d '{
     "name": "客服问答蒸馏",
@@ -126,13 +126,13 @@ curl -X POST http://localhost:8080/api/v1/projects \
 
 2. 上传种子数据集
 ```bash
-curl -X POST http://localhost:8080/api/v1/projects/{project_id}/datasets \
+curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
   -F "file=@seed_data.json"
 ```
 
 3. 启动蒸馏流水线
 ```bash
-curl -X POST http://localhost:8080/api/v1/pipelines \
+curl -X POST http://172.18.36.230:18080/api/v1/pipelines \
   -H "Content-Type: application/json" \
   -d '{
     "project_id": "{project_id}",
@@ -147,7 +147,7 @@ curl -X POST http://localhost:8080/api/v1/pipelines \
 
 4. 查看流水线状态
 ```bash
-curl http://localhost:8080/api/v1/pipelines/{pipeline_id}
+curl http://172.18.36.230:18080/api/v1/pipelines/{pipeline_id}
 ```
 
 ## 目录结构
@@ -243,7 +243,7 @@ gcs-distill/
 
 ## API 文档
 
-详细 API 文档请访问: `http://localhost:8080/swagger/index.html`
+详细 API 文档请访问: `http://172.18.36.230:18080/swagger/index.html`
 
 主要 API 端点：
 
@@ -270,7 +270,7 @@ server:
 
 # 数据库配置
 database:
-  host: localhost
+  host: 172.18.36.230
   port: 5432
   user: postgres
   password: postgres
@@ -279,7 +279,7 @@ database:
 
 # Redis 配置
 redis:
-  host: localhost
+  host: 172.18.36.230
   port: 6379
   password: ""
   db: 0
@@ -287,7 +287,7 @@ redis:
 # 共享存储配置
 storage:
   type: nfs  # nfs, ceph, local
-  base_path: /mnt/shared/distill
+  base_path: /storage-md0/renyuan/gcs-distill-data/shared-workspace
 
 # gRPC 配置
 grpc:
@@ -297,7 +297,7 @@ grpc:
 logging:
   level: info  # debug, info, warn, error
   output: stdout  # stdout, file
-  file_path: /var/log/gcs-distill/server.log
+  file_path: /storage-md0/renyuan/gcs-distill-data/logs/server.log
 ```
 
 ## 开发指南

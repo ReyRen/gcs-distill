@@ -1,6 +1,9 @@
 package server
 
 import (
+	"net/http"
+
+	"github.com/ReyRen/gcs-distill/server/apidocs"
 	"github.com/ReyRen/gcs-distill/server/handlers"
 	"github.com/ReyRen/gcs-distill/server/middleware"
 	"github.com/ReyRen/gcs-distill/service"
@@ -61,6 +64,21 @@ func (r *Router) setupRoutes() {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
+	r.engine.GET("/swagger", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
+	})
+
+	r.engine.GET("/swagger/", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "/swagger/index.html")
+	})
+
+	r.engine.GET("/swagger/index.html", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", apidocs.MustReadFile("index.html"))
+	})
+	r.engine.GET("/swagger/openapi.json", func(c *gin.Context) {
+		c.Data(http.StatusOK, "application/json; charset=utf-8", apidocs.MustReadFile("openapi.json"))
+	})
+
 	// API v1
 	v1 := r.engine.Group("/api/v1")
 	{
@@ -70,6 +88,7 @@ func (r *Router) setupRoutes() {
 			projects.POST("", r.projectHandler.CreateProject)
 			projects.GET("", r.projectHandler.ListProjects)
 			projects.GET("/:id", r.projectHandler.GetProject)
+			projects.POST("/:id/datasets", r.datasetHandler.CreateDataset)
 			projects.PUT("/:id", r.projectHandler.UpdateProject)
 			projects.DELETE("/:id", r.projectHandler.DeleteProject)
 		}
