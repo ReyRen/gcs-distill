@@ -29,13 +29,9 @@ help:
 	@echo "  make docker-build   - 构建 EasyDistill Docker 镜像"
 	@echo "  make docker-build-all - 构建所有 Docker 镜像"
 	@echo ""
-	@echo "测试:"
-	@echo "  make test           - 运行 Go 单元测试"
-	@echo "  make test-api       - 运行完整 API 测试"
-	@echo "  make test-api-quick - 快速 API 测试"
-	@echo ""
 	@echo "开发工具:"
 	@echo "  make proto          - 生成 gRPC 代码"
+	@echo "  make test           - 运行 Go 单元测试"
 	@echo "  make clean          - 清理编译产物"
 	@echo "  make fmt            - 格式化代码"
 	@echo "  make tidy           - 整理 Go 依赖"
@@ -150,20 +146,3 @@ docker-build-all:
 
 ## docker-restart: 重启 Docker Compose 环境
 docker-restart: docker-down docker-up
-
-## test-api: 运行 API 综合测试
-test-api:
-	@echo "运行 API 综合测试..."
-	@./test-apis.sh
-
-## test-api-quick: 快速 API 测试（仅健康检查和基本接口）
-test-api-quick:
-	@echo "运行快速 API 测试..."
-	@echo "1. 健康检查..."
-	@curl -s http://localhost:18080/health | jq
-	@echo ""
-	@echo "2. 测试项目列表接口..."
-	@curl -s http://localhost:18080/api/v1/projects | jq
-	@echo ""
-	@echo "3. 测试资源节点接口..."
-	@curl -s http://localhost:18080/api/v1/resources/nodes | jq
