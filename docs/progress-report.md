@@ -75,11 +75,36 @@
   - 所有服务层组件初始化
   - HTTP 服务器启动和优雅关闭
 
-### 6. Docker 资源（已完成）
+### 6. 运行时逻辑层（已完成）✨
+- [x] ConfigGenerator (`runtime/config_generator.go`)
+  - GenerateTeacherInferConfig - 教师推理配置生成
+  - GenerateStudentTrainConfig - 学生训练配置生成
+  - GenerateEvaluateConfig - 评估配置生成
+  - 路径管理工具函数
+- [x] ManifestManager (`runtime/manifest_manager.go`)
+  - CreateSeedManifest - 创建种子数据清单
+  - LoadLabeledData - 加载标注数据
+  - SaveFilteredData - 保存过滤数据
+  - GetManifestStats - 统计清单信息
+- [x] DataGovernor (`runtime/data_governor.go`)
+  - FilterData - 数据治理主流程
+  - 空响应过滤
+  - 长度校验
+  - 去重逻辑
+  - 质量评分
+  - 训练/测试集划分
+- [x] StageExecutor (`runtime/stage_executor.go`)
+  - ExecuteStage - 执行阶段入口
+  - 六个阶段的具体执行逻辑
+  - Docker 容器调度
+  - 容器状态监控
+  - Worker 节点 gRPC 通信
+
+### 7. Docker 资源（已完成）
 - [x] EasyDistill Dockerfile
 - [x] 容器配置文档
 
-### 7. 文档体系（已完成）
+### 8. 文档体系（已完成）
 - [x] README.md - 项目介绍和快速开始
 - [x] docs/implementation-plan.md - 详细实施计划
 - [x] docs/development-guide.md - 开发指南
@@ -125,7 +150,11 @@ gcs-distill/
 │   └── logger/logger.go
 ├── proto/                  # gRPC 协议 ✅
 │   └── worker.proto
-├── runtime/                # 运行时逻辑 ⏳ (待实现)
+├── runtime/                # 运行时逻辑 ✅
+│   ├── config_generator.go
+│   ├── manifest_manager.go
+│   ├── data_governor.go
+│   └── stage_executor.go
 ├── utils/                  # 工具函数 ⏳ (待实现)
 ├── migrations/             # 数据库迁移 ✅
 └── docker/                 # Docker 资源 ✅
@@ -134,9 +163,9 @@ gcs-distill/
 ## 代码统计
 
 ### 已实现文件
-- Go 源文件: 27 个
-- 代码行数: 约 5,000+ 行
-- 文档: 5 个 Markdown 文件
+- Go 源文件: 31 个
+- 代码行数: 约 6,200+ 行
+- 文档: 6 个 Markdown 文件
 
 ### 测试覆盖
 - 单元测试: 待添加
@@ -267,10 +296,11 @@ gcs-distill/
 - ⏳ gRPC Server
 - ⏳ 资源检测
 
-### 里程碑 6: 运行时逻辑 ⏳ (0%)
-- ⏳ 配置生成器
-- ⏳ 阶段执行器
-- ⏳ 清单管理
+### 里程碑 6: 运行时逻辑 ✅ (100%)
+- ✅ ConfigGenerator - EasyDistill 配置生成器
+- ✅ StageExecutor - 阶段执行器
+- ✅ ManifestManager - 清单管理器
+- ✅ DataGovernor - 数据治理逻辑
 
 ### 里程碑 7: 端到端测试 ⏳ (0%)
 - ⏳ 测试环境搭建
@@ -280,42 +310,41 @@ gcs-distill/
 
 基于当前进度：
 
-- **已完成**: 约 60% 的核心功能
-- **剩余工作**: 约 4-6 周（单人开发）
-- **目标**: 2 个月内完成 MVP 版本
+- **已完成**: 约 75% 的核心功能
+- **剩余工作**: 约 2-3 周（单人开发）
+- **目标**: 1.5 个月内完成 MVP 版本
 
 ## 关键成就
 
 1. ✨ **完整的数据访问层**: 7 个 Repository 实现，支持 CRUD 和复杂查询
 2. ✨ **强大的业务逻辑层**: 4 个核心服务，涵盖项目、数据集、流水线和调度
 3. ✨ **完整的 API 服务层**: 基于 Gin 框架的 RESTful API，4 个 Handler + 3 个中间件
-4. ✨ **清晰的架构设计**: 三层架构，职责分明
-5. ✨ **完善的中文文档**: 实施计划、开发指南、API 文档
-6. ✨ **生产就绪的基础**: 配置系统、日志系统、错误处理、优雅关闭
+4. ✨ **核心运行时逻辑**: 配置生成、清单管理、数据治理、阶段执行
+5. ✨ **清晰的架构设计**: 三层架构，职责分明
+6. ✨ **完善的中文文档**: 实施计划、开发指南、API 文档
+7. ✨ **生产就绪的基础**: 配置系统、日志系统、错误处理、优雅关闭
 
 ## 下一步行动
 
-**下一步重点**: 实现运行时逻辑（核心功能）
+**下一步重点**: Worker 节点实现（最后一块核心功能）
 
-1. 实现 EasyDistill 配置生成器 (`runtime/config_generator.go`)
-   - 为六个阶段生成 EasyDistill 配置文件
-   - 支持教师模型推理配置、学生模型训练配置
-2. 实现阶段执行器 (`runtime/stage_executor.go`)
-   - 调用 Worker 节点执行容器任务
-   - 监控阶段执行状态
-   - 处理执行结果和错误
-3. 实现清单管理器 (`runtime/manifest_manager.go`)
-   - 生成训练清单
-   - 管理数据路径
-4. 实现数据治理逻辑 (`runtime/data_governor.go`)
-   - 空响应过滤
-   - 长度校验
-   - 去重逻辑
+1. 实现 Docker 容器管理 (`internal/docker/`)
+   - Docker 客户端封装
+   - 容器生命周期管理（创建、启动、停止、删除）
+   - 日志收集
+2. 实现 Worker gRPC Server (`cmd/worker/`)
+   - WorkerService 实现
+   - RunContainer、GetContainerStatus、GetContainerLogs 等接口
+   - 资源检测和上报
+3. 实现心跳机制
+   - 定期向控制节点报告资源状态
+   - 更新 Redis 节点信息
 
-**后续重点**: Worker 节点实现
+**后续增强**:
+1. 添加单元测试（Repository、Service 层）
+2. 添加集成测试（端到端流程）
+3. 完善错误处理和重试机制
+4. 添加 Prometheus 监控指标
+5. 实现 WebSocket 实时日志推送
 
-1. 实现 Docker 容器管理
-2. 实现 gRPC Server
-3. 实现资源检测和心跳
-
-项目进展顺利，已完成 60% 核心功能，基础架构扎实，继续按计划推进！🚀
+项目进展顺利，已完成 75% 核心功能，基础架构扎实，运行时逻辑完成，继续按计划推进！🚀
