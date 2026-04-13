@@ -1,0 +1,126 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: gcs-postgres
+    environment:
+      POSTGRES_DB: gcs_distill
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - gcs-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: gcs-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - gcs-network
+
+  # GCS-Distill Control 节点（API 服务器）
+  gcs-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    container_name: gcs-server
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+    ports:
+      - "8080:8080"   # HTTP API
+      - "50051:50051" # gRPC
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - shared_workspace:/mnt/shared/distill
+      - ./logs:/var/log/gcs-distill
+    networks:
+      - gcs-network
+    restart: unless-stopped
+
+  # GCS-Distill Worker 节点 (示例节点，可以扩展多个)
+  gcs-worker-1:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: gcs-worker-1
+    depends_on:
+      - redis
+      - gcs-server
+    environment:
+      - CONFIG_PATH=/app/config.yaml
+      - NODE_NAME=worker-1
+      - NODE_ADDR=gcs-worker-1:50052
+    ports:
+      - "50052:50052" # gRPC
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - shared_workspace:/mnt/shared/distill
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket 挂载
+      - ./logs:/var/log/gcs-distill
+    networks:
+      - gcs-network
+    restart: unless-stopped
+    # 需要访问 Docker daemon
+    privileged: true
+
+  # 可选: 添加更多 Worker 节点
+  # gcs-worker-2:
+  #   build:
+  #     context: .
+  #     dockerfile: docker/Dockerfile.worker
+  #   container_name: gcs-worker-2
+  #   depends_on:
+  #     - redis
+  #     - gcs-server
+  #   environment:
+  #     - CONFIG_PATH=/app/config.yaml
+  #     - NODE_NAME=worker-2
+  #     - NODE_ADDR=gcs-worker-2:50053
+  #   ports:
+  #     - "50053:50053"
+  #   volumes:
+  #     - ./config.yaml:/app/config.yaml:ro
+  #     - shared_workspace:/mnt/shared/distill
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./logs:/var/log/gcs-distill
+  #   networks:
+  #     - gcs-network
+  #   restart: unless-stopped
+  #   privileged: true
+
+networks:
+  gcs-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  shared_workspace:
+    driver: local

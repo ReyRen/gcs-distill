@@ -21,6 +21,9 @@ help:
 	@echo "  make test           - 运行测试"
 	@echo "  make clean          - 清理编译产物"
 	@echo "  make docker-build   - 构建 EasyDistill Docker 镜像"
+	@echo "  make docker-up      - 启动 Docker Compose 环境"
+	@echo "  make docker-down    - 停止 Docker Compose 环境"
+	@echo "  make docker-logs    - 查看 Docker Compose 日志"
 	@echo "  make run-server     - 运行服务端"
 	@echo "  make run-worker     - 运行 Worker"
 	@echo "  make help           - 显示此帮助信息"
@@ -101,3 +104,36 @@ db-init:
 	@echo "初始化数据库..."
 	@psql -U postgres -d gcs_distill -f migrations/001_initial_schema.sql
 	@echo "数据库初始化完成"
+
+## docker-up: 启动 Docker Compose 环境
+docker-up:
+	@echo "启动 Docker Compose 环境..."
+	@docker-compose up -d
+	@echo "等待服务就绪..."
+	@sleep 10
+	@docker-compose ps
+	@echo ""
+	@echo "✅ 服务已启动！"
+	@echo "API 服务: http://localhost:8080"
+	@echo "健康检查: curl http://localhost:8080/health"
+
+## docker-down: 停止 Docker Compose 环境
+docker-down:
+	@echo "停止 Docker Compose 环境..."
+	@docker-compose down
+	@echo "环境已停止"
+
+## docker-logs: 查看 Docker Compose 日志
+docker-logs:
+	@docker-compose logs -f
+
+## docker-build-all: 构建 Docker 镜像（Server + Worker）
+docker-build-all:
+	@echo "构建 Server 镜像..."
+	@docker-compose build gcs-server
+	@echo "构建 Worker 镜像..."
+	@docker-compose build gcs-worker-1
+	@echo "镜像构建完成"
+
+## docker-restart: 重启 Docker Compose 环境
+docker-restart: docker-down docker-up
