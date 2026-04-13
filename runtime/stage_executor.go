@@ -238,9 +238,10 @@ func (e *StageExecutor) executeTeacherInfer(
 		VolumeMounts: map[string]string{
 			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
 		},
-		GPUs:    pipeline.ResourceRequest.GPUCount,
-		Memory:  pipeline.ResourceRequest.MemoryGB,
-		CPUs:    pipeline.ResourceRequest.CPUCores,
+		GPUs:         pipeline.ResourceRequest.GPUCount,
+		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs,
+		Memory:       pipeline.ResourceRequest.MemoryGB,
+		CPUs:         pipeline.ResourceRequest.CPUCores,
 	})
 
 	if err != nil {
@@ -361,9 +362,10 @@ func (e *StageExecutor) executeStudentTrain(
 		VolumeMounts: map[string]string{
 			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
 		},
-		GPUs:    pipeline.ResourceRequest.GPUCount,
-		Memory:  pipeline.ResourceRequest.MemoryGB,
-		CPUs:    pipeline.ResourceRequest.CPUCores,
+		GPUs:         pipeline.ResourceRequest.GPUCount,
+		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs,
+		Memory:       pipeline.ResourceRequest.MemoryGB,
+		CPUs:         pipeline.ResourceRequest.CPUCores,
 	})
 
 	if err != nil {
@@ -426,9 +428,10 @@ func (e *StageExecutor) executeEvaluate(
 		VolumeMounts: map[string]string{
 			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
 		},
-		GPUs:    1, // 评估只需要1个GPU
-		Memory:  pipeline.ResourceRequest.MemoryGB,
-		CPUs:    pipeline.ResourceRequest.CPUCores,
+		GPUs:         1, // 评估只需要1个GPU
+		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs, // 但可以指定使用哪个GPU
+		Memory:       pipeline.ResourceRequest.MemoryGB,
+		CPUs:         pipeline.ResourceRequest.CPUCores,
 	})
 
 	if err != nil {

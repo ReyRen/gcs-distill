@@ -165,12 +165,24 @@
     "warmup_steps": 100
   },
   "resource_request": {
-    "gpu_count": 1,
+    "gpu_count": 2,
+    "gpu_device_ids": "0,1",
     "memory_gb": 32,
     "cpu_cores": 8
   }
 }
 ```
+
+**resource_request 字段说明**:
+- `gpu_count`: GPU 数量（必填）
+  - 设置为 `-1` 表示使用所有可用 GPU
+  - 设置为正整数表示使用指定数量的 GPU
+- `gpu_device_ids`: GPU 设备 ID（可选）
+  - 格式：`"0,1,2"` 表示使用 GPU 0、1 和 2
+  - 如果同时指定了 `gpu_count` 和 `gpu_device_ids`，优先使用 `gpu_device_ids`
+  - 留空则由系统自动分配
+- `memory_gb`: 内存大小（GB）（可选）
+- `cpu_cores`: CPU 核心数（可选）
 
 **响应**:
 ```json

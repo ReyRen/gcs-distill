@@ -123,10 +123,11 @@ type LoRAConfig struct {
 
 // ResourceRequest 资源请求
 type ResourceRequest struct {
-	GPUCount   int    `json:"gpu_count"`     // GPU 数量
-	GPUType    string `json:"gpu_type,omitempty"` // GPU 类型
-	MemoryGB   int    `json:"memory_gb,omitempty"` // 内存 (GB)
-	CPUCores   int    `json:"cpu_cores,omitempty"` // CPU 核心数
+	GPUCount     int    `json:"gpu_count"`     // GPU 数量
+	GPUDeviceIDs string `json:"gpu_device_ids,omitempty"` // GPU 设备 ID，如 "0,1,2"
+	GPUType      string `json:"gpu_type,omitempty"` // GPU 类型
+	MemoryGB     int    `json:"memory_gb,omitempty"` // 内存 (GB)
+	CPUCores     int    `json:"cpu_cores,omitempty"` // CPU 核心数
 }
 
 // StageRun 阶段运行实例
