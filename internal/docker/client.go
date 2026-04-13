@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
 	"github.com/ReyRen/gcs-distill/internal/logger"
@@ -218,10 +219,10 @@ func (c *Client) GetContainerLogs(ctx context.Context, containerID string, tail 
 }
 
 // PullImage 拉取镜像
-func (c *Client) PullImage(ctx context.Context, image string) error {
-	logger.Info("拉取镜像", zap.String("image", image))
+func (c *Client) PullImage(ctx context.Context, imageName string) error {
+	logger.Info("拉取镜像", zap.String("image", imageName))
 
-	reader, err := c.cli.ImagePull(ctx, image, types.ImagePullOptions{})
+	reader, err := c.cli.ImagePull(ctx, imageName, image.PullOptions{})
 	if err != nil {
 		return fmt.Errorf("拉取镜像失败: %w", err)
 	}
@@ -233,7 +234,7 @@ func (c *Client) PullImage(ctx context.Context, image string) error {
 		return fmt.Errorf("读取镜像拉取进度失败: %w", err)
 	}
 
-	logger.Info("镜像拉取成功", zap.String("image", image))
+	logger.Info("镜像拉取成功", zap.String("image", imageName))
 	return nil
 }
 
