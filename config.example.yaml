@@ -46,3 +46,8 @@ logging:
   max_size: 100          # 单个日志文件最大大小 (MB)
   max_age: 7             # 日志文件保留天数
   compress: true         # 是否压缩旧日志
+
+# 执行器配置
+executor:
+  workspace_root: /mnt/shared/distill  # 工作空间根目录（与 storage.base_path 一致）
+  max_concurrent: 5      # 最大并发执行的流水线数量
