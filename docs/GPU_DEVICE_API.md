@@ -65,57 +65,76 @@ interface PipelineRun {
 }
 ```
 
-### React 表单示例 (Ant Design)
+### Vue 2 表单示例 (Element UI)
 
-```jsx
-import { Form, InputNumber, Input, Tooltip } from 'antd';
-import { QuestionCircleOutlined } from '@ant-design/icons';
+```vue
+<template>
+  <el-form :model="pipelineForm" label-width="120px">
+    <!-- GPU 数量 -->
+    <el-form-item
+      label="GPU 数量"
+      :rules="[{ required: true, message: '请输入 GPU 数量' }]"
+    >
+      <el-input-number
+        v-model="pipelineForm.resource_request.gpu_count"
+        :min="1"
+        :max="8"
+        placeholder="1"
+      />
+    </el-form-item>
 
-function PipelineForm() {
-  return (
-    <Form layout="vertical">
-      {/* GPU 数量 */}
-      <Form.Item
-        label="GPU 数量"
-        name={['resource_request', 'gpu_count']}
-        rules={[{ required: true, message: '请输入 GPU 数量' }]}
+    <!-- GPU 设备 ID - 新增 -->
+    <el-form-item label="GPU 设备 ID">
+      <el-input
+        v-model="pipelineForm.resource_request.gpu_device_ids"
+        placeholder="0,1,2"
       >
-        <InputNumber min={1} max={8} placeholder="1" />
-      </Form.Item>
+        <template #suffix>
+          <el-tooltip content="指定使用的 GPU 设备，如 '0,1' 表示使用 GPU 0 和 1。留空则自动分配">
+            <i class="el-icon-question"></i>
+          </el-tooltip>
+        </template>
+      </el-input>
+    </el-form-item>
 
-      {/* GPU 设备 ID - 新增 */}
-      <Form.Item
-        label={
-          <span>
-            GPU 设备 ID&nbsp;
-            <Tooltip title="指定使用的 GPU 设备，如 '0,1' 表示使用 GPU 0 和 1。留空则自动分配">
-              <QuestionCircleOutlined />
-            </Tooltip>
-          </span>
+    <!-- 内存 -->
+    <el-form-item label="内存 (GB)">
+      <el-input-number
+        v-model="pipelineForm.resource_request.memory_gb"
+        :min="8"
+        :max="512"
+        placeholder="32"
+      />
+    </el-form-item>
+
+    <!-- CPU -->
+    <el-form-item label="CPU 核心数">
+      <el-input-number
+        v-model="pipelineForm.resource_request.cpu_cores"
+        :min="1"
+        :max="64"
+        placeholder="8"
+      />
+    </el-form-item>
+  </el-form>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      pipelineForm: {
+        resource_request: {
+          gpu_count: 1,
+          gpu_device_ids: '',
+          memory_gb: 32,
+          cpu_cores: 8
         }
-        name={['resource_request', 'gpu_device_ids']}
-      >
-        <Input placeholder="0,1,2" />
-      </Form.Item>
-
-      {/* 内存 */}
-      <Form.Item
-        label="内存 (GB)"
-        name={['resource_request', 'memory_gb']}
-      >
-        <InputNumber min={8} max={512} placeholder="32" />
-      </Form.Item>
-
-      {/* CPU */}
-      <Form.Item
-        label="CPU 核心数"
-        name={['resource_request', 'cpu_cores']}
-      >
-        <InputNumber min={1} max={64} placeholder="8" />
-      </Form.Item>
-    </Form>
-  );
-}
+      }
+    };
+  }
+};
+</script>
 ```
 
 ### Vue 表单示例 (Element UI)
@@ -264,40 +283,97 @@ const gpuDeviceIdsValidator = (rule: any, value: string) => {
 
 ## 完整示例
 
-```jsx
-import React, { useState } from 'react';
-import { Form, Input, InputNumber, Button, message } from 'antd';
+```vue
+<template>
+  <el-form
+    :model="pipelineForm"
+    :rules="formRules"
+    ref="pipelineFormRef"
+    label-width="120px"
+  >
+    <!-- 训练配置 -->
+    <el-form-item label="训练轮数" prop="training_config.num_train_epochs">
+      <el-input-number
+        v-model="pipelineForm.training_config.num_train_epochs"
+        :min="1"
+        :max="100"
+      />
+    </el-form-item>
+
+    <el-form-item label="学习率" prop="training_config.learning_rate">
+      <el-input-number
+        v-model="pipelineForm.training_config.learning_rate"
+        :min="0"
+        :max="1"
+        :step="0.00001"
+      />
+    </el-form-item>
+
+    <!-- 资源配置 -->
+    <el-form-item label="GPU 数量" prop="resource_request.gpu_count">
+      <el-input-number
+        v-model="pipelineForm.resource_request.gpu_count"
+        :min="1"
+        :max="8"
+      />
+    </el-form-item>
+
+    <el-form-item label="GPU 设备 ID" prop="resource_request.gpu_device_ids">
+      <el-input
+        v-model="pipelineForm.resource_request.gpu_device_ids"
+        placeholder="0,1,2"
+      >
+        <template #suffix>
+          <el-tooltip content="可选，指定使用的 GPU，如 '0,1'">
+            <i class="el-icon-question"></i>
+          </el-tooltip>
+        </template>
+      </el-input>
+    </el-form-item>
+
+    <el-form-item label="内存 (GB)" prop="resource_request.memory_gb">
+      <el-input-number
+        v-model="pipelineForm.resource_request.memory_gb"
+        :min="8"
+        :max="512"
+      />
+    </el-form-item>
+
+    <el-form-item label="CPU 核心数" prop="resource_request.cpu_cores">
+      <el-input-number
+        v-model="pipelineForm.resource_request.cpu_cores"
+        :min="1"
+        :max="64"
+      />
+    </el-form-item>
+
+    <el-form-item>
+      <el-button type="primary" :loading="loading" @click="handleSubmit">
+        创建流水线
+      </el-button>
+    </el-form-item>
+  </el-form>
+</template>
+
+<script>
 import axios from 'axios';
 
-function CreatePipelineForm({ projectId, datasetId }) {
-  const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (values) => {
-    setLoading(true);
-    try {
-      const response = await axios.post('/api/v1/pipelines', {
-        project_id: projectId,
-        dataset_id: datasetId,
-        training_config: values.training_config,
-        resource_request: values.resource_request
-      });
-
-      message.success('流水线创建成功');
-      console.log('Pipeline ID:', response.data.data.id);
-    } catch (error) {
-      message.error('创建失败: ' + error.response?.data?.message);
-    } finally {
-      setLoading(false);
+export default {
+  name: 'CreatePipelineForm',
+  props: {
+    projectId: {
+      type: String,
+      required: true
+    },
+    datasetId: {
+      type: String,
+      required: true
     }
-  };
-
-  return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={handleSubmit}
-      initialValues={{
+  },
+  data() {
+    return {
+      loading: false,
+      pipelineForm: {
         training_config: {
           num_train_epochs: 3,
           learning_rate: 0.0001
@@ -308,58 +384,48 @@ function CreatePipelineForm({ projectId, datasetId }) {
           memory_gb: 32,
           cpu_cores: 8
         }
-      }}
-    >
-      {/* 训练配置 */}
-      <Form.Item label="训练轮数" name={['training_config', 'num_train_epochs']}>
-        <InputNumber min={1} max={100} />
-      </Form.Item>
-
-      <Form.Item label="学习率" name={['training_config', 'learning_rate']}>
-        <InputNumber min={0} max={1} step={0.00001} />
-      </Form.Item>
-
-      {/* 资源配置 */}
-      <Form.Item
-        label="GPU 数量"
-        name={['resource_request', 'gpu_count']}
-        rules={[{ required: true }]}
-      >
-        <InputNumber min={1} max={8} />
-      </Form.Item>
-
-      <Form.Item
-        label="GPU 设备 ID"
-        name={['resource_request', 'gpu_device_ids']}
-        tooltip="可选，指定使用的 GPU，如 '0,1'"
-        rules={[
+      },
+      formRules: {
+        'resource_request.gpu_count': [
+          { required: true, message: '请输入 GPU 数量', trigger: 'blur' }
+        ],
+        'resource_request.gpu_device_ids': [
           {
-            pattern: /^\\d+(,\\d+)*$/,
-            message: '格式错误，应为逗号分隔的数字'
+            pattern: /^\d+(,\d+)*$/,
+            message: '格式错误，应为逗号分隔的数字',
+            trigger: 'blur'
           }
-        ]}
-      >
-        <Input placeholder="0,1,2" />
-      </Form.Item>
+        ]
+      }
+    };
+  },
+  methods: {
+    async handleSubmit() {
+      this.$refs.pipelineFormRef.validate(async (valid) => {
+        if (!valid) return;
 
-      <Form.Item label="内存 (GB)" name={['resource_request', 'memory_gb']}>
-        <InputNumber min={8} max={512} />
-      </Form.Item>
+        this.loading = true;
+        try {
+          const response = await axios.post('/api/v1/pipelines', {
+            project_id: this.projectId,
+            dataset_id: this.datasetId,
+            training_config: this.pipelineForm.training_config,
+            resource_request: this.pipelineForm.resource_request
+          });
 
-      <Form.Item label="CPU 核心数" name={['resource_request', 'cpu_cores']}>
-        <InputNumber min={1} max={64} />
-      </Form.Item>
-
-      <Form.Item>
-        <Button type="primary" htmlType="submit" loading={loading}>
-          创建流水线
-        </Button>
-      </Form.Item>
-    </Form>
-  );
-}
-
-export default CreatePipelineForm;
+          this.$message.success('流水线创建成功');
+          console.log('Pipeline ID:', response.data.data.id);
+          this.$emit('created', response.data.data);
+        } catch (error) {
+          this.$message.error('创建失败: ' + (error.response?.data?.message || error.message));
+        } finally {
+          this.loading = false;
+        }
+      });
+    }
+  }
+};
+</script>
 ```
 
 ## 注意事项
