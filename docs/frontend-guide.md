@@ -887,52 +887,78 @@ interface WorkerNode {
   - 创建时间
   - 快捷操作：查看、编辑、删除
 
-**推荐组件库实现（Ant Design）**：
+**推荐组件库实现（Element UI）**：
 
-```tsx
-import { Card, Button, Table, Input, Space } from 'antd';
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
-
-const ProjectListPage = () => {
-  return (
-    <div>
-      {/* 顶部操作栏 */}
-      <Space style={{ marginBottom: 16 }}>
-        <Input
-          placeholder="搜索项目名称"
-          prefix={<SearchOutlined />}
-          style={{ width: 300 }}
-        />
-        <Button type="primary" icon={<PlusOutlined />}>
-          创建项目
-        </Button>
-      </Space>
-
-      {/* 项目卡片列表 */}
-      <Row gutter={[16, 16]}>
-        {projects.map(project => (
-          <Col span={8} key={project.id}>
-            <Card
-              title={project.name}
-              extra={<Button type="link">查看</Button>}
-              actions={[
-                <Button type="link">编辑</Button>,
-                <Button type="link" danger>删除</Button>
-              ]}
-            >
-              <p>{project.description}</p>
-              <p>
-                教师: {project.teacher_model_config.model_name} →
-                学生: {project.student_model_config.model_name}
-              </p>
-              <p>创建时间: {formatDate(project.created_at)}</p>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+```vue
+<template>
+  <div>
+    <!-- 顶部操作栏 -->
+    <div style="margin-bottom: 16px">
+      <el-input
+        placeholder="搜索项目名称"
+        v-model="searchText"
+        prefix-icon="el-icon-search"
+        style="width: 300px; margin-right: 16px"
+      />
+      <el-button type="primary" icon="el-icon-plus" @click="createProject">
+        创建项目
+      </el-button>
     </div>
-  );
+
+    <!-- 项目卡片列表 -->
+    <el-row :gutter="16">
+      <el-col :span="8" v-for="project in projects" :key="project.id">
+        <el-card :body-style="{ padding: '20px' }">
+          <div slot="header" class="clearfix">
+            <span>{{ project.name }}</span>
+            <el-button style="float: right; padding: 3px 0" type="text" @click="viewProject(project)">
+              查看
+            </el-button>
+          </div>
+          <p>{{ project.description }}</p>
+          <p>
+            教师: {{ project.teacher_model_config.model_name }} →
+            学生: {{ project.student_model_config.model_name }}
+          </p>
+          <p>创建时间: {{ formatDate(project.created_at) }}</p>
+          <div style="text-align: right">
+            <el-button type="text" @click="editProject(project)">编辑</el-button>
+            <el-button type="text" class="danger" @click="deleteProject(project)">删除</el-button>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      searchText: '',
+      projects: []
+    };
+  },
+  methods: {
+    formatDate(date) {
+      // 格式化日期的方法
+      return new Date(date).toLocaleString('zh-CN');
+    },
+    createProject() {
+      // 创建项目逻辑
+    },
+    viewProject(project) {
+      // 查看项目逻辑
+    },
+    editProject(project) {
+      // 编辑项目逻辑
+    },
+    deleteProject(project) {
+      // 删除项目逻辑
+    }
+  }
 };
+</script>
 ```
 
 #### 2.2 创建/编辑项目页
@@ -946,63 +972,102 @@ const ProjectListPage = () => {
 
 **表单示例**：
 
-```tsx
-import { Form, Input, Select, InputNumber, Switch } from 'antd';
+```vue
+<template>
+  <el-form :model="form" label-position="top">
+    <!-- 基本信息 -->
+    <el-form-item label="项目名称" prop="name" required>
+      <el-input v-model="form.name" placeholder="例如：客服问答蒸馏" />
+    </el-form-item>
 
-const ProjectForm = () => {
-  return (
-    <Form layout="vertical">
-      {/* 基本信息 */}
-      <Form.Item label="项目名称" name="name" required>
-        <Input placeholder="例如：客服问答蒸馏" />
-      </Form.Item>
+    <el-form-item label="项目描述" prop="description">
+      <el-input
+        type="textarea"
+        :rows="3"
+        v-model="form.description"
+      />
+    </el-form-item>
 
-      <Form.Item label="项目描述" name="description">
-        <Input.TextArea rows={3} />
-      </Form.Item>
+    <!-- 教师模型配置 -->
+    <el-divider>教师模型配置</el-divider>
 
-      {/* 教师模型配置 */}
-      <Divider>教师模型配置</Divider>
+    <el-form-item label="提供者类型" prop="teacher_model_config.provider_type">
+      <el-select v-model="form.teacher_model_config.provider_type">
+        <el-option value="api" label="API 型（OpenAI/Claude）" />
+        <el-option value="local" label="本地模型" />
+      </el-select>
+    </el-form-item>
 
-      <Form.Item label="提供者类型" name={['teacher_model_config', 'provider_type']}>
-        <Select>
-          <Option value="api">API 型（OpenAI/Claude）</Option>
-          <Option value="local">本地模型</Option>
-        </Select>
-      </Form.Item>
+    <el-form-item label="模型名称" prop="teacher_model_config.model_name">
+      <el-input
+        v-model="form.teacher_model_config.model_name"
+        placeholder="例如：Qwen/Qwen2.5-7B-Instruct"
+      />
+    </el-form-item>
 
-      <Form.Item label="模型名称" name={['teacher_model_config', 'model_name']}>
-        <Input placeholder="例如：Qwen/Qwen2.5-7B-Instruct" />
-      </Form.Item>
+    <el-form-item label="API 端点" prop="teacher_model_config.endpoint">
+      <el-input
+        v-model="form.teacher_model_config.endpoint"
+        placeholder="https://api.openai.com/v1/chat/completions"
+      />
+    </el-form-item>
 
-      <Form.Item label="API 端点" name={['teacher_model_config', 'endpoint']}>
-        <Input placeholder="https://api.openai.com/v1/chat/completions" />
-      </Form.Item>
+    <el-form-item label="Temperature" prop="teacher_model_config.temperature">
+      <el-input-number
+        v-model="form.teacher_model_config.temperature"
+        :min="0"
+        :max="2"
+        :step="0.1"
+      />
+    </el-form-item>
 
-      <Form.Item label="Temperature" name={['teacher_model_config', 'temperature']}>
-        <InputNumber min={0} max={2} step={0.1} />
-      </Form.Item>
+    <!-- 学生模型配置 -->
+    <el-divider>学生模型配置</el-divider>
 
-      {/* 学生模型配置 */}
-      <Divider>学生模型配置</Divider>
+    <el-form-item label="模型名称" prop="student_model_config.model_name">
+      <el-input
+        v-model="form.student_model_config.model_name"
+        placeholder="例如：Qwen/Qwen2.5-0.5B-Instruct"
+      />
+    </el-form-item>
 
-      <Form.Item label="模型名称" name={['student_model_config', 'model_name']}>
-        <Input placeholder="例如：Qwen/Qwen2.5-0.5B-Instruct" />
-      </Form.Item>
+    <!-- 评估配置 -->
+    <el-divider>评估配置</el-divider>
 
-      {/* 评估配置 */}
-      <Divider>评估配置</Divider>
+    <el-form-item label="评估指标" prop="evaluation_config.metrics">
+      <el-select v-model="form.evaluation_config.metrics" multiple>
+        <el-option value="bleu" label="BLEU" />
+        <el-option value="rouge" label="ROUGE" />
+        <el-option value="accuracy" label="准确率" />
+      </el-select>
+    </el-form-item>
+  </el-form>
+</template>
 
-      <Form.Item label="评估指标" name={['evaluation_config', 'metrics']}>
-        <Select mode="multiple">
-          <Option value="bleu">BLEU</Option>
-          <Option value="rouge">ROUGE</Option>
-          <Option value="accuracy">准确率</Option>
-        </Select>
-      </Form.Item>
-    </Form>
-  );
+<script>
+export default {
+  data() {
+    return {
+      form: {
+        name: '',
+        description: '',
+        teacher_model_config: {
+          provider_type: '',
+          model_name: '',
+          endpoint: '',
+          temperature: 0.7
+        },
+        student_model_config: {
+          model_name: ''
+        },
+        evaluation_config: {
+          metrics: []
+        }
+      }
+    };
+  }
 };
+</script>
 ```
 
 #### 2.3 项目详情页
@@ -1017,51 +1082,70 @@ const ProjectForm = () => {
 
 **推荐布局**：
 
-```tsx
-import { Tabs, Descriptions, Statistic, Row, Col } from 'antd';
+```vue
+<template>
+  <div>
+    <!-- 项目头部信息 -->
+    <el-card>
+      <el-row :gutter="16">
+        <el-col :span="18">
+          <h2>{{ project.name }}</h2>
+          <p>{{ project.description }}</p>
+        </el-col>
+        <el-col :span="6">
+          <div class="statistic">
+            <div class="statistic-title">流水线总数</div>
+            <div class="statistic-value">10</div>
+          </div>
+          <div class="statistic">
+            <div class="statistic-title">成功次数</div>
+            <div class="statistic-value">8</div>
+          </div>
+        </el-col>
+      </el-row>
+    </el-card>
 
-const ProjectDetailPage = () => {
-  return (
-    <div>
-      {/* 项目头部信息 */}
-      <Card>
-        <Row gutter={16}>
-          <Col span={18}>
-            <h2>{project.name}</h2>
-            <p>{project.description}</p>
-          </Col>
-          <Col span={6}>
-            <Statistic title="流水线总数" value={10} />
-            <Statistic title="成功次数" value={8} />
-          </Col>
-        </Row>
-      </Card>
+    <!-- Tab 导航 -->
+    <el-tabs v-model="activeTab">
+      <el-tab-pane label="概览" name="overview">
+        <el-descriptions>
+          <el-descriptions-item label="教师模型">
+            {{ project.teacher_model_config.model_name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="学生模型">
+            {{ project.student_model_config.model_name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="业务场景">
+            {{ project.business_scenario }}
+          </el-descriptions-item>
+        </el-descriptions>
+      </el-tab-pane>
 
-      {/* Tab 导航 */}
-      <Tabs defaultActiveKey="overview">
-        <TabPane tab="概览" key="overview">
-          <Descriptions>
-            <Item label="教师模型">{project.teacher_model_config.model_name}</Item>
-            <Item label="学生模型">{project.student_model_config.model_name}</Item>
-            <Item label="业务场景">{project.business_scenario}</Item>
-          </Descriptions>
-        </TabPane>
+      <el-tab-pane label="数据集" name="datasets">
+        <!-- 数据集列表 -->
+      </el-tab-pane>
 
-        <TabPane tab="数据集" key="datasets">
-          {/* 数据集列表 */}
-        </TabPane>
+      <el-tab-pane label="流水线" name="pipelines">
+        <!-- 流水线列表 -->
+      </el-tab-pane>
 
-        <TabPane tab="流水线" key="pipelines">
-          {/* 流水线列表 */}
-        </TabPane>
+      <el-tab-pane label="设置" name="settings">
+        <!-- 项目编辑表单 -->
+      </el-tab-pane>
+    </el-tabs>
+  </div>
+</template>
 
-        <TabPane tab="设置" key="settings">
-          {/* 项目编辑表单 */}
-        </TabPane>
-      </Tabs>
-    </div>
-  );
+<script>
+export default {
+  data() {
+    return {
+      activeTab: 'overview',
+      project: {}
+    };
+  }
 };
+</script>
 ```
 
 ---
@@ -1084,39 +1168,57 @@ const ProjectDetailPage = () => {
 
 **推荐实现**：
 
-```tsx
-import { Upload, Table } from 'antd';
-import { InboxOutlined } from '@ant-design/icons';
+```vue
+<template>
+  <div>
+    <el-upload
+      class="upload-demo"
+      drag
+      action="/api/v1/datasets/upload"
+      accept=".json,.jsonl,.csv"
+      :before-upload="handleUpload"
+    >
+      <i class="el-icon-upload"></i>
+      <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+      <div class="el-upload__tip" slot="tip">
+        支持 .json, .jsonl, .csv 格式
+      </div>
+    </el-upload>
 
-const DatasetUpload = () => {
-  return (
-    <div>
-      <Upload.Dragger
-        accept=".json,.jsonl,.csv"
-        beforeUpload={handleUpload}
+    <!-- 数据预览 -->
+    <el-card v-if="previewData && previewData.length" title="数据预览（前 10 条）" style="margin-top: 16px">
+      <el-table
+        :data="previewData"
+        border
+        style="width: 100%"
       >
-        <p className="ant-upload-drag-icon">
-          <InboxOutlined />
-        </p>
-        <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-        <p className="ant-upload-hint">
-          支持 .json, .jsonl, .csv 格式
-        </p>
-      </Upload.Dragger>
+        <el-table-column
+          v-for="col in previewColumns"
+          :key="col.prop"
+          :prop="col.prop"
+          :label="col.label"
+        />
+      </el-table>
+    </el-card>
+  </div>
+</template>
 
-      {/* 数据预览 */}
-      {previewData && (
-        <Card title="数据预览（前 10 条）" style={{ marginTop: 16 }}>
-          <Table
-            dataSource={previewData}
-            columns={previewColumns}
-            pagination={false}
-          />
-        </Card>
-      )}
-    </div>
-  );
+<script>
+export default {
+  data() {
+    return {
+      previewData: null,
+      previewColumns: []
+    };
+  },
+  methods: {
+    handleUpload(file) {
+      // 处理文件上传逻辑
+      return true;
+    }
+  }
 };
+</script>
 ```
 
 ---
@@ -1136,23 +1238,36 @@ const DatasetUpload = () => {
 
 **状态组件示例**：
 
-```tsx
-import { Tag } from 'antd';
+```vue
+<template>
+  <el-tag :type="statusConfig[status].type">
+    {{ statusConfig[status].text }}
+  </el-tag>
+</template>
 
-const statusConfig = {
-  pending: { color: 'default', text: '等待中' },
-  scheduled: { color: 'processing', text: '已调度' },
-  preparing: { color: 'processing', text: '准备中' },
-  running: { color: 'processing', text: '运行中' },
-  succeeded: { color: 'success', text: '成功' },
-  failed: { color: 'error', text: '失败' },
-  canceled: { color: 'warning', text: '已取消' }
+<script>
+export default {
+  props: {
+    status: {
+      type: String,
+      required: true
+    }
+  },
+  data() {
+    return {
+      statusConfig: {
+        pending: { type: 'info', text: '等待中' },
+        scheduled: { type: 'primary', text: '已调度' },
+        preparing: { type: 'primary', text: '准备中' },
+        running: { type: 'primary', text: '运行中' },
+        succeeded: { type: 'success', text: '成功' },
+        failed: { type: 'danger', text: '失败' },
+        canceled: { type: 'warning', text: '已取消' }
+      }
+    };
+  }
 };
-
-const PipelineStatusTag = ({ status }) => {
-  const config = statusConfig[status];
-  return <Tag color={config.color}>{config.text}</Tag>;
-};
+</script>
 ```
 
 #### 4.2 创建流水线页
@@ -1165,100 +1280,139 @@ const PipelineStatusTag = ({ status }) => {
 
 **Steps 组件示例**：
 
-```tsx
-import { Steps, Form, Select, InputNumber } from 'antd';
+```vue
+<template>
+  <div>
+    <el-steps :active="currentStep" finish-status="success">
+      <el-step
+        v-for="(step, index) in steps"
+        :key="index"
+        :title="step.title"
+      />
+    </el-steps>
 
-const CreatePipelineWizard = () => {
-  const [current, setCurrent] = useState(0);
+    <div style="margin-top: 24px">
+      <!-- Step 1: 选择项目和数据集 -->
+      <el-form v-if="currentStep === 0" :model="pipelineForm" label-position="top">
+        <el-form-item label="项目" prop="project_id">
+          <el-select v-model="pipelineForm.project_id" placeholder="选择项目">
+            <el-option
+              v-for="p in projects"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="数据集" prop="dataset_id">
+          <el-select v-model="pipelineForm.dataset_id" placeholder="选择数据集">
+            <el-option
+              v-for="d in datasets"
+              :key="d.id"
+              :label="d.name"
+              :value="d.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
 
-  const steps = [
-    {
-      title: '选择项目和数据集',
-      content: (
-        <Form layout="vertical">
-          <Form.Item label="项目" name="project_id">
-            <Select placeholder="选择项目">
-              {projects.map(p => (
-                <Option key={p.id} value={p.id}>{p.name}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-          <Form.Item label="数据集" name="dataset_id">
-            <Select placeholder="选择数据集">
-              {datasets.map(d => (
-                <Option key={d.id} value={d.id}>{d.name}</Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Form>
-      )
-    },
-    {
-      title: '训练参数',
-      content: (
-        <Form layout="vertical">
-          <Form.Item label="训练轮数" name={['training_config', 'num_train_epochs']}>
-            <InputNumber min={1} max={100} />
-          </Form.Item>
-          <Form.Item label="学习率" name={['training_config', 'learning_rate']}>
-            <InputNumber min={0} max={1} step={0.00001} />
-          </Form.Item>
-          {/* 更多训练参数... */}
-        </Form>
-      )
-    },
-    {
-      title: '资源需求',
-      content: (
-        <Form layout="vertical">
-          <Form.Item label="GPU 数量" name={['resource_request', 'gpu_count']}>
-            <InputNumber min={0} max={8} />
-          </Form.Item>
-          <Form.Item
-            label="GPU 设备 ID"
-            name={['resource_request', 'gpu_device_ids']}
-            tooltip="指定使用的 GPU 设备，如 '0,1' 表示使用 GPU 0 和 1，留空则自动分配"
+      <!-- Step 2: 训练参数 -->
+      <el-form v-if="currentStep === 1" :model="pipelineForm" label-position="top">
+        <el-form-item label="训练轮数" prop="training_config.num_train_epochs">
+          <el-input-number
+            v-model="pipelineForm.training_config.num_train_epochs"
+            :min="1"
+            :max="100"
+          />
+        </el-form-item>
+        <el-form-item label="学习率" prop="training_config.learning_rate">
+          <el-input-number
+            v-model="pipelineForm.training_config.learning_rate"
+            :min="0"
+            :max="1"
+            :step="0.00001"
+          />
+        </el-form-item>
+      </el-form>
+
+      <!-- Step 3: 资源需求 -->
+      <el-form v-if="currentStep === 2" :model="pipelineForm" label-position="top">
+        <el-form-item label="GPU 数量" prop="resource_request.gpu_count">
+          <el-input-number
+            v-model="pipelineForm.resource_request.gpu_count"
+            :min="0"
+            :max="8"
+          />
+        </el-form-item>
+        <el-form-item label="GPU 设备 ID" prop="resource_request.gpu_device_ids">
+          <el-input
+            v-model="pipelineForm.resource_request.gpu_device_ids"
+            placeholder="0,1,2"
           >
-            <Input placeholder="0,1,2" />
-          </Form.Item>
-          <Form.Item label="内存 (GB)" name={['resource_request', 'memory_gb']}>
-            <InputNumber min={8} max={512} />
-          </Form.Item>
-        </Form>
-      )
-    }
-  ];
-
-  return (
-    <div>
-      <Steps current={current}>
-        {steps.map(item => (
-          <Step key={item.title} title={item.title} />
-        ))}
-      </Steps>
-
-      <div style={{ marginTop: 24 }}>
-        {steps[current].content}
-      </div>
-
-      <div style={{ marginTop: 24 }}>
-        {current > 0 && (
-          <Button onClick={() => setCurrent(current - 1)}>上一步</Button>
-        )}
-        {current < steps.length - 1 && (
-          <Button type="primary" onClick={() => setCurrent(current + 1)}>
-            下一步
-          </Button>
-        )}
-        {current === steps.length - 1 && (
-          <Button type="primary" onClick={handleSubmit}>
-            创建流水线
-          </Button>
-        )}
-      </div>
+            <template #suffix>
+              <el-tooltip content="指定使用的 GPU 设备，如 '0,1' 表示使用 GPU 0 和 1，留空则自动分配">
+                <i class="el-icon-question"></i>
+              </el-tooltip>
+            </template>
+          </el-input>
+        </el-form-item>
+        <el-form-item label="内存 (GB)" prop="resource_request.memory_gb">
+          <el-input-number
+            v-model="pipelineForm.resource_request.memory_gb"
+            :min="8"
+            :max="512"
+          />
+        </el-form-item>
+      </el-form>
     </div>
-  );
+
+    <div style="margin-top: 24px">
+      <el-button v-if="currentStep > 0" @click="currentStep--">上一步</el-button>
+      <el-button v-if="currentStep < steps.length - 1" type="primary" @click="currentStep++">
+        下一步
+      </el-button>
+      <el-button v-if="currentStep === steps.length - 1" type="primary" @click="handleSubmit">
+        创建流水线
+      </el-button>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      currentStep: 0,
+      projects: [],
+      datasets: [],
+      steps: [
+        { title: '选择项目和数据集' },
+        { title: '训练参数' },
+        { title: '资源需求' }
+      ],
+      pipelineForm: {
+        project_id: '',
+        dataset_id: '',
+        training_config: {
+          num_train_epochs: 3,
+          learning_rate: 0.0001
+        },
+        resource_request: {
+          gpu_count: 1,
+          gpu_device_ids: '',
+          memory_gb: 32,
+          cpu_cores: 8
+        }
+      }
+    };
+  },
+  methods: {
+    handleSubmit() {
+      // 提交创建流水线
+    }
+  }
 };
+</script>
 ```
 
 #### 4.3 流水线详情页 ⭐ 重点
@@ -1276,143 +1430,222 @@ const CreatePipelineWizard = () => {
 
 **推荐布局**：
 
-```tsx
-import { Steps, Card, Timeline, Badge, Progress } from 'antd';
-
-const PipelineDetailPage = () => {
-  const [pipeline, setPipeline] = useState(null);
-  const [stages, setStages] = useState([]);
-
-  // 定时刷新流水线状态（轮询）
-  useEffect(() => {
-    const timer = setInterval(() => {
-      fetchPipelineDetail();
-      fetchStages();
-    }, 3000); // 每 3 秒刷新
-    return () => clearInterval(timer);
-  }, []);
-
-  return (
-    <div>
-      {/* 流水线头部信息 */}
-      <Card>
-        <Row gutter={16}>
-          <Col span={6}>
-            <Statistic title="流水线状态" value={pipeline.status} />
-          </Col>
-          <Col span={6}>
-            <Statistic title="当前阶段" value={`${pipeline.current_stage}/6`} />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="已运行时间"
-              value={calculateDuration(pipeline.started_at)}
-            />
-          </Col>
-          <Col span={6}>
-            <Button danger onClick={handleCancel}>取消流水线</Button>
-          </Col>
-        </Row>
-      </Card>
-
-      {/* 6 阶段进度条 */}
-      <Card title="流水线进度" style={{ marginTop: 16 }}>
-        <Steps current={pipeline.current_stage - 1}>
-          {stages.map((stage, index) => (
-            <Step
-              key={stage.id}
-              title={getStageTitle(stage.stage_type)}
-              description={
-                <div>
-                  <PipelineStatusTag status={stage.status} />
-                  {stage.finished_at && (
-                    <div>耗时: {calculateDuration(stage.started_at, stage.finished_at)}</div>
-                  )}
-                </div>
-              }
-              icon={getStageIcon(stage.status)}
-            />
-          ))}
-        </Steps>
-      </Card>
-
-      {/* 当前阶段详情 */}
-      {currentStage && (
-        <Card title={`阶段 ${currentStage.stage_order}: ${getStageTitle(currentStage.stage_type)}`} style={{ marginTop: 16 }}>
-          <Descriptions column={2}>
-            <Item label="状态">
-              <PipelineStatusTag status={currentStage.status} />
-            </Item>
-            <Item label="执行节点">{currentStage.node_name}</Item>
-            <Item label="开始时间">{formatDateTime(currentStage.started_at)}</Item>
-            <Item label="容器 ID">{currentStage.container_id}</Item>
-          </Descriptions>
-
-          {/* 实时日志 */}
-          <Divider>实时日志</Divider>
-          <div
-            style={{
-              background: '#000',
-              color: '#0f0',
-              padding: 16,
-              height: 400,
-              overflow: 'auto',
-              fontFamily: 'monospace'
-            }}
-          >
-            {logs.map((log, i) => (
-              <div key={i}>{log}</div>
-            ))}
+```vue
+<template>
+  <div style="padding: 24px">
+    <!-- 流水线头部 -->
+    <el-card>
+      <el-row :gutter="16">
+        <el-col :span="6">
+          <div class="statistic">
+            <div class="statistic-title">流水线状态</div>
+            <div class="statistic-value" :style="{ color: pipeline.status === 'succeeded' ? '#67C23A' : '#F56C6C' }">
+              {{ pipeline.status }}
+            </div>
           </div>
-        </Card>
-      )}
+        </el-col>
+        <el-col :span="6">
+          <div class="statistic">
+            <div class="statistic-title">当前阶段</div>
+            <div class="statistic-value">{{ pipeline.current_stage }}/6</div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="statistic">
+            <div class="statistic-title">项目名称</div>
+            <div class="statistic-value">{{ pipeline.project_id }}</div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <el-button v-if="pipeline.status === 'running'" type="danger" @click="handleCancel">
+            取消流水线
+          </el-button>
+        </el-col>
+      </el-row>
+    </el-card>
 
-      {/* 阶段历史记录 */}
-      <Card title="阶段执行历史" style={{ marginTop: 16 }}>
-        <Timeline>
-          {stages.filter(s => s.status !== 'pending').map(stage => (
-            <Timeline.Item
-              key={stage.id}
-              color={stage.status === 'succeeded' ? 'green' : stage.status === 'failed' ? 'red' : 'blue'}
-            >
-              <p>
-                <strong>{getStageTitle(stage.stage_type)}</strong> -
-                <PipelineStatusTag status={stage.status} />
-              </p>
-              <p>开始: {formatDateTime(stage.started_at)}</p>
-              {stage.finished_at && (
-                <p>结束: {formatDateTime(stage.finished_at)}</p>
-              )}
-              {stage.error_message && (
-                <Alert type="error" message={stage.error_message} />
-              )}
-            </Timeline.Item>
-          ))}
-        </Timeline>
-      </Card>
-    </div>
-  );
-};
+    <!-- 6 阶段进度 -->
+    <el-card title="流水线进度" style="margin-top: 16px">
+      <el-steps :active="pipeline.current_stage - 1" finish-status="success">
+        <el-step
+          v-for="stage in stages"
+          :key="stage.id"
+          :title="getStageTitle(stage.stage_type)"
+          :status="getStepStatus(stage.status)"
+        >
+          <template #description>
+            <div>
+              <el-tag :type="getStatusColor(stage.status)">
+                {{ getStatusText(stage.status) }}
+              </el-tag>
+            </div>
+          </template>
+        </el-step>
+      </el-steps>
+    </el-card>
 
-// 辅助函数
-const getStageTitle = (stageType) => {
-  const titles = {
-    'teacher_config': '1. 教师模型配置',
-    'dataset_build': '2. 蒸馏数据构建',
-    'teacher_infer': '3. 教师推理',
-    'data_govern': '4. 数据治理',
-    'student_train': '5. 学生训练',
-    'evaluate': '6. 效果评估'
-  };
-  return titles[stageType] || stageType;
-};
+    <!-- 当前阶段详情 -->
+    <el-card v-if="currentStage" :title="`当前阶段: ${getStageTitle(currentStage.stage_type)}`" style="margin-top: 16px">
+      <el-descriptions :column="2">
+        <el-descriptions-item label="阶段状态">
+          <el-tag :type="getStatusColor(currentStage.status)">
+            {{ getStatusText(currentStage.status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="执行节点">
+          {{ currentStage.node_name || '未分配' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="开始时间">
+          {{ currentStage.started_at || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="容器 ID">
+          {{ currentStage.container_id || '-' }}
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
 
-const getStageIcon = (status) => {
-  if (status === 'succeeded') return <CheckCircleOutlined />;
-  if (status === 'failed') return <CloseCircleOutlined />;
-  if (status === 'running') return <LoadingOutlined />;
-  return <ClockCircleOutlined />;
+    <!-- 执行历史 -->
+    <el-card title="执行历史" style="margin-top: 16px">
+      <el-timeline>
+        <el-timeline-item
+          v-for="stage in stages.filter(s => s.started_at)"
+          :key="stage.id"
+          :color="stage.status === 'succeeded' ? 'green' : stage.status === 'failed' ? 'red' : 'blue'"
+        >
+          <p><strong>{{ getStageTitle(stage.stage_type) }}</strong></p>
+          <p>
+            状态: <el-tag :type="getStatusColor(stage.status)">{{ getStatusText(stage.status) }}</el-tag>
+          </p>
+          <p>开始: {{ stage.started_at }}</p>
+          <p v-if="stage.finished_at">结束: {{ stage.finished_at }}</p>
+          <el-alert
+            v-if="stage.error_message"
+            type="error"
+            :title="stage.error_message"
+            :closable="false"
+            show-icon
+          />
+        </el-timeline-item>
+      </el-timeline>
+    </el-card>
+  </div>
+</template>
+
+<script>
+import axios from 'axios';
+
+export default {
+  data() {
+    return {
+      pipeline: null,
+      stages: [],
+      timer: null
+    };
+  },
+  computed: {
+    currentStage() {
+      return this.stages.find(s => s.status === 'running');
+    }
+  },
+  created() {
+    this.fetchPipelineDetail();
+    this.fetchStages();
+    // 轮询更新
+    this.timer = setInterval(() => {
+      if (this.pipeline?.status === 'running') {
+        this.fetchPipelineDetail();
+        this.fetchStages();
+      }
+    }, 3000);
+  },
+  beforeDestroy() {
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
+  },
+  methods: {
+    async fetchPipelineDetail() {
+      try {
+        const response = await axios.get(`/api/v1/pipelines/${this.$route.params.id}`);
+        this.pipeline = response.data.data;
+      } catch (error) {
+        this.$message.error('获取流水线详情失败');
+      }
+    },
+    async fetchStages() {
+      try {
+        const response = await axios.get(`/api/v1/pipelines/${this.$route.params.id}/stages`);
+        this.stages = response.data.data.stages;
+      } catch (error) {
+        this.$message.error('获取阶段列表失败');
+      }
+    },
+    async handleCancel() {
+      try {
+        await axios.post(`/api/v1/pipelines/${this.$route.params.id}/cancel`);
+        this.$message.success('流水线已取消');
+        this.fetchPipelineDetail();
+      } catch (error) {
+        this.$message.error('取消失败');
+      }
+    },
+    getStageTitle(stageType) {
+      const titles = {
+        'teacher_config': '教师模型配置',
+        'dataset_build': '蒸馏数据构建',
+        'teacher_infer': '教师推理',
+        'data_govern': '数据治理',
+        'student_train': '学生训练',
+        'evaluate': '效果评估'
+      };
+      return titles[stageType] || stageType;
+    },
+    getStatusColor(status) {
+      const colors = {
+        'pending': 'info',
+        'running': 'primary',
+        'succeeded': 'success',
+        'failed': 'danger',
+        'canceled': 'warning'
+      };
+      return colors[status] || 'info';
+    },
+    getStatusText(status) {
+      const texts = {
+        'pending': '等待中',
+        'scheduled': '已调度',
+        'preparing': '准备中',
+        'running': '运行中',
+        'succeeded': '成功',
+        'failed': '失败',
+        'canceled': '已取消'
+      };
+      return texts[status] || status;
+    },
+    getStepStatus(status) {
+      if (status === 'succeeded') return 'success';
+      if (status === 'failed') return 'error';
+      if (status === 'running') return 'process';
+      return 'wait';
+    }
+  }
 };
+</script>
+
+<style scoped>
+.statistic {
+  margin-bottom: 16px;
+}
+.statistic-title {
+  font-size: 14px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+.statistic-value {
+  font-size: 24px;
+  font-weight: bold;
+}
+</style>
 ```
 
 ---
@@ -1431,139 +1664,230 @@ const getStageIcon = (status) => {
 
 **推荐布局**：
 
-```tsx
-import { Card, Progress, Badge, Row, Col } from 'antd';
+```vue
+<template>
+  <el-row :gutter="16">
+    <el-col :span="8" v-for="node in nodes" :key="node.node_name">
+      <WorkerNodeCard :node="node" />
+    </el-col>
+  </el-row>
+</template>
 
-const WorkerNodeCard = ({ node }) => {
-  const gpuUsage = ((node.total_gpu - node.available_gpu) / node.total_gpu) * 100;
+<script>
+import WorkerNodeCard from './WorkerNodeCard.vue';
 
-  return (
-    <Card
-      title={
-        <span>
-          <Badge status={node.status === 'online' ? 'success' : 'error'} />
-          {node.node_name}
-        </span>
-      }
-      extra={<Tag>{node.status}</Tag>}
-    >
-      <p>地址: {node.node_addr}</p>
-
-      <Divider />
-
-      <div>
-        <p>GPU 使用情况</p>
-        <Progress
-          percent={gpuUsage}
-          format={() => `${node.total_gpu - node.available_gpu}/${node.total_gpu}`}
-          status={gpuUsage > 80 ? 'exception' : 'normal'}
-        />
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <p>资源配置</p>
-        <Row>
-          <Col span={12}>总内存: {node.total_memory_gb} GB</Col>
-          <Col span={12}>CPU 核心: {node.total_cpu}</Col>
-        </Row>
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <p>最后心跳: {formatRelativeTime(node.last_heartbeat)}</p>
-      </div>
-    </Card>
-  );
+export default {
+  components: {
+    WorkerNodeCard
+  },
+  data() {
+    return {
+      nodes: []
+    };
+  }
 };
+</script>
+```
 
-const WorkerNodesPage = () => {
-  return (
-    <Row gutter={[16, 16]}>
-      {nodes.map(node => (
-        <Col span={8} key={node.node_name}>
-          <WorkerNodeCard node={node} />
-        </Col>
-      ))}
-    </Row>
-  );
+**WorkerNodeCard 组件**：
+
+```vue
+<template>
+  <el-card>
+    <div slot="header" class="clearfix">
+      <span>
+        <el-badge :status="node.status === 'online' ? 'success' : 'danger'" />
+        {{ node.node_name }}
+      </span>
+      <el-tag style="float: right">{{ node.status }}</el-tag>
+    </div>
+    <p>地址: {{ node.node_addr }}</p>
+
+    <el-divider />
+
+    <div>
+      <p>GPU 使用情况</p>
+      <el-progress
+        :percentage="gpuUsage"
+        :status="gpuUsage > 80 ? 'exception' : 'success'"
+        :format="() => `${node.total_gpu - node.available_gpu}/${node.total_gpu}`"
+      />
+    </div>
+
+    <div style="margin-top: 16px">
+      <p>资源配置</p>
+      <el-row>
+        <el-col :span="12">总内存: {{ node.total_memory_gb }} GB</el-col>
+        <el-col :span="12">CPU 核心: {{ node.total_cpu }}</el-col>
+      </el-row>
+    </div>
+
+    <div style="margin-top: 16px">
+      <p>最后心跳: {{ formatRelativeTime(node.last_heartbeat) }}</p>
+    </div>
+  </el-card>
+</template>
+
+<script>
+export default {
+  props: {
+    node: {
+      type: Object,
+      required: true
+    }
+  },
+  computed: {
+    gpuUsage() {
+      return ((this.node.total_gpu - this.node.available_gpu) / this.node.total_gpu) * 100;
+    }
+  },
+  methods: {
+    formatRelativeTime(timestamp) {
+      // 格式化相对时间
+      const diff = Date.now() - new Date(timestamp).getTime();
+      const seconds = Math.floor(diff / 1000);
+      if (seconds < 60) return `${seconds}秒前`;
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}分钟前`;
+      const hours = Math.floor(minutes / 60);
+      return `${hours}小时前`;
+    }
+  }
 };
+</script>
 ```
 
 ---
 
 ## 状态管理建议
 
-### 使用 Redux Toolkit 或 Zustand
+### 使用 Vuex
 
-**推荐 Zustand**（更轻量）：
+**推荐使用 Vuex** 进行全局状态管理：
 
-```typescript
-// stores/projectStore.ts
-import create from 'zustand';
+```javascript
+// store/modules/project.js
+import axios from 'axios';
 
-interface ProjectStore {
-  projects: Project[];
-  currentProject: Project | null;
-  loading: boolean;
-
-  fetchProjects: () => Promise<void>;
-  fetchProject: (id: string) => Promise<void>;
-  createProject: (project: Partial<Project>) => Promise<void>;
-  updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
-  deleteProject: (id: string) => Promise<void>;
-}
-
-export const useProjectStore = create<ProjectStore>((set, get) => ({
+const state = {
   projects: [],
   currentProject: null,
-  loading: false,
+  loading: false
+};
 
-  fetchProjects: async () => {
-    set({ loading: true });
+const mutations = {
+  SET_PROJECTS(state, projects) {
+    state.projects = projects;
+  },
+  SET_CURRENT_PROJECT(state, project) {
+    state.currentProject = project;
+  },
+  SET_LOADING(state, loading) {
+    state.loading = loading;
+  }
+};
+
+const actions = {
+  async fetchProjects({ commit }) {
+    commit('SET_LOADING', true);
     try {
-      const response = await fetch('/api/v1/projects');
-      const data = await response.json();
-      set({ projects: data.data.projects, loading: false });
+      const response = await axios.get('/api/v1/projects');
+      commit('SET_PROJECTS', response.data.data.projects);
     } catch (error) {
-      set({ loading: false });
-      message.error('获取项目列表失败');
+      this._vm.$message.error('获取项目列表失败');
+    } finally {
+      commit('SET_LOADING', false);
     }
   },
 
-  createProject: async (project) => {
-    const response = await fetch('/api/v1/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(project)
-    });
-    const data = await response.json();
-    if (data.code === 200) {
-      message.success('项目创建成功');
-      get().fetchProjects();
+  async fetchProject({ commit }, id) {
+    try {
+      const response = await axios.get(`/api/v1/projects/${id}`);
+      commit('SET_CURRENT_PROJECT', response.data.data);
+    } catch (error) {
+      this._vm.$message.error('获取项目失败');
     }
   },
 
-  // ... 其他方法
-}));
+  async createProject({ dispatch }, project) {
+    try {
+      const response = await axios.post('/api/v1/projects', project);
+      if (response.data.code === 200) {
+        this._vm.$message.success('项目创建成功');
+        dispatch('fetchProjects');
+      }
+    } catch (error) {
+      this._vm.$message.error('创建项目失败');
+    }
+  },
+
+  async updateProject({ dispatch }, { id, updates }) {
+    try {
+      await axios.put(`/api/v1/projects/${id}`, updates);
+      this._vm.$message.success('项目更新成功');
+      dispatch('fetchProjects');
+    } catch (error) {
+      this._vm.$message.error('更新项目失败');
+    }
+  },
+
+  async deleteProject({ dispatch }, id) {
+    try {
+      await axios.delete(`/api/v1/projects/${id}`);
+      this._vm.$message.success('项目删除成功');
+      dispatch('fetchProjects');
+    } catch (error) {
+      this._vm.$message.error('删除项目失败');
+    }
+  }
+};
+
+const getters = {
+  projects: state => state.projects,
+  currentProject: state => state.currentProject,
+  loading: state => state.loading
+};
+
+export default {
+  namespaced: true,
+  state,
+  mutations,
+  actions,
+  getters
+};
 ```
 
 **在组件中使用**：
 
-```tsx
-const ProjectListPage = () => {
-  const { projects, loading, fetchProjects } = useProjectStore();
+```vue
+<template>
+  <div>
+    <el-table
+      v-loading="loading"
+      :data="projects"
+      border
+      style="width: 100%"
+    >
+      <!-- 表格列定义 -->
+    </el-table>
+  </div>
+</template>
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
+<script>
+import { mapGetters, mapActions } from 'vuex';
 
-  return (
-    <Table
-      dataSource={projects}
-      loading={loading}
-      columns={columns}
-    />
-  );
+export default {
+  computed: {
+    ...mapGetters('project', ['projects', 'loading'])
+  },
+  methods: {
+    ...mapActions('project', ['fetchProjects'])
+  },
+  created() {
+    this.fetchProjects();
+  }
 };
+</script>
 ```
 
 ---
@@ -1572,223 +1896,233 @@ const ProjectListPage = () => {
 
 ### 完整的流水线详情页实现
 
-```tsx
-// pages/PipelineDetailPage.tsx
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import {
-  Card, Steps, Descriptions, Button, Timeline,
-  Alert, Spin, Statistic, Row, Col, Tag, message
-} from 'antd';
-import {
-  CheckCircleOutlined,
-  CloseCircleOutlined,
-  LoadingOutlined,
-  ClockCircleOutlined
-} from '@ant-design/icons';
+```vue
+<template>
+  <div v-loading="loading" style="padding: 24px">
+    <!-- 流水线头部 -->
+    <el-card v-if="pipeline">
+      <el-row :gutter="16">
+        <el-col :span="6">
+          <div class="statistic">
+            <div class="statistic-title">流水线状态</div>
+            <div class="statistic-value" :style="{ color: pipeline.status === 'succeeded' ? '#67C23A' : '#F56C6C' }">
+              {{ pipeline.status }}
+            </div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="statistic">
+            <div class="statistic-title">当前阶段</div>
+            <div class="statistic-value">{{ pipeline.current_stage }}/6</div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <div class="statistic">
+            <div class="statistic-title">项目名称</div>
+            <div class="statistic-value">{{ pipeline.project_id }}</div>
+          </div>
+        </el-col>
+        <el-col :span="6">
+          <el-button v-if="pipeline.status === 'running'" type="danger" @click="handleCancel">
+            取消流水线
+          </el-button>
+        </el-col>
+      </el-row>
+    </el-card>
+
+    <!-- 6 阶段进度 -->
+    <el-card title="流水线进度" style="margin-top: 16px">
+      <el-steps :active="pipeline ? pipeline.current_stage - 1 : 0" finish-status="success">
+        <el-step
+          v-for="stage in stages"
+          :key="stage.id"
+          :title="getStageTitle(stage.stage_type)"
+          :status="getStepStatus(stage.status)"
+        >
+          <template #description>
+            <el-tag :type="getStatusColor(stage.status)">
+              {{ getStatusText(stage.status) }}
+            </el-tag>
+          </template>
+        </el-step>
+      </el-steps>
+    </el-card>
+
+    <!-- 当前阶段详情 -->
+    <el-card v-if="currentStage" :title="`当前阶段: ${getStageTitle(currentStage.stage_type)}`" style="margin-top: 16px">
+      <el-descriptions :column="2">
+        <el-descriptions-item label="阶段状态">
+          <el-tag :type="getStatusColor(currentStage.status)">
+            {{ getStatusText(currentStage.status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="执行节点">
+          {{ currentStage.node_name || '未分配' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="开始时间">
+          {{ currentStage.started_at || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="容器 ID">
+          {{ currentStage.container_id || '-' }}
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
+    <!-- 执行历史 -->
+    <el-card title="执行历史" style="margin-top: 16px">
+      <el-timeline>
+        <el-timeline-item
+          v-for="stage in completedStages"
+          :key="stage.id"
+          :color="stage.status === 'succeeded' ? 'green' : stage.status === 'failed' ? 'red' : 'blue'"
+        >
+          <p><strong>{{ getStageTitle(stage.stage_type) }}</strong></p>
+          <p>
+            状态: <el-tag :type="getStatusColor(stage.status)">{{ getStatusText(stage.status) }}</el-tag>
+          </p>
+          <p>开始: {{ stage.started_at }}</p>
+          <p v-if="stage.finished_at">结束: {{ stage.finished_at }}</p>
+          <el-alert
+            v-if="stage.error_message"
+            type="error"
+            :title="stage.error_message"
+            :closable="false"
+            show-icon
+          />
+        </el-timeline-item>
+      </el-timeline>
+    </el-card>
+  </div>
+</template>
+
+<script>
 import axios from 'axios';
 
-const { Step } = Steps;
-const { Item } = Descriptions;
-
-const PipelineDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const [pipeline, setPipeline] = useState<any>(null);
-  const [stages, setStages] = useState<any[]>([]);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // 获取流水线详情
-  const fetchPipelineDetail = async () => {
-    try {
-      const response = await axios.get(`/api/v1/pipelines/${id}`);
-      setPipeline(response.data.data);
-    } catch (error) {
-      message.error('获取流水线详情失败');
+export default {
+  name: 'PipelineDetailPage',
+  data() {
+    return {
+      pipeline: null,
+      stages: [],
+      loading: true,
+      timer: null
+    };
+  },
+  computed: {
+    currentStage() {
+      return this.stages.find(s => s.status === 'running');
+    },
+    completedStages() {
+      return this.stages.filter(s => s.started_at);
     }
-  };
+  },
+  created() {
+    this.fetchPipelineDetail();
+    this.fetchStages();
+    this.loading = false;
 
-  // 获取阶段列表
-  const fetchStages = async () => {
-    try {
-      const response = await axios.get(`/api/v1/pipelines/${id}/stages`);
-      setStages(response.data.data.stages);
-    } catch (error) {
-      message.error('获取阶段列表失败');
-    }
-  };
-
-  // 轮询更新
-  useEffect(() => {
-    fetchPipelineDetail();
-    fetchStages();
-    setLoading(false);
-
-    const timer = setInterval(() => {
-      if (pipeline?.status === 'running') {
-        fetchPipelineDetail();
-        fetchStages();
+    // 定时轮询
+    this.timer = setInterval(() => {
+      if (this.pipeline?.status === 'running') {
+        this.fetchPipelineDetail();
+        this.fetchStages();
       }
     }, 3000);
-
-    return () => clearInterval(timer);
-  }, [id]);
-
-  // 取消流水线
-  const handleCancel = async () => {
-    try {
-      await axios.post(`/api/v1/pipelines/${id}/cancel`);
-      message.success('流水线已取消');
-      fetchPipelineDetail();
-    } catch (error) {
-      message.error('取消失败');
+  },
+  beforeDestroy() {
+    if (this.timer) {
+      clearInterval(this.timer);
     }
-  };
+  },
+  methods: {
+    async fetchPipelineDetail() {
+      try {
+        const response = await axios.get(`/api/v1/pipelines/${this.$route.params.id}`);
+        this.pipeline = response.data.data;
+      } catch (error) {
+        this.$message.error('获取流水线详情失败');
+      }
+    },
 
-  if (loading) return <Spin size="large" />;
-  if (!pipeline) return <Alert type="error" message="流水线不存在" />;
+    async fetchStages() {
+      try {
+        const response = await axios.get(`/api/v1/pipelines/${this.$route.params.id}/stages`);
+        this.stages = response.data.data.stages;
+      } catch (error) {
+        this.$message.error('获取阶段列表失败');
+      }
+    },
 
-  const currentStage = stages.find(s => s.status === 'running');
+    async handleCancel() {
+      try {
+        await axios.post(`/api/v1/pipelines/${this.$route.params.id}/cancel`);
+        this.$message.success('流水线已取消');
+        this.fetchPipelineDetail();
+      } catch (error) {
+        this.$message.error('取消失败');
+      }
+    },
 
-  return (
-    <div style={{ padding: 24 }}>
-      {/* 流水线头部 */}
-      <Card>
-        <Row gutter={16}>
-          <Col span={6}>
-            <Statistic
-              title="流水线状态"
-              value={pipeline.status}
-              valueStyle={{ color: pipeline.status === 'succeeded' ? '#3f8600' : '#cf1322' }}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic title="当前阶段" value={`${pipeline.current_stage}/6`} />
-          </Col>
-          <Col span={6}>
-            <Statistic title="项目名称" value={pipeline.project_id} />
-          </Col>
-          <Col span={6}>
-            {pipeline.status === 'running' && (
-              <Button danger onClick={handleCancel}>取消流水线</Button>
-            )}
-          </Col>
-        </Row>
-      </Card>
+    getStageTitle(stageType) {
+      const titles = {
+        'teacher_config': '教师模型配置',
+        'dataset_build': '蒸馏数据构建',
+        'teacher_infer': '教师推理',
+        'data_govern': '数据治理',
+        'student_train': '学生训练',
+        'evaluate': '效果评估'
+      };
+      return titles[stageType] || stageType;
+    },
 
-      {/* 6 阶段进度 */}
-      <Card title="流水线进度" style={{ marginTop: 16 }}>
-        <Steps current={pipeline.current_stage - 1}>
-          {stages.map((stage) => (
-            <Step
-              key={stage.id}
-              title={getStageTitle(stage.stage_type)}
-              status={getStepStatus(stage.status)}
-              icon={getStageIcon(stage.status)}
-              description={
-                <div>
-                  <Tag color={getStatusColor(stage.status)}>
-                    {getStatusText(stage.status)}
-                  </Tag>
-                </div>
-              }
-            />
-          ))}
-        </Steps>
-      </Card>
+    getStatusColor(status) {
+      const colors = {
+        'pending': 'info',
+        'running': 'primary',
+        'succeeded': 'success',
+        'failed': 'danger',
+        'canceled': 'warning'
+      };
+      return colors[status] || 'info';
+    },
 
-      {/* 当前阶段详情 */}
-      {currentStage && (
-        <Card title={`当前阶段: ${getStageTitle(currentStage.stage_type)}`} style={{ marginTop: 16 }}>
-          <Descriptions column={2}>
-            <Item label="阶段状态">
-              <Tag color={getStatusColor(currentStage.status)}>
-                {getStatusText(currentStage.status)}
-              </Tag>
-            </Item>
-            <Item label="执行节点">{currentStage.node_name || '未分配'}</Item>
-            <Item label="开始时间">{currentStage.started_at || '-'}</Item>
-            <Item label="容器 ID">{currentStage.container_id || '-'}</Item>
-          </Descriptions>
-        </Card>
-      )}
+    getStatusText(status) {
+      const texts = {
+        'pending': '等待中',
+        'scheduled': '已调度',
+        'preparing': '准备中',
+        'running': '运行中',
+        'succeeded': '成功',
+        'failed': '失败',
+        'canceled': '已取消'
+      };
+      return texts[status] || status;
+    },
 
-      {/* 执行历史 */}
-      <Card title="执行历史" style={{ marginTop: 16 }}>
-        <Timeline>
-          {stages.filter(s => s.started_at).map(stage => (
-            <Timeline.Item
-              key={stage.id}
-              color={stage.status === 'succeeded' ? 'green' : stage.status === 'failed' ? 'red' : 'blue'}
-              dot={getStageIcon(stage.status)}
-            >
-              <p><strong>{getStageTitle(stage.stage_type)}</strong></p>
-              <p>状态: <Tag color={getStatusColor(stage.status)}>{getStatusText(stage.status)}</Tag></p>
-              <p>开始: {stage.started_at}</p>
-              {stage.finished_at && <p>结束: {stage.finished_at}</p>}
-              {stage.error_message && (
-                <Alert type="error" message={stage.error_message} showIcon />
-              )}
-            </Timeline.Item>
-          ))}
-        </Timeline>
-      </Card>
-    </div>
-  );
+    getStepStatus(status) {
+      if (status === 'succeeded') return 'success';
+      if (status === 'failed') return 'error';
+      if (status === 'running') return 'process';
+      return 'wait';
+    }
+  }
 };
+</script>
 
-// 辅助函数
-const getStageTitle = (stageType: string) => {
-  const titles: Record<string, string> = {
-    'teacher_config': '教师模型配置',
-    'dataset_build': '蒸馏数据构建',
-    'teacher_infer': '教师推理',
-    'data_govern': '数据治理',
-    'student_train': '学生训练',
-    'evaluate': '效果评估'
-  };
-  return titles[stageType] || stageType;
-};
-
-const getStatusColor = (status: string) => {
-  const colors: Record<string, string> = {
-    'pending': 'default',
-    'running': 'processing',
-    'succeeded': 'success',
-    'failed': 'error',
-    'canceled': 'warning'
-  };
-  return colors[status] || 'default';
-};
-
-const getStatusText = (status: string) => {
-  const texts: Record<string, string> = {
-    'pending': '等待中',
-    'scheduled': '已调度',
-    'preparing': '准备中',
-    'running': '运行中',
-    'succeeded': '成功',
-    'failed': '失败',
-    'canceled': '已取消'
-  };
-  return texts[status] || status;
-};
-
-const getStepStatus = (status: string) => {
-  if (status === 'succeeded') return 'finish';
-  if (status === 'failed') return 'error';
-  if (status === 'running') return 'process';
-  return 'wait';
-};
-
-const getStageIcon = (status: string) => {
-  if (status === 'succeeded') return <CheckCircleOutlined />;
-  if (status === 'failed') return <CloseCircleOutlined />;
-  if (status === 'running') return <LoadingOutlined />;
-  return <ClockCircleOutlined />;
-};
-
-export default PipelineDetailPage;
+<style scoped>
+.statistic {
+  margin-bottom: 16px;
+}
+.statistic-title {
+  font-size: 14px;
+  color: #909399;
+  margin-bottom: 8px;
+}
+.statistic-value {
+  font-size: 24px;
+  font-weight: bold;
+}
+</style>
 ```
 
 ---
@@ -1797,11 +2131,11 @@ export default PipelineDetailPage;
 
 ### 技术栈建议
 
-- **UI 框架**: Ant Design（中文友好、组件丰富）
-- **路由**: React Router v6
-- **状态管理**: Zustand 或 Redux Toolkit
+- **框架**: Vue 2 + Vue Router
+- **UI 组件库**: Element UI（中文友好、组件丰富）
+- **状态管理**: Vuex
 - **HTTP 客户端**: Axios
-- **图表**: ECharts 或 Recharts（用于评估报告可视化）
+- **图表**: ECharts 或 Vue-ECharts（用于评估报告可视化）
 - **WebSocket**: socket.io-client（用于实时日志推送，可选）
 
 ### 核心页面优先级
@@ -1825,9 +2159,9 @@ export default PipelineDetailPage;
 1. **轮询策略**: 流水线详情页需要定时轮询（3-5秒），但要注意性能优化
 2. **错误处理**: 所有 API 调用都要加 try-catch，并提供友好的错误提示
 3. **加载状态**: 使用 Spin 组件显示加载状态，提升用户体验
-4. **响应式设计**: 使用 Ant Design 的 Grid 系统，支持移动端
+4. **响应式设计**: 使用 Element UI 的 Grid 系统，支持移动端
 5. **时间格式化**: 统一使用 dayjs 或 moment.js 处理时间
-6. **数据刷新**: 考虑使用 SWR 或 React Query 来管理数据获取和缓存
+6. **数据刷新**: 可以配合 Vue 的响应式特性或使用 axios 拦截器来管理数据获取和缓存
 
 ---
 
