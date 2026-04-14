@@ -15,6 +15,7 @@ type Config struct {
 	Storage  StorageConfig  `yaml:"storage"`
 	GRPC     GRPCConfig     `yaml:"grpc"`
 	Logging  LoggingConfig  `yaml:"logging"`
+	Executor ExecutorConfig `yaml:"executor"`
 }
 
 // ServerConfig HTTP 服务配置
@@ -67,6 +68,12 @@ type LoggingConfig struct {
 	MaxSize  int    `yaml:"max_size"`  // 单个日志文件最大大小 (MB)
 	MaxAge   int    `yaml:"max_age"`   // 日志文件保留天数
 	Compress bool   `yaml:"compress"`  // 是否压缩旧日志
+}
+
+// ExecutorConfig 执行器配置
+type ExecutorConfig struct {
+	WorkspaceRoot string `yaml:"workspace_root"` // 工作空间根目录
+	MaxConcurrent int    `yaml:"max_concurrent"` // 最大并发执行数
 }
 
 // Load 从文件加载配置
@@ -155,6 +162,14 @@ func setDefaults(config *Config) {
 	}
 	if config.Logging.MaxAge == 0 {
 		config.Logging.MaxAge = 7 // 7 天
+	}
+
+	// Executor 默认值
+	if config.Executor.WorkspaceRoot == "" {
+		config.Executor.WorkspaceRoot = "/shared"
+	}
+	if config.Executor.MaxConcurrent <= 0 {
+		config.Executor.MaxConcurrent = 5
 	}
 }
 
