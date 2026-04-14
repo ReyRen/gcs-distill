@@ -50,7 +50,7 @@ http://172.18.36.230:18080/api/v1
 {
   "code": 200,
   "message": "成功消息",
-  "data": { /* 具体数据 */ }
+  "data": { /* 具体数据，可能是对象或数组 */ }
 }
 ```
 
@@ -139,7 +139,7 @@ GET /api/v1/projects?page=1&page_size=10
   "code": 200,
   "message": "获取项目列表成功",
   "data": {
-    "projects": [
+    "items": [
       {
         "id": "uuid-1",
         "name": "客服问答蒸馏",
@@ -274,7 +274,7 @@ GET /api/v1/datasets?project_id={project_id}&page=1&page_size=10
   "code": 200,
   "message": "获取数据集列表成功",
   "data": {
-    "datasets": [
+    "items": [
       {
         "id": "dataset-uuid",
         "project_id": "project-uuid",
@@ -399,13 +399,7 @@ POST /api/v1/pipelines/{pipeline_id}/start
 ```json
 {
   "code": 200,
-  "message": "流水线启动成功",
-  "data": {
-    "id": "pipeline-uuid",
-    "status": "scheduled",
-    "current_stage": 1,
-    "started_at": "2024-01-01T00:00:00Z"
-  }
+  "message": "流水线启动成功"
 }
 ```
 
@@ -467,7 +461,7 @@ GET /api/v1/pipelines?project_id={project_id}&status=running&page=1&page_size=10
   "code": 200,
   "message": "获取流水线列表成功",
   "data": {
-    "pipelines": [
+    "items": [
       {
         "id": "pipeline-uuid",
         "project_id": "project-uuid",
@@ -497,57 +491,55 @@ GET /api/v1/pipelines/{pipeline_id}/stages
 {
   "code": 200,
   "message": "获取阶段列表成功",
-  "data": {
-    "stages": [
-      {
-        "id": "stage-uuid-1",
-        "pipeline_run_id": "pipeline-uuid",
-        "stage_type": "teacher_config",
-        "stage_order": 1,
-        "status": "succeeded",
-        "node_name": "worker-1",
-        "started_at": "2024-01-01T00:00:00Z",
-        "finished_at": "2024-01-01T00:01:00Z"
-      },
-      {
-        "id": "stage-uuid-2",
-        "pipeline_run_id": "pipeline-uuid",
-        "stage_type": "dataset_build",
-        "stage_order": 2,
-        "status": "succeeded",
-        "started_at": "2024-01-01T00:01:00Z",
-        "finished_at": "2024-01-01T00:02:00Z"
-      },
-      {
-        "id": "stage-uuid-3",
-        "pipeline_run_id": "pipeline-uuid",
-        "stage_type": "teacher_infer",
-        "stage_order": 3,
-        "status": "running",
-        "node_name": "worker-1",
-        "started_at": "2024-01-01T00:02:00Z",
-        "finished_at": null
-      },
-      {
-        "id": "stage-uuid-4",
-        "stage_type": "data_govern",
-        "stage_order": 4,
-        "status": "pending"
-      },
-      {
-        "id": "stage-uuid-5",
-        "stage_type": "student_train",
-        "stage_order": 5,
-        "status": "pending"
-      },
-      {
-        "id": "stage-uuid-6",
-        "stage_type": "evaluate",
-        "stage_order": 6,
-        "status": "pending"
-      }
-    ]
-  }
+  "data": [
+    {
+      "id": "stage-uuid-1",
+      "pipeline_run_id": "pipeline-uuid",
+      "stage_type": "teacher_config",
+      "stage_order": 1,
+      "status": "succeeded",
+      "node_name": "worker-1",
+      "started_at": "2024-01-01T00:00:00Z",
+      "finished_at": "2024-01-01T00:01:00Z"
+    },
+    {
+      "id": "stage-uuid-2",
+      "pipeline_run_id": "pipeline-uuid",
+      "stage_type": "dataset_build",
+      "stage_order": 2,
+      "status": "succeeded",
+      "started_at": "2024-01-01T00:01:00Z",
+      "finished_at": "2024-01-01T00:02:00Z"
+    },
+    {
+      "id": "stage-uuid-3",
+      "pipeline_run_id": "pipeline-uuid",
+      "stage_type": "teacher_infer",
+      "stage_order": 3,
+      "status": "running",
+      "node_name": "worker-1",
+      "started_at": "2024-01-01T00:02:00Z",
+      "finished_at": null
+    },
+    {
+      "id": "stage-uuid-4",
+      "stage_type": "data_govern",
+      "stage_order": 4,
+      "status": "pending"
+    },
+    {
+      "id": "stage-uuid-5",
+      "stage_type": "student_train",
+      "stage_order": 5,
+      "status": "pending"
+    },
+    {
+      "id": "stage-uuid-6",
+      "stage_type": "evaluate",
+      "stage_order": 6,
+      "status": "pending"
+    }
+  ]
 }
 ```
 
@@ -569,31 +561,28 @@ GET /api/v1/resources/nodes
 {
   "code": 200,
   "message": "获取节点列表成功",
-  "data": {
-    "nodes": [
-      {
-        "node_name": "worker-1",
-        "node_addr": "192.168.1.10:50052",
-        "status": "online",
-        "total_gpu": 4,
-        "available_gpu": 2,
-        "total_memory_gb": 128,
-        "total_cpu": 32,
-        "last_heartbeat": "2024-01-01T00:00:00Z"
-      },
-      {
-        "node_name": "worker-2",
-        "node_addr": "192.168.1.11:50052",
-        "status": "busy",
-        "total_gpu": 8,
-        "available_gpu": 0,
-        "total_memory_gb": 256,
-        "total_cpu": 64,
-        "last_heartbeat": "2024-01-01T00:00:00Z"
-      }
-    ],
-    "total": 2
-  }
+  "data": [
+    {
+      "node_name": "worker-1",
+      "node_addr": "192.168.1.10:50052",
+      "status": "online",
+      "total_gpu": 4,
+      "available_gpu": 2,
+      "total_memory_gb": 128,
+      "total_cpu": 32,
+      "last_heartbeat": "2024-01-01T00:00:00Z"
+    },
+    {
+      "node_name": "worker-2",
+      "node_addr": "192.168.1.11:50052",
+      "status": "busy",
+      "total_gpu": 8,
+      "available_gpu": 0,
+      "total_memory_gb": 256,
+      "total_cpu": 64,
+      "last_heartbeat": "2024-01-01T00:00:00Z"
+    }
+  ]
 }
 ```
 
@@ -610,7 +599,7 @@ GET /api/v1/resources/nodes/{node_name}
 ```json
 {
   "code": 200,
-  "message": "获取节点成功",
+  "message": "获取节点信息成功",
   "data": {
     "node_name": "worker-1",
     "node_addr": "192.168.1.10:50052",
@@ -1174,7 +1163,7 @@ export default {
     <el-upload
       class="upload-demo"
       drag
-      action="/api/v1/datasets/upload"
+      action="/api/v1/datasets"
       accept=".json,.jsonl,.csv"
       :before-upload="handleUpload"
     >
@@ -1544,7 +1533,8 @@ export default {
   },
   computed: {
     currentStage() {
-      return this.stages.find(s => s.status === 'running');
+      return this.stages.find(s => s.status === 'running')
+        || this.stages.find(s => s.stage_order === this.pipeline?.current_stage);
     }
   },
   created() {
@@ -1575,7 +1565,7 @@ export default {
     async fetchStages() {
       try {
         const response = await axios.get(`/api/v1/pipelines/${this.$route.params.id}/stages`);
-        this.stages = response.data.data.stages;
+        this.stages = response.data.data;
       } catch (error) {
         this.$message.error('获取阶段列表失败');
       }
@@ -1792,7 +1782,7 @@ const actions = {
     commit('SET_LOADING', true);
     try {
       const response = await axios.get('/api/v1/projects');
-      commit('SET_PROJECTS', response.data.data.projects);
+      commit('SET_PROJECTS', response.data.data.items);
     } catch (error) {
       this._vm.$message.error('获取项目列表失败');
     } finally {
@@ -2010,7 +2000,8 @@ export default {
   },
   computed: {
     currentStage() {
-      return this.stages.find(s => s.status === 'running');
+      return this.stages.find(s => s.status === 'running')
+        || this.stages.find(s => s.stage_order === this.pipeline?.current_stage);
     },
     completedStages() {
       return this.stages.filter(s => s.started_at);
@@ -2047,7 +2038,7 @@ export default {
     async fetchStages() {
       try {
         const response = await axios.get(`/api/v1/pipelines/${this.$route.params.id}/stages`);
-        this.stages = response.data.data.stages;
+        this.stages = response.data.data;
       } catch (error) {
         this.$message.error('获取阶段列表失败');
       }

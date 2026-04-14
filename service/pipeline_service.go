@@ -183,6 +183,10 @@ func (s *pipelineService) StartPipeline(ctx context.Context, id string) error {
 	pipeline.StartedAt = &now
 	pipeline.CurrentStage = 1
 
+	if err := s.activateStageByOrder(ctx, id, 1, now); err != nil {
+		return err
+	}
+
 	if err := s.pipelineRepo.Update(ctx, pipeline); err != nil {
 		return fmt.Errorf("启动流水线失败: %w", err)
 	}
@@ -207,6 +211,13 @@ func (s *pipelineService) CancelPipeline(ctx context.Context, id string) error {
 		return fmt.Errorf("流水线状态不允许取消: %s", pipeline.Status)
 	}
 
+	now := time.Now()
+	if pipeline.CurrentStage > 0 {
+		if err := s.finishStageByOrder(ctx, id, pipeline.CurrentStage, types.StatusCanceled, now, "用户取消"); err != nil {
+			return err
+		}
+	}
+
 	// 更新状态为已取消
 	if err := s.pipelineRepo.UpdateStatus(ctx, id, types.StatusCanceled, "用户取消"); err != nil {
 		return fmt.Errorf("取消流水线失败: %w", err)
@@ -227,10 +238,16 @@ func (s *pipelineService) AdvanceStage(ctx context.Context, pipelineID string) e
 		return fmt.Errorf("流水线不存在: %s", pipelineID)
 	}
 
+	now := time.Now()
+	if pipeline.CurrentStage > 0 {
+		if err := s.finishStageByOrder(ctx, pipelineID, pipeline.CurrentStage, types.StatusSucceeded, now, ""); err != nil {
+			return err
+		}
+	}
+
 	// 检查是否还有下一阶段
 	if pipeline.CurrentStage >= 6 {
 		// 所有阶段完成，更新流水线状态为成功
-		now := time.Now()
 		pipeline.Status = types.StatusSucceeded
 		pipeline.FinishedAt = &now
 
@@ -247,6 +264,9 @@ func (s *pipelineService) AdvanceStage(ctx context.Context, pipelineID string) e
 
 	// 推进到下一阶段
 	pipeline.CurrentStage++
+	if err := s.activateStageByOrder(ctx, pipelineID, pipeline.CurrentStage, now); err != nil {
+		return err
+	}
 
 	if err := s.pipelineRepo.Update(ctx, pipeline); err != nil {
 		return fmt.Errorf("推进阶段失败: %w", err)
@@ -315,40 +335,93 @@ func (s *pipelineService) UpdateStage(ctx context.Context, stage *types.StageRun
 	return nil
 }
 
+func (s *pipelineService) activateStageByOrder(ctx context.Context, pipelineID string, stageOrder int, startedAt time.Time) error {
+	stage, err := s.getStageByOrder(ctx, pipelineID, stageOrder)
+	if err != nil {
+		return err
+	}
+
+	stage.Status = types.StatusRunning
+	stage.StartedAt = &startedAt
+	stage.FinishedAt = nil
+	stage.ErrorMessage = ""
+
+	if err := s.stageRepo.Update(ctx, stage); err != nil {
+		return fmt.Errorf("更新阶段失败: %w", err)
+	}
+
+	return nil
+}
+
+func (s *pipelineService) finishStageByOrder(ctx context.Context, pipelineID string, stageOrder int, status types.PipelineStatus, finishedAt time.Time, errorMsg string) error {
+	stage, err := s.getStageByOrder(ctx, pipelineID, stageOrder)
+	if err != nil {
+		return err
+	}
+
+	stage.Status = status
+	stage.FinishedAt = &finishedAt
+	if stage.StartedAt == nil {
+		stage.StartedAt = &finishedAt
+	}
+	stage.ErrorMessage = errorMsg
+
+	if err := s.stageRepo.Update(ctx, stage); err != nil {
+		return fmt.Errorf("更新阶段失败: %w", err)
+	}
+
+	return nil
+}
+
+func (s *pipelineService) getStageByOrder(ctx context.Context, pipelineID string, stageOrder int) (*types.StageRun, error) {
+	stages, err := s.stageRepo.ListByPipeline(ctx, pipelineID)
+	if err != nil {
+		return nil, fmt.Errorf("获取阶段列表失败: %w", err)
+	}
+
+	for _, stage := range stages {
+		if stage.StageOrder == stageOrder {
+			return stage, nil
+		}
+	}
+
+	return nil, fmt.Errorf("流水线缺少阶段 %d: %s", stageOrder, pipelineID)
+}
+
 // validatePipeline 验证流水线信息
 func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.PipelineRun) error {
 	if pipeline.ProjectID == "" {
-		return fmt.Errorf("项目ID不能为空")
+		return newValidationError("项目ID不能为空")
 	}
 
 	if pipeline.DatasetID == "" {
-		return fmt.Errorf("数据集ID不能为空")
+		return newValidationError("数据集ID不能为空")
 	}
 
 	// 检查项目是否存在
 	_, err := s.projectRepo.GetByID(ctx, pipeline.ProjectID)
 	if err != nil {
-		return fmt.Errorf("项目不存在: %s", pipeline.ProjectID)
+		return newValidationError(fmt.Sprintf("项目不存在: %s", pipeline.ProjectID))
 	}
 
 	// 检查数据集是否存在
 	_, err = s.datasetRepo.GetByID(ctx, pipeline.DatasetID)
 	if err != nil {
-		return fmt.Errorf("数据集不存在: %s", pipeline.DatasetID)
+		return newValidationError(fmt.Sprintf("数据集不存在: %s", pipeline.DatasetID))
 	}
 
 	// 验证训练配置
 	if pipeline.TrainingConfig.NumTrainEpochs <= 0 {
-		return fmt.Errorf("训练轮数必须大于0")
+		return newValidationError("训练轮数必须大于0")
 	}
 
 	if pipeline.TrainingConfig.LearningRate <= 0 {
-		return fmt.Errorf("学习率必须大于0")
+		return newValidationError("学习率必须大于0")
 	}
 
 	// 验证资源请求
 	if pipeline.ResourceRequest.GPUCount < 0 {
-		return fmt.Errorf("GPU数量不能为负数")
+		return newValidationError("GPU数量不能为负数")
 	}
 
 	return nil

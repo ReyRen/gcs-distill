@@ -16,6 +16,8 @@
 }
 ```
 
+`data` 可能是对象、数组，部分操作型接口仅返回 `code` 和 `message`。
+
 ## 错误码
 
 - `200` - 成功
@@ -133,6 +135,20 @@
 - `page`: 页码
 - `page_size`: 每页大小
 
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "获取数据集列表成功",
+  "data": {
+    "items": [...],
+    "total": 10,
+    "page": 1,
+    "page_size": 20
+  }
+}
+```
+
 ### 3. 获取数据集详情
 
 **GET** `/api/v1/datasets/{id}`
@@ -140,6 +156,8 @@
 ### 4. 更新数据集
 
 **PUT** `/api/v1/datasets/{id}`
+
+当前实现仅更新 `name`、`description`、`record_count`。前端至少需要传 `name`。
 
 ### 5. 删除数据集
 
@@ -207,6 +225,20 @@
 - `page`: 页码
 - `page_size`: 每页大小
 
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "获取流水线列表成功",
+  "data": {
+    "items": [...],
+    "total": 10,
+    "page": 1,
+    "page_size": 20
+  }
+}
+```
+
 ### 3. 获取流水线详情
 
 **GET** `/api/v1/pipelines/{id}`
@@ -242,11 +274,27 @@
 
 启动一个处于 `pending` 状态的流水线。
 
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "流水线启动成功"
+}
+```
+
 ### 5. 取消流水线
 
 **POST** `/api/v1/pipelines/{id}/cancel`
 
-取消正在运行的流水线。
+取消处于 `pending` 或 `running` 状态的流水线。
+
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "流水线取消成功"
+}
+```
 
 ### 6. 获取流水线阶段列表
 
@@ -292,7 +340,7 @@
 - `running` - 运行中
 - `succeeded` - 成功
 - `failed` - 失败
-- `skipped` - 已跳过
+- `canceled` - 已取消
 
 ---
 
