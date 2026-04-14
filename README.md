@@ -50,13 +50,15 @@ git clone https://github.com/ReyRen/gcs-distill.git
 cd gcs-distill
 
 # 2. 一键启动所有服务
-docker-compose up -d
+make docker-up
 
 # 3. 验证部署
 curl http://172.18.36.230:18080/health
 
 # 详细说明请参考: docs/quickstart.md
 ```
+
+说明：`make docker-up` 是对 `docker compose up -d` 的封装，额外会等待片刻并打印服务状态；如果你只想直接使用 Compose，手动执行 `docker compose up -d` 也可以。
 
 ### 手动安装
 
@@ -78,8 +80,12 @@ cd gcs-distill
 
 2. 构建 EasyDistill 镜像
 ```bash
-cd docker/easydistill
-docker build -t gcs-distill/easydistill:latest .
+make docker-build
+```
+
+如果你的网络访问 PyPI 较慢，可以临时指定镜像源，例如：
+```bash
+make docker-build PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
 3. 配置环境变量

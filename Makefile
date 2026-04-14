@@ -6,6 +6,9 @@ BINARY_WORKER=bin/gcs-distill-worker
 VERSION=v0.1.0
 DOCKER_IMAGE=gcs-distill/easydistill
 DOCKER_TAG=latest
+COMPOSE=docker compose
+PIP_INDEX_URL?=
+PIP_EXTRA_INDEX_URL?=
 
 # 默认目标
 all: build
@@ -29,6 +32,8 @@ help:
 	@echo "  make docker-build   - 构建 EasyDistill Docker 镜像"
 	@echo "  make docker-test    - 测试 EasyDistill Docker 镜像"
 	@echo "  make docker-build-all - 构建所有 Docker 镜像"
+	@echo "  make docker-prune   - 清理 <none> 悬空镜像"
+	@echo "  make docker-builder-prune - 清理 Docker 构建缓存"
 	@echo ""
 	@echo "测试和验证:"
 	@echo "  make test           - 运行 Go 单元测试"
@@ -64,7 +69,7 @@ worker:
 ## proto: 生成 gRPC 代码
 proto:
 	@echo "生成 gRPC 代码..."
-	@protoc --go_out=. --go-grpc_out=. proto/worker.proto
+	@PATH="$(shell go env GOPATH)/bin:$$PATH" protoc --go_out=paths=source_relative:. --go-grpc_out=paths=source_relative:. proto/worker.proto
 	@echo "gRPC 代码生成完成"
 
 ## test: 运行测试
@@ -83,7 +88,10 @@ clean:
 ## docker-build: 构建 EasyDistill Docker 镜像
 docker-build:
 	@echo "构建 EasyDistill Docker 镜像..."
-	@docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) -f docker/easydistill/Dockerfile .
+	@docker build \
+		$(if $(PIP_INDEX_URL),--build-arg PIP_INDEX_URL=$(PIP_INDEX_URL)) \
+		$(if $(PIP_EXTRA_INDEX_URL),--build-arg PIP_EXTRA_INDEX_URL=$(PIP_EXTRA_INDEX_URL)) \
+		-t $(DOCKER_IMAGE):$(DOCKER_TAG) -f docker/easydistill/Dockerfile .
 	@echo "镜像构建完成: $(DOCKER_IMAGE):$(DOCKER_TAG)"
 
 ## docker-test: 测试 EasyDistill Docker 镜像
@@ -129,10 +137,10 @@ db-init:
 ## docker-up: 启动 Docker Compose 环境
 docker-up:
 	@echo "启动 Docker Compose 环境..."
-	@docker-compose up -d
+	@$(COMPOSE) up -d
 	@echo "等待服务就绪..."
 	@sleep 10
-	@docker-compose ps
+	@$(COMPOSE) ps
 	@echo ""
 	@echo "✅ 服务已启动！"
 	@echo "API 服务: http://172.18.36.230:18080"
@@ -141,20 +149,32 @@ docker-up:
 ## docker-down: 停止 Docker Compose 环境
 docker-down:
 	@echo "停止 Docker Compose 环境..."
-	@docker-compose down
+	@$(COMPOSE) down
 	@echo "环境已停止"
 
 ## docker-logs: 查看 Docker Compose 日志
 docker-logs:
-	@docker-compose logs -f
+	@$(COMPOSE) logs -f
 
 ## docker-build-all: 构建 Docker 镜像（Server + Worker）
 docker-build-all:
 	@echo "构建 Server 镜像..."
-	@docker-compose build gcs-server
+	@$(COMPOSE) build gcs-server
 	@echo "构建 Worker 镜像..."
-	@docker-compose build gcs-worker-1
+	@$(COMPOSE) build gcs-worker-1
 	@echo "镜像构建完成"
+
+## docker-prune: 清理 Docker 悬空镜像
+docker-prune:
+	@echo "清理 Docker <none> 悬空镜像..."
+	@docker image prune -f
+	@echo "悬空镜像清理完成"
+
+## docker-builder-prune: 清理 Docker 构建缓存
+docker-builder-prune:
+	@echo "清理 Docker 构建缓存..."
+	@docker builder prune -f
+	@echo "构建缓存清理完成"
 
 ## docker-restart: 重启 Docker Compose 环境
 docker-restart: docker-down docker-up
