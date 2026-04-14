@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -87,12 +88,13 @@ func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, e
 
 	var project types.Project
 	var teacherConfig, studentConfig, evalConfig []byte
+	var description, businessScenario sql.NullString
 
 	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
 		&project.ID,
 		&project.Name,
-		&project.Description,
-		&project.BusinessScenario,
+		&description,
+		&businessScenario,
 		&teacherConfig,
 		&studentConfig,
 		&evalConfig,
@@ -124,6 +126,9 @@ func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, e
 		project.EvaluationConfig = &ec
 	}
 
+	project.Description = nullStringValue(description)
+	project.BusinessScenario = nullStringValue(businessScenario)
+
 	return &project, nil
 }
 
@@ -148,12 +153,13 @@ func (r *projectRepo) List(ctx context.Context, limit, offset int) ([]*types.Pro
 	for rows.Next() {
 		var project types.Project
 		var teacherConfig, studentConfig, evalConfig []byte
+		var description, businessScenario sql.NullString
 
 		err := rows.Scan(
 			&project.ID,
 			&project.Name,
-			&project.Description,
-			&project.BusinessScenario,
+			&description,
+			&businessScenario,
 			&teacherConfig,
 			&studentConfig,
 			&evalConfig,
@@ -180,6 +186,9 @@ func (r *projectRepo) List(ctx context.Context, limit, offset int) ([]*types.Pro
 			}
 			project.EvaluationConfig = &ec
 		}
+
+		project.Description = nullStringValue(description)
+		project.BusinessScenario = nullStringValue(businessScenario)
 
 		projects = append(projects, &project)
 	}

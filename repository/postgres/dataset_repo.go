@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 
 	"github.com/ReyRen/gcs-distill/internal/types"
@@ -64,11 +65,12 @@ func (r *datasetRepo) GetByID(ctx context.Context, id string) (*types.Dataset, e
 	`
 
 	var dataset types.Dataset
+	var description sql.NullString
 	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
 		&dataset.ID,
 		&dataset.ProjectID,
 		&dataset.Name,
-		&dataset.Description,
+		&description,
 		&dataset.SourceType,
 		&dataset.FilePath,
 		&dataset.RecordCount,
@@ -81,6 +83,8 @@ func (r *datasetRepo) GetByID(ctx context.Context, id string) (*types.Dataset, e
 		}
 		return nil, fmt.Errorf("查询数据集失败: %w", err)
 	}
+
+	dataset.Description = nullStringValue(description)
 
 	return &dataset, nil
 }
@@ -104,11 +108,12 @@ func (r *datasetRepo) ListByProject(ctx context.Context, projectID string, limit
 	var datasets []*types.Dataset
 	for rows.Next() {
 		var dataset types.Dataset
+		var description sql.NullString
 		err := rows.Scan(
 			&dataset.ID,
 			&dataset.ProjectID,
 			&dataset.Name,
-			&dataset.Description,
+			&description,
 			&dataset.SourceType,
 			&dataset.FilePath,
 			&dataset.RecordCount,
@@ -117,6 +122,8 @@ func (r *datasetRepo) ListByProject(ctx context.Context, projectID string, limit
 		if err != nil {
 			return nil, fmt.Errorf("扫描数据集数据失败: %w", err)
 		}
+
+		dataset.Description = nullStringValue(description)
 
 		datasets = append(datasets, &dataset)
 	}

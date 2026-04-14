@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -81,6 +82,7 @@ func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineR
 
 	var pipeline types.PipelineRun
 	var trainingConfig, resourceRequest []byte
+	var errorMessage sql.NullString
 
 	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
 		&pipeline.ID,
@@ -91,7 +93,7 @@ func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineR
 		&pipeline.TriggerMode,
 		&trainingConfig,
 		&resourceRequest,
-		&pipeline.ErrorMessage,
+		&errorMessage,
 		&pipeline.CreatedAt,
 		&pipeline.StartedAt,
 		&pipeline.FinishedAt,
@@ -113,6 +115,8 @@ func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineR
 	if err := json.Unmarshal(resourceRequest, &pipeline.ResourceRequest); err != nil {
 		return nil, fmt.Errorf("反序列化资源请求失败: %w", err)
 	}
+
+	pipeline.ErrorMessage = nullStringValue(errorMessage)
 
 	return &pipeline, nil
 }
@@ -139,6 +143,7 @@ func (r *pipelineRepo) List(ctx context.Context, projectID string, limit, offset
 	for rows.Next() {
 		var pipeline types.PipelineRun
 		var trainingConfig, resourceRequest []byte
+		var errorMessage sql.NullString
 
 		err := rows.Scan(
 			&pipeline.ID,
@@ -149,7 +154,7 @@ func (r *pipelineRepo) List(ctx context.Context, projectID string, limit, offset
 			&pipeline.TriggerMode,
 			&trainingConfig,
 			&resourceRequest,
-			&pipeline.ErrorMessage,
+			&errorMessage,
 			&pipeline.CreatedAt,
 			&pipeline.StartedAt,
 			&pipeline.FinishedAt,
@@ -167,6 +172,8 @@ func (r *pipelineRepo) List(ctx context.Context, projectID string, limit, offset
 		if err := json.Unmarshal(resourceRequest, &pipeline.ResourceRequest); err != nil {
 			return nil, fmt.Errorf("反序列化资源请求失败: %w", err)
 		}
+
+		pipeline.ErrorMessage = nullStringValue(errorMessage)
 
 		pipelines = append(pipelines, &pipeline)
 	}

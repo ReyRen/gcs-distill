@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -38,8 +39,16 @@ func (h *PipelineHandler) CreatePipeline(c *gin.Context) {
 
 	// 创建流水线
 	if err := h.pipelineSvc.CreatePipeline(c.Request.Context(), &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
+		_ = c.Error(err)
+
+		statusCode := http.StatusInternalServerError
+		var validationErr *service.ValidationError
+		if errors.As(err, &validationErr) {
+			statusCode = http.StatusBadRequest
+		}
+
+		c.JSON(statusCode, gin.H{
+			"code":    statusCode,
 			"message": err.Error(),
 		})
 		return
@@ -65,6 +74,7 @@ func (h *PipelineHandler) GetPipeline(c *gin.Context) {
 
 	pipeline, err := h.pipelineSvc.GetPipeline(c.Request.Context(), id)
 	if err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    http.StatusNotFound,
 			"message": err.Error(),
@@ -96,6 +106,7 @@ func (h *PipelineHandler) ListPipelines(c *gin.Context) {
 
 	pipelines, total, err := h.pipelineSvc.ListPipelines(c.Request.Context(), projectID, page, pageSize)
 	if err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    http.StatusInternalServerError,
 			"message": err.Error(),
@@ -127,6 +138,7 @@ func (h *PipelineHandler) StartPipeline(c *gin.Context) {
 	}
 
 	if err := h.pipelineSvc.StartPipeline(c.Request.Context(), id); err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    http.StatusInternalServerError,
 			"message": err.Error(),
@@ -152,6 +164,7 @@ func (h *PipelineHandler) CancelPipeline(c *gin.Context) {
 	}
 
 	if err := h.pipelineSvc.CancelPipeline(c.Request.Context(), id); err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    http.StatusInternalServerError,
 			"message": err.Error(),
@@ -178,6 +191,7 @@ func (h *PipelineHandler) ListStages(c *gin.Context) {
 
 	stages, err := h.pipelineSvc.ListStages(c.Request.Context(), pipelineID)
 	if err != nil {
+		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    http.StatusInternalServerError,
 			"message": err.Error(),

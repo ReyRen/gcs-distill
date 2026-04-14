@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 
@@ -94,6 +95,7 @@ func (r *stageRepo) GetByID(ctx context.Context, id string) (*types.StageRun, er
 
 	var stage types.StageRun
 	var inputManifest, outputManifest, metrics []byte
+	var containerID, nodeName, configPath, logPath, errorMessage sql.NullString
 
 	err := r.db.Pool.QueryRow(ctx, query, id).Scan(
 		&stage.ID,
@@ -101,15 +103,15 @@ func (r *stageRepo) GetByID(ctx context.Context, id string) (*types.StageRun, er
 		&stage.StageType,
 		&stage.StageOrder,
 		&stage.Status,
-		&stage.ContainerID,
-		&stage.NodeName,
-		&stage.ConfigPath,
+		&containerID,
+		&nodeName,
+		&configPath,
 		&inputManifest,
 		&outputManifest,
 		&metrics,
-		&stage.LogPath,
+		&logPath,
 		&stage.RetryCount,
-		&stage.ErrorMessage,
+		&errorMessage,
 		&stage.StartedAt,
 		&stage.FinishedAt,
 		&stage.CreatedAt,
@@ -142,6 +144,12 @@ func (r *stageRepo) GetByID(ctx context.Context, id string) (*types.StageRun, er
 		}
 	}
 
+	stage.ContainerID = nullStringValue(containerID)
+	stage.NodeName = nullStringValue(nodeName)
+	stage.ConfigPath = nullStringValue(configPath)
+	stage.LogPath = nullStringValue(logPath)
+	stage.ErrorMessage = nullStringValue(errorMessage)
+
 	return &stage, nil
 }
 
@@ -168,6 +176,7 @@ func (r *stageRepo) ListByPipeline(ctx context.Context, pipelineID string) ([]*t
 	for rows.Next() {
 		var stage types.StageRun
 		var inputManifest, outputManifest, metrics []byte
+		var containerID, nodeName, configPath, logPath, errorMessage sql.NullString
 
 		err := rows.Scan(
 			&stage.ID,
@@ -175,15 +184,15 @@ func (r *stageRepo) ListByPipeline(ctx context.Context, pipelineID string) ([]*t
 			&stage.StageType,
 			&stage.StageOrder,
 			&stage.Status,
-			&stage.ContainerID,
-			&stage.NodeName,
-			&stage.ConfigPath,
+			&containerID,
+			&nodeName,
+			&configPath,
 			&inputManifest,
 			&outputManifest,
 			&metrics,
-			&stage.LogPath,
+			&logPath,
 			&stage.RetryCount,
-			&stage.ErrorMessage,
+			&errorMessage,
 			&stage.StartedAt,
 			&stage.FinishedAt,
 			&stage.CreatedAt,
@@ -211,6 +220,12 @@ func (r *stageRepo) ListByPipeline(ctx context.Context, pipelineID string) ([]*t
 				return nil, fmt.Errorf("反序列化指标失败: %w", err)
 			}
 		}
+
+		stage.ContainerID = nullStringValue(containerID)
+		stage.NodeName = nullStringValue(nodeName)
+		stage.ConfigPath = nullStringValue(configPath)
+		stage.LogPath = nullStringValue(logPath)
+		stage.ErrorMessage = nullStringValue(errorMessage)
 
 		stages = append(stages, &stage)
 	}
