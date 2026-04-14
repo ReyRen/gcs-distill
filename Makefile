@@ -17,17 +17,17 @@ all: build
 help:
 	@echo "GCS-Distill Makefile 命令:"
 	@echo ""
-	@echo "编译和运行:"
+	@echo "本地编译检查:"
 	@echo "  make build          - 编译服务端和 Worker"
 	@echo "  make server         - 仅编译服务端"
 	@echo "  make worker         - 仅编译 Worker"
-	@echo "  make run-server     - 运行服务端"
-	@echo "  make run-worker     - 运行 Worker"
 	@echo ""
 	@echo "Docker 环境:"
-	@echo "  make docker-up      - 启动 Docker Compose 环境"
+	@echo "  make docker-up      - 构建并启动 Docker Compose 环境"
+	@echo "  make docker-up-server - 重建并启动 gcs-server"
+	@echo "  make docker-up-worker - 重建并启动 gcs-worker-1"
 	@echo "  make docker-down    - 停止 Docker Compose 环境"
-	@echo "  make docker-restart - 重启 Docker Compose 环境"
+	@echo "  make docker-restart - 重启已有 Docker Compose 容器"
 	@echo "  make docker-logs    - 查看 Docker Compose 日志"
 	@echo "  make docker-build   - 构建 EasyDistill Docker 镜像"
 	@echo "  make docker-test    - 测试 EasyDistill Docker 镜像"
@@ -137,7 +137,7 @@ db-init:
 ## docker-up: 启动 Docker Compose 环境
 docker-up:
 	@echo "启动 Docker Compose 环境..."
-	@$(COMPOSE) up -d
+	@$(COMPOSE) up -d --build
 	@echo "等待服务就绪..."
 	@sleep 10
 	@$(COMPOSE) ps
@@ -145,6 +145,18 @@ docker-up:
 	@echo "✅ 服务已启动！"
 	@echo "API 服务: http://172.18.36.230:18080"
 	@echo "健康检查: curl http://172.18.36.230:18080/health"
+
+## docker-up-server: 重建并启动 gcs-server
+docker-up-server:
+	@echo "重建并启动 gcs-server..."
+	@$(COMPOSE) up -d --build gcs-server
+	@$(COMPOSE) ps gcs-server
+
+## docker-up-worker: 重建并启动 gcs-worker-1
+docker-up-worker:
+	@echo "重建并启动 gcs-worker-1..."
+	@$(COMPOSE) up -d --build gcs-worker-1
+	@$(COMPOSE) ps gcs-worker-1
 
 ## docker-down: 停止 Docker Compose 环境
 docker-down:
@@ -177,7 +189,10 @@ docker-builder-prune:
 	@echo "构建缓存清理完成"
 
 ## docker-restart: 重启 Docker Compose 环境
-docker-restart: docker-down docker-up
+docker-restart:
+	@echo "重启 Docker Compose 容器..."
+	@$(COMPOSE) restart
+	@$(COMPOSE) ps
 
 ## test-integration: 运行集成测试
 test-integration:

@@ -57,7 +57,7 @@ services:
       - "18080:8080"  # HTTP API
       - "50051:50051" # gRPC
     volumes:
-      - ./config.docker.yaml:/app/config.yaml:ro
+      - ./config.example.yaml:/app/config.yaml:ro
       - /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill
       - /storage-md0/renyuan/gcs-distill-data/logs:/var/log/gcs-distill
     networks:
@@ -82,7 +82,7 @@ services:
     ports:
       - "50052:50052" # gRPC
     volumes:
-      - ./config.docker.yaml:/app/config.yaml:ro
+      - ./config.example.yaml:/app/config.yaml:ro
       - /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill
       - /var/run/docker.sock:/var/run/docker.sock  # Docker socket 挂载
       - /storage-md0/renyuan/gcs-distill-data/logs:/var/log/gcs-distill
@@ -108,7 +108,7 @@ services:
   #   ports:
   #     - "50053:50053"
   #   volumes:
-  #     - ./config.docker.yaml:/app/config.yaml:ro
+  #     - ./config.example.yaml:/app/config.yaml:ro
     #     - /storage-md0/renyuan/gcs-distill-data/shared-workspace:/mnt/shared/distill
   #     - /var/run/docker.sock:/var/run/docker.sock
     #     - /storage-md0/renyuan/gcs-distill-data/logs:/var/log/gcs-distill

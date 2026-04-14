@@ -1,4 +1,5 @@
-# GCS-Distill 配置文件
+# GCS-Distill 容器化部署配置模板
+# 本文件面向 Docker Compose 运行，所有路径都使用容器内视角。
 
 # HTTP 服务配置
 server:
@@ -8,7 +9,7 @@ server:
 
 # 数据库配置
 database:
-  host: 172.18.36.230    # 数据库主机
+  host: postgres         # Compose 内默认通过服务名访问；如接外部数据库，改成对应 IP 或域名
   port: 5432             # 数据库端口
   user: postgres         # 用户名
   password: postgres     # 密码
@@ -19,7 +20,7 @@ database:
 
 # Redis 配置
 redis:
-  host: 172.18.36.230    # Redis 主机
+  host: redis            # Compose 内默认通过服务名访问；如接外部 Redis，改成对应 IP 或域名
   port: 6379             # Redis 端口
   password: ""           # 密码 (留空表示无密码)
   db: 0                  # 数据库编号
@@ -28,7 +29,7 @@ redis:
 # 共享存储配置
 storage:
   type: nfs              # 存储类型: nfs, ceph, local
-  base_path: /storage-md0/renyuan/gcs-distill-data/shared-workspace  # 宿主机基础路径
+  base_path: /mnt/shared/distill  # 容器内路径，映射到宿主机 /storage-md0/renyuan/gcs-distill-data/shared-workspace
 
 # gRPC 配置
 grpc:
@@ -41,7 +42,7 @@ grpc:
 logging:
   level: info            # 日志级别: debug, info, warn, error
   output: stdout         # 输出: stdout, file
-  file_path: /storage-md0/renyuan/gcs-distill-data/logs/server.log  # 宿主机日志路径 (output=file 时使用)
+  file_path: /var/log/gcs-distill/server.log  # 容器内路径，映射到宿主机 /storage-md0/renyuan/gcs-distill-data/logs
   max_size: 100          # 单个日志文件最大大小 (MB)
   max_age: 7             # 日志文件保留天数
   compress: true         # 是否压缩旧日志

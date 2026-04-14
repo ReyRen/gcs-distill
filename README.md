@@ -58,19 +58,19 @@ curl http://172.18.36.230:18080/health
 # 详细说明请参考: docs/quickstart.md
 ```
 
-说明：`make docker-up` 是对 `docker compose up -d` 的封装，额外会等待片刻并打印服务状态；如果你只想直接使用 Compose，手动执行 `docker compose up -d` 也可以。
+说明：`make docker-up` 会执行构建并启动，相当于对 `docker compose up -d --build` 做了一层封装，额外会等待片刻并打印服务状态。
+当前仓库只维护一份容器化部署配置模板 [config.example.yaml](config.example.yaml)。如果后续要接入别的 PostgreSQL/Redis 服务器，直接修改其中的主机地址和端口即可。
 
-### 手动安装
+### 配置调整
 
 ### 前置要求
 
-- Go 1.21+
 - Docker 和 Docker Compose
 - PostgreSQL 13+
 - Redis 6+
 - 共享存储 (NFS 或分布式文件系统)
 
-### 安装步骤
+### 部署步骤
 
 1. 克隆仓库
 ```bash
@@ -78,7 +78,14 @@ git clone https://github.com/ReyRen/gcs-distill.git
 cd gcs-distill
 ```
 
-2. 构建 EasyDistill 镜像
+2. 按需调整配置
+```bash
+# 编辑 config.example.yaml
+# 如果数据库和 Redis 不在 Compose 内，直接把 host/port 改成对应地址
+# storage.base_path 和 logging.file_path 保持容器内路径不变
+```
+
+3. 构建 EasyDistill 镜像
 ```bash
 make docker-build
 ```
@@ -88,27 +95,14 @@ make docker-build
 make docker-build PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
 ```
 
-3. 配置环境变量
+4. 构建服务镜像
 ```bash
-cp config.example.yaml config.yaml
-# 编辑 config.yaml 配置数据库、Redis、共享存储路径等
+make docker-build-all
 ```
 
-4. 初始化数据库
+5. 启动服务
 ```bash
-psql -U postgres -d gcs_distill -f migrations/001_initial_schema.sql
-```
-
-5. 启动控制面服务
-```bash
-go build -o gcs-distill-server ./cmd/server
-./gcs-distill-server --config config.yaml
-```
-
-6. 启动 Worker 节点
-```bash
-go build -o gcs-distill-worker ./cmd/worker
-./gcs-distill-worker --config config.yaml --node-name worker-1
+make docker-up
 ```
 
 ### 使用示例
