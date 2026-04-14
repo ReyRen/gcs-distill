@@ -33,6 +33,8 @@ type PipelineService interface {
 	CreateStage(ctx context.Context, stage *types.StageRun) error
 	// UpdateStage 更新阶段运行
 	UpdateStage(ctx context.Context, stage *types.StageRun) error
+	// GetStage 获取阶段运行
+	GetStage(ctx context.Context, stageID string) (*types.StageRun, error)
 }
 
 // pipelineService 流水线服务实现
@@ -333,6 +335,20 @@ func (s *pipelineService) UpdateStage(ctx context.Context, stage *types.StageRun
 	}
 
 	return nil
+}
+
+// GetStage 获取阶段运行
+func (s *pipelineService) GetStage(ctx context.Context, stageID string) (*types.StageRun, error) {
+	stage, err := s.stageRepo.GetByID(ctx, stageID)
+	if err != nil {
+		logger.Error("获取阶段失败",
+			zap.String("stage_id", stageID),
+			zap.Error(err),
+		)
+		return nil, fmt.Errorf("获取阶段失败: %w", err)
+	}
+
+	return stage, nil
 }
 
 func (s *pipelineService) activateStageByOrder(ctx context.Context, pipelineID string, stageOrder int, startedAt time.Time) error {

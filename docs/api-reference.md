@@ -342,6 +342,58 @@
 - `failed` - 失败
 - `canceled` - 已取消
 
+### 7. 获取阶段日志（完整）
+
+**GET** `/api/v1/pipelines/{id}/stages/{stage_id}/logs`
+
+获取指定阶段的完整日志内容。
+
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "获取日志成功",
+  "data": {
+    "logs": "日志内容...",
+    "log_path": "/path/to/log/file",
+    "stage_id": "stage-uuid",
+    "stage_type": "teacher_infer"
+  }
+}
+```
+
+### 8. 获取阶段实时日志
+
+**GET** `/api/v1/pipelines/{id}/stages/{stage_id}/logs/stream?tail=100`
+
+获取指定阶段的实时日志（最后N行）。
+
+**查询参数**:
+- `tail`: 返回最后N行日志（默认 100）
+
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "获取实时日志成功",
+  "data": {
+    "logs": "最近的日志内容...",
+    "log_path": "/path/to/log/file",
+    "stage_id": "stage-uuid",
+    "stage_type": "teacher_infer",
+    "status": "running"
+  }
+}
+```
+
+### 9. 下载阶段日志
+
+**GET** `/api/v1/pipelines/{id}/stages/{stage_id}/logs/download`
+
+下载指定阶段的日志文件。
+
+**响应**: 直接返回日志文件，浏览器会提示下载。
+
 ---
 
 ## 资源管理 API
