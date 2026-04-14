@@ -545,9 +545,216 @@ GET /api/v1/pipelines/{pipeline_id}/stages
 
 ---
 
-### 4. 资源管理 API
+### 4. 日志管理 API
 
-#### 4.1 获取 Worker 节点列表
+#### 4.1 获取阶段完整日志
+
+**请求**
+
+```http
+GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs
+```
+
+获取指定阶段的完整日志内容。
+
+**响应**
+
+```json
+{
+  "code": 200,
+  "message": "获取日志成功",
+  "data": {
+    "logs": "日志内容...",
+    "log_path": "/path/to/log/file",
+    "stage_id": "stage-uuid",
+    "stage_type": "teacher_infer"
+  }
+}
+```
+
+**前端使用示例**
+
+```javascript
+async function getFullLogs(pipelineId, stageId) {
+  try {
+    const response = await axios.get(
+      `/api/v1/pipelines/${pipelineId}/stages/${stageId}/logs`
+    );
+    if (response.data.code === 200) {
+      return response.data.data.logs;
+    }
+  } catch (error) {
+    console.error('获取日志失败:', error);
+  }
+}
+```
+
+#### 4.2 获取阶段实时日志
+
+**请求**
+
+```http
+GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs/stream?tail=100
+```
+
+获取指定阶段的实时日志（最后N行），适合轮询显示实时日志。
+
+**查询参数**:
+- `tail`: 返回最后N行日志（默认 100）
+
+**响应**
+
+```json
+{
+  "code": 200,
+  "message": "获取实时日志成功",
+  "data": {
+    "logs": "最近的日志内容...",
+    "log_path": "/path/to/log/file",
+    "stage_id": "stage-uuid",
+    "stage_type": "teacher_infer",
+    "status": "running"
+  }
+}
+```
+
+**前端使用示例（轮询实时日志）**
+
+```javascript
+// 在流水线详情页面组件中实现实时日志
+export default {
+  data() {
+    return {
+      logs: '',
+      logTimer: null,
+      currentStage: null
+    };
+  },
+  methods: {
+    async fetchRealtimeLogs() {
+      if (!this.currentStage || this.currentStage.status !== 'running') {
+        return;
+      }
+
+      try {
+        const response = await axios.get(
+          `/api/v1/pipelines/${this.pipelineId}/stages/${this.currentStage.id}/logs/stream?tail=100`
+        );
+
+        if (response.data.code === 200) {
+          this.logs = response.data.data.logs;
+        }
+      } catch (error) {
+        console.error('获取实时日志失败:', error);
+      }
+    },
+
+    startLogPolling() {
+      // 每3秒获取一次实时日志
+      this.logTimer = setInterval(() => {
+        this.fetchRealtimeLogs();
+      }, 3000);
+    },
+
+    stopLogPolling() {
+      if (this.logTimer) {
+        clearInterval(this.logTimer);
+        this.logTimer = null;
+      }
+    }
+  },
+
+  mounted() {
+    this.startLogPolling();
+  },
+
+  beforeDestroy() {
+    this.stopLogPolling();
+  }
+};
+```
+
+**Vue 模板示例**
+
+```vue
+<template>
+  <el-card title="实时日志">
+    <div class="log-container">
+      <pre class="log-content">{{ logs || '暂无日志...' }}</pre>
+    </div>
+    <div class="log-actions">
+      <el-button @click="fetchRealtimeLogs" size="small">刷新</el-button>
+      <el-button @click="viewFullLogs" size="small">查看完整日志</el-button>
+      <el-button @click="downloadLogs" size="small">下载日志</el-button>
+    </div>
+  </el-card>
+</template>
+
+<style scoped>
+.log-container {
+  max-height: 500px;
+  overflow-y: auto;
+  background-color: #1e1e1e;
+  padding: 16px;
+  border-radius: 4px;
+}
+
+.log-content {
+  color: #d4d4d4;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.log-actions {
+  margin-top: 16px;
+  text-align: right;
+}
+</style>
+```
+
+#### 4.3 下载阶段日志文件
+
+**请求**
+
+```http
+GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs/download
+```
+
+下载指定阶段的日志文件。直接返回日志文件，浏览器会提示下载。
+
+**前端使用示例**
+
+```javascript
+function downloadLogs(pipelineId, stageId) {
+  // 方法1: 直接使用 window.location
+  window.location.href =
+    `/api/v1/pipelines/${pipelineId}/stages/${stageId}/logs/download`;
+
+  // 方法2: 使用 a 标签下载
+  const link = document.createElement('a');
+  link.href = `/api/v1/pipelines/${pipelineId}/stages/${stageId}/logs/download`;
+  link.download = `stage_${stageId}_log.txt`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+```
+
+**使用注意事项**
+
+1. **实时日志轮询频率**: 建议每 3-5 秒轮询一次，避免频繁请求造成服务器压力
+2. **停止轮询**: 当阶段状态变为 `succeeded`、`failed` 或 `canceled` 时，应停止日志轮询
+3. **日志自动滚动**: 建议在日志容器中实现自动滚动到底部的功能
+4. **大文件处理**: 完整日志可能很大，建议先使用实时日志接口，需要时再获取完整日志
+
+---
+
+### 5. 资源管理 API
+
+#### 5.1 获取 Worker 节点列表
 
 **请求**
 
@@ -586,7 +793,7 @@ GET /api/v1/resources/nodes
 }
 ```
 
-#### 4.2 获取节点详情
+#### 5.2 获取节点详情
 
 **请求**
 
@@ -616,7 +823,7 @@ GET /api/v1/resources/nodes/{node_name}
 
 ---
 
-### 5. 健康检查 API
+### 6. 健康检查 API
 
 **请求**
 

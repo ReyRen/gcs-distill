@@ -112,6 +112,9 @@ func (r *Router) setupRoutes() {
 			pipelines.POST("/:id/start", r.pipelineHandler.StartPipeline)
 			pipelines.POST("/:id/cancel", r.pipelineHandler.CancelPipeline)
 			pipelines.GET("/:id/stages", r.pipelineHandler.ListStages)
+			pipelines.GET("/:id/stages/:stage_id/logs", r.pipelineHandler.GetStageLogs)
+			pipelines.GET("/:id/stages/:stage_id/logs/stream", r.pipelineHandler.StreamStageLogs)
+			pipelines.GET("/:id/stages/:stage_id/logs/download", r.pipelineHandler.DownloadStageLogs)
 		}
 
 		// 资源管理

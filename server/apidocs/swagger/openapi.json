@@ -399,6 +399,108 @@
         }
       }
     },
+    "/api/v1/pipelines/{id}/stages/{stage_id}/logs": {
+      "get": {
+        "tags": ["pipelines"],
+        "summary": "Get complete stage logs",
+        "description": "Retrieve the complete log content for a specific pipeline stage",
+        "parameters": [
+          { "$ref": "#/components/parameters/PipelineId" },
+          { "$ref": "#/components/parameters/StageId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stage logs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/LogResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Stage not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pipelines/{id}/stages/{stage_id}/logs/stream": {
+      "get": {
+        "tags": ["pipelines"],
+        "summary": "Get real-time stage logs",
+        "description": "Retrieve the most recent log lines for a specific pipeline stage (suitable for polling)",
+        "parameters": [
+          { "$ref": "#/components/parameters/PipelineId" },
+          { "$ref": "#/components/parameters/StageId" },
+          {
+            "name": "tail",
+            "in": "query",
+            "description": "Number of lines to return from the end of the log",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 10000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Real-time logs retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StreamLogResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Stage not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/pipelines/{id}/stages/{stage_id}/logs/download": {
+      "get": {
+        "tags": ["pipelines"],
+        "summary": "Download stage log file",
+        "description": "Download the complete log file for a specific pipeline stage",
+        "parameters": [
+          { "$ref": "#/components/parameters/PipelineId" },
+          { "$ref": "#/components/parameters/StageId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Log file download",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Stage or log file not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/resources/nodes": {
       "get": {
         "tags": ["resources"],
@@ -472,6 +574,12 @@
       },
       "PipelineId": {
         "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" }
+      },
+      "StageId": {
+        "name": "stage_id",
         "in": "path",
         "required": true,
         "schema": { "type": "string" }
@@ -779,6 +887,39 @@
           "data": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/WorkerNode" }
+          }
+        }
+      },
+      "LogResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取日志成功" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "logs": { "type": "string", "example": "日志内容..." },
+              "log_path": { "type": "string", "example": "/path/to/log/file" },
+              "stage_id": { "type": "string", "example": "stage-uuid" },
+              "stage_type": { "type": "string", "example": "teacher_infer" }
+            }
+          }
+        }
+      },
+      "StreamLogResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取实时日志成功" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "logs": { "type": "string", "example": "最近的日志内容..." },
+              "log_path": { "type": "string", "example": "/path/to/log/file" },
+              "stage_id": { "type": "string", "example": "stage-uuid" },
+              "stage_type": { "type": "string", "example": "teacher_infer" },
+              "status": { "type": "string", "example": "running" }
+            }
           }
         }
       }
