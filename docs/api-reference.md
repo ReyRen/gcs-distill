@@ -41,8 +41,8 @@
   "teacher_model_config": {
     "model_name": "gpt-4",
     "provider_type": "api",
-    "base_url": "https://api.openai.com/v1",
-    "api_key": "sk-xxx",
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "api_secret_ref": "openai_key",
     "temperature": 0.7
   },
   "student_model_config": {
@@ -115,7 +115,7 @@
 
 ## 数据集管理 API
 
-### 1. 创建数据集
+### 1. 创建数据集（JSON 方式）
 
 **POST** `/api/v1/datasets`
 
@@ -136,7 +136,37 @@
 - `import` - 从外部导入
 - `generated` - 自动生成
 
-### 2. 获取数据集列表
+### 2. 上传数据集文件
+
+**POST** `/api/v1/projects/{id}/datasets`
+
+通过文件上传方式创建数据集。
+
+**Content-Type**: `multipart/form-data`
+
+**表单字段**:
+- `file`: 数据集文件（必填）- JSONL 格式
+- `name`: 数据集名称（可选，默认使用文件名）
+- `description`: 数据集描述（可选）
+
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "数据集上传成功",
+  "data": {
+    "id": "uuid-xxx",
+    "project_id": "uuid-project",
+    "name": "训练数据集",
+    "source_type": "upload",
+    "file_format": "jsonl",
+    "record_count": 1000,
+    "created_at": "2026-04-13T10:00:00Z"
+  }
+}
+```
+
+### 3. 获取数据集列表
 
 **GET** `/api/v1/datasets?project_id=xxx&page=1&page_size=20`
 
@@ -159,17 +189,17 @@
 }
 ```
 
-### 3. 获取数据集详情
+### 4. 获取数据集详情
 
 **GET** `/api/v1/datasets/{id}`
 
-### 4. 更新数据集
+### 5. 更新数据集
 
 **PUT** `/api/v1/datasets/{id}`
 
 当前实现仅更新 `name`、`description`、`record_count`。前端至少需要传 `name`。
 
-### 5. 删除数据集
+### 6. 删除数据集
 
 **DELETE** `/api/v1/datasets/{id}`
 
@@ -189,8 +219,21 @@
   "training_config": {
     "num_train_epochs": 3,
     "per_device_train_batch_size": 8,
+    "gradient_accumulation_steps": 1,
     "learning_rate": 0.0001,
-    "warmup_steps": 100
+    "weight_decay": 0.01,
+    "warmup_ratio": 0.03,
+    "lr_scheduler_type": "cosine",
+    "save_steps": 100,
+    "logging_steps": 10,
+    "max_length": 4096,
+    "lora_config": {
+      "enabled": true,
+      "r": 8,
+      "alpha": 16,
+      "dropout": 0.05,
+      "target_modules": ["q_proj", "v_proj"]
+    }
   },
   "resource_request": {
     "gpu_count": 2,
@@ -542,8 +585,8 @@ curl -X POST http://172.18.36.230:18080/api/v1/projects \
     "teacher_model_config": {
       "model_name": "gpt-4",
       "provider_type": "api",
-      "base_url": "https://api.openai.com/v1",
-      "api_key": "sk-xxx"
+      "endpoint": "https://api.openai.com/v1/chat/completions",
+      "api_secret_ref": "openai_key"
     },
     "student_model_config": {
       "model_name": "qwen-7b",

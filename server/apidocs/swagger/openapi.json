@@ -15,6 +15,7 @@
     { "name": "projects", "description": "Project management" },
     { "name": "datasets", "description": "Dataset management" },
     { "name": "pipelines", "description": "Pipeline management" },
+    { "name": "models", "description": "Model management" },
     { "name": "resources", "description": "Worker resource discovery" }
   ],
   "paths": {
@@ -540,6 +541,57 @@
           }
         }
       }
+    },
+    "/api/v1/models/student": {
+      "get": {
+        "tags": ["models"],
+        "summary": "List student models",
+        "description": "Get all available student models from the configured models directory",
+        "responses": {
+          "200": {
+            "description": "Student model list",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StudentModelListResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/models/student/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Model ID (directory name)",
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "tags": ["models"],
+        "summary": "Get student model",
+        "description": "Get details of a specific student model by ID",
+        "responses": {
+          "200": {
+            "description": "Student model details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StudentModelResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Model not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -724,10 +776,11 @@
       "ResourceRequest": {
         "type": "object",
         "properties": {
-          "gpu_count": { "type": "integer", "example": 1 },
-          "gpu_type": { "type": "string", "example": "RTX 4090" },
-          "memory_gb": { "type": "integer", "example": 32 },
-          "cpu_cores": { "type": "integer", "example": 8 }
+          "gpu_count": { "type": "integer", "example": 1, "description": "Number of GPUs to use. Set to -1 for all available GPUs." },
+          "gpu_device_ids": { "type": "string", "example": "0,1,2", "description": "Comma-separated GPU device IDs (e.g., '0,1,2'). If specified, takes priority over gpu_count." },
+          "gpu_type": { "type": "string", "example": "RTX 4090", "description": "GPU type" },
+          "memory_gb": { "type": "integer", "example": 32, "description": "Memory in GB" },
+          "cpu_cores": { "type": "integer", "example": 8, "description": "Number of CPU cores" }
         }
       },
       "PipelineRun": {
@@ -902,6 +955,35 @@
           "data": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/WorkerNode" }
+          }
+        }
+      },
+      "StudentModel": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "Qwen2.5-0.5B-Instruct", "description": "Model ID (directory name)" },
+          "name": { "type": "string", "example": "Qwen2.5-0.5B-Instruct", "description": "Model name" },
+          "path": { "type": "string", "example": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct", "description": "Full path to model directory" },
+          "description": { "type": "string", "example": "", "description": "Model description" },
+          "size": { "type": "integer", "example": 1073741824, "description": "Model size in bytes" }
+        }
+      },
+      "StudentModelResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取模型信息成功" },
+          "data": { "$ref": "#/components/schemas/StudentModel" }
+        }
+      },
+      "StudentModelListResponse": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "integer", "example": 200 },
+          "message": { "type": "string", "example": "获取学生模型列表成功" },
+          "data": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/StudentModel" }
           }
         }
       },
