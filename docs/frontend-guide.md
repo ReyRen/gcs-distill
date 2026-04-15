@@ -95,7 +95,8 @@ Content-Type: application/json
   },
   "student_model_config": {
     "provider_type": "local",
-    "model_name": "Qwen/Qwen2.5-0.5B-Instruct"
+    "model_name": "Qwen/Qwen2.5-0.5B-Instruct",
+    "model_path": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct"
   },
   "evaluation_config": {
     "metrics": ["bleu", "rouge", "accuracy"],
@@ -1262,6 +1263,14 @@ export default {
       />
     </el-form-item>
 
+    <el-form-item label="模型路径" prop="student_model_config.model_path" required>
+      <el-input
+        v-model="form.student_model_config.model_path"
+        placeholder="例如：/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct"
+      />
+      <span class="el-form-item__tip">本地模型文件的绝对路径（离线环境必填）</span>
+    </el-form-item>
+
     <!-- 评估配置 -->
     <el-divider>评估配置</el-divider>
 
@@ -1289,7 +1298,9 @@ export default {
           temperature: 0.7
         },
         student_model_config: {
-          model_name: ''
+          provider_type: 'local',  // 固定为 local（离线环境）
+          model_name: '',
+          model_path: ''
         },
         evaluation_config: {
           metrics: []
