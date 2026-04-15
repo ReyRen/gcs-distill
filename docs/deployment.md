@@ -130,6 +130,18 @@ logging:
   max_size: 100          # 单个日志文件最大大小 (MB)
   max_age: 7             # 日志保留天数
   compress: true         # 是否压缩旧日志
+
+# 执行器配置
+executor:
+  workspace_root: /mnt/shared/distill  # 工作空间根目录（与 storage.base_path 一致）
+  max_concurrent: 5      # 最大并发执行的流水线数量
+```
+
+**执行器配置说明**：
+- `workspace_root`: 流水线执行时的工作空间根目录，应与 `storage.base_path` 保持一致
+- `max_concurrent`: 同时执行的流水线数量上限。设置过高可能导致资源耗尽，设置过低会降低并发能力
+  - 推荐值：5-10（根据 Worker 节点的 GPU 和内存资源调整）
+  - 每个流水线执行时会占用一个 Worker 节点的资源
 ```
 
 ### 环境变量

@@ -3,7 +3,6 @@ package handlers
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -409,42 +408,60 @@ func readLogFileTail(logPath string, lines int) (string, error) {
 		return "", fmt.Errorf("日志文件不存在")
 	}
 
-	// 打开文件
-	file, err := os.Open(logPath)
+	// 读取整个文件内容
+	content, err := os.ReadFile(logPath)
 	if err != nil {
-		return "", fmt.Errorf("打开日志文件失败: %w", err)
-	}
-	defer file.Close()
-
-	// 获取文件信息
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return "", fmt.Errorf("获取文件信息失败: %w", err)
-	}
-
-	fileSize := fileInfo.Size()
-
-	// 如果文件很小，直接读取全部
-	if fileSize < 8192 { // 8KB
-		content, err := io.ReadAll(file)
-		if err != nil {
-			return "", fmt.Errorf("读取日志文件失败: %w", err)
-		}
-		return string(content), nil
-	}
-
-	// 否则读取最后的部分内容
-	// 简化实现：读取最后64KB的内容（足够包含最后几百行）
-	bufSize := int64(65536) // 64KB
-	if bufSize > fileSize {
-		bufSize = fileSize
-	}
-
-	buf := make([]byte, bufSize)
-	_, err = file.ReadAt(buf, fileSize-bufSize)
-	if err != nil && err != io.EOF {
 		return "", fmt.Errorf("读取日志文件失败: %w", err)
 	}
 
-	return string(buf), nil
+	// 如果文件为空
+	if len(content) == 0 {
+		return "", nil
+	}
+
+	// 按行分割
+	text := string(content)
+	allLines := splitLines(text)
+
+	// 如果总行数小于等于请求的行数，返回全部
+	if len(allLines) <= lines {
+		return text, nil
+	}
+
+	// 返回最后N行
+	lastLines := allLines[len(allLines)-lines:]
+	return joinLines(lastLines), nil
+}
+
+// splitLines 按换行符分割文本为行数组
+func splitLines(text string) []string {
+	if text == "" {
+		return []string{}
+	}
+
+	// 处理不同的换行符格式
+	lines := []string{}
+	start := 0
+	for i := 0; i < len(text); i++ {
+		if text[i] == '\n' {
+			lines = append(lines, text[start:i+1])
+			start = i + 1
+		}
+	}
+
+	// 添加最后一行（如果文件不以换行符结尾）
+	if start < len(text) {
+		lines = append(lines, text[start:])
+	}
+
+	return lines
+}
+
+// joinLines 将行数组合并为文本
+func joinLines(lines []string) string {
+	result := ""
+	for _, line := range lines {
+		result += line
+	}
+	return result
 }

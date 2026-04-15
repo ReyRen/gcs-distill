@@ -43,6 +43,7 @@ type pipelineService struct {
 	stageRepo    postgres.StageRepository
 	projectRepo  postgres.ProjectRepository
 	datasetRepo  postgres.DatasetRepository
+	executorSvc  ExecutorService
 }
 
 // NewPipelineService 创建流水线服务
@@ -51,12 +52,14 @@ func NewPipelineService(
 	stageRepo postgres.StageRepository,
 	projectRepo postgres.ProjectRepository,
 	datasetRepo postgres.DatasetRepository,
+	executorSvc ExecutorService,
 ) PipelineService {
 	return &pipelineService{
 		pipelineRepo: pipelineRepo,
 		stageRepo:    stageRepo,
 		projectRepo:  projectRepo,
 		datasetRepo:  datasetRepo,
+		executorSvc:  executorSvc,
 	}
 }
 
@@ -193,7 +196,16 @@ func (s *pipelineService) StartPipeline(ctx context.Context, id string) error {
 		return fmt.Errorf("启动流水线失败: %w", err)
 	}
 
-	logger.Info("流水线已启动",
+	// 提交到执行队列
+	if err := s.executorSvc.SubmitPipeline(ctx, id); err != nil {
+		// 如果提交失败，回滚状态
+		pipeline.Status = types.StatusFailed
+		pipeline.ErrorMessage = fmt.Sprintf("提交执行队列失败: %v", err)
+		_ = s.pipelineRepo.Update(ctx, pipeline)
+		return fmt.Errorf("提交执行队列失败: %w", err)
+	}
+
+	logger.Info("流水线已启动并提交到执行队列",
 		zap.String("pipeline_id", id),
 	)
 

@@ -76,8 +76,27 @@ func main() {
 	// 创建服务层
 	projectSvc := service.NewProjectService(projectRepo)
 	datasetSvc := service.NewDatasetService(datasetRepo, projectRepo, &cfg.Storage)
-	pipelineSvc := service.NewPipelineService(pipelineRepo, stageRepo, projectRepo, datasetRepo)
 	schedulerSvc := service.NewSchedulerService(nodeCache)
+
+	// 创建执行器服务
+	executorSvc := service.NewExecutorService(
+		pipelineRepo,
+		stageRepo,
+		projectRepo,
+		datasetRepo,
+		schedulerSvc,
+		cfg.Executor.WorkspaceRoot,
+		cfg.Executor.MaxConcurrent,
+	)
+
+	// 启动执行器
+	execCtx, execCancel := context.WithCancel(context.Background())
+	defer execCancel()
+	executorSvc.Start(execCtx)
+	defer executorSvc.Stop()
+
+	// 创建流水线服务（注入执行器）
+	pipelineSvc := service.NewPipelineService(pipelineRepo, stageRepo, projectRepo, datasetRepo, executorSvc)
 
 	// 创建路由器
 	router := server.NewRouter(projectSvc, datasetSvc, pipelineSvc, schedulerSvc)

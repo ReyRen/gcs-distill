@@ -403,6 +403,41 @@ POST /api/v1/pipelines/{pipeline_id}/start
 }
 ```
 
+**重要说明**：
+
+流水线启动是**异步执行**的：
+1. 调用此接口后，流水线状态变为 `running`，并被提交到后台执行队列
+2. 实际执行由后台 worker 协程处理，包括：
+   - 查找可用的 Worker 节点
+   - 分配 GPU/CPU/内存资源
+   - 依次执行 6 个阶段（每个阶段可能需要数分钟到数小时）
+   - 调度 EasyDistill 容器完成推理、训练、评估等任务
+3. 前端需要通过**轮询**以下接口来获取实时状态：
+   - `GET /api/v1/pipelines/{id}` - 获取流水线整体状态和当前阶段
+   - `GET /api/v1/pipelines/{id}/stages` - 获取各阶段的详细状态
+   - `GET /api/v1/pipelines/{id}/stages/{stage_id}/logs/stream` - 获取阶段实时日志
+
+**前端实现建议**：
+```javascript
+// 启动流水线
+async function startPipeline(pipelineId) {
+  await axios.post(`/api/v1/pipelines/${pipelineId}/start`);
+
+  // 启动轮询，每 3 秒获取一次状态
+  const timer = setInterval(async () => {
+    const { data } = await axios.get(`/api/v1/pipelines/${pipelineId}`);
+
+    // 更新 UI 显示当前状态
+    updatePipelineStatus(data.data);
+
+    // 如果流水线完成或失败，停止轮询
+    if (['succeeded', 'failed', 'canceled'].includes(data.data.status)) {
+      clearInterval(timer);
+    }
+  }, 3000);
+}
+```
+
 #### 3.3 取消流水线
 
 **请求**
