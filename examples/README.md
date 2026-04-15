@@ -56,7 +56,24 @@
 
 ## 快速使用
 
-### 1. 创建项目
+### 方式一：使用快速测试脚本（最简单）
+
+```bash
+# 使用客服问答数据
+./examples/quick_test.sh examples/seed_data_customer_service.jsonl
+
+# 使用AI/ML知识数据
+./examples/quick_test.sh examples/seed_data_ai_ml.jsonl
+
+# 使用编程教程数据
+./examples/quick_test.sh examples/seed_data_programming.jsonl
+```
+
+这个脚本会自动完成：创建项目 → 上传数据集 → 启动流水线 → 查看状态
+
+### 方式二：手动步骤
+
+#### 1. 创建项目
 
 ```bash
 curl -X POST http://172.18.36.230:18080/api/v1/projects \
@@ -76,21 +93,21 @@ curl -X POST http://172.18.36.230:18080/api/v1/projects \
 
 记录返回的 `project_id`。
 
-### 2. 上传种子数据集
+#### 2. 上传种子数据集
 
-**方式一：使用客服问答数据**
+**使用客服问答数据**
 ```bash
 curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
   -F "file=@examples/seed_data_customer_service.jsonl"
 ```
 
-**方式二：使用AI/ML知识数据**
+**使用AI/ML知识数据**
 ```bash
 curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
   -F "file=@examples/seed_data_ai_ml.jsonl"
 ```
 
-**方式三：使用编程教程数据**
+**使用编程教程数据**
 ```bash
 curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
   -F "file=@examples/seed_data_programming.jsonl"
@@ -98,7 +115,7 @@ curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
 
 记录返回的 `dataset_id`。
 
-### 3. 启动蒸馏流水线
+#### 3. 启动蒸馏流水线
 
 ```bash
 curl -X POST http://172.18.36.230:18080/api/v1/pipelines \
@@ -114,7 +131,7 @@ curl -X POST http://172.18.36.230:18080/api/v1/pipelines \
   }'
 ```
 
-### 4. 查看流水线状态
+#### 4. 查看流水线状态
 
 ```bash
 curl http://172.18.36.230:18080/api/v1/pipelines/{pipeline_id}
