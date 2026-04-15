@@ -1,7 +1,9 @@
 package runtime
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,15 +38,72 @@ type StageExecutor struct {
 	configGen    *ConfigGenerator
 	manifestMgr  *ManifestManager
 	dataGovernor *DataGovernor
+	datasetRepo  DatasetRepository
+}
+
+// DatasetRepository 数据集仓库接口（简化）
+type DatasetRepository interface {
+	GetByID(ctx context.Context, id string) (*types.Dataset, error)
 }
 
 // NewStageExecutor 创建阶段执行器
-func NewStageExecutor(workspaceRoot string) *StageExecutor {
+func NewStageExecutor(workspaceRoot string, datasetRepo DatasetRepository) *StageExecutor {
 	return &StageExecutor{
 		configGen:    NewConfigGenerator(workspaceRoot),
 		manifestMgr:  NewManifestManager(workspaceRoot),
 		dataGovernor: NewDataGovernor(),
+		datasetRepo:  datasetRepo,
 	}
+}
+
+// loadDatasetInstructions 从数据集文件加载指令数据
+func (e *StageExecutor) loadDatasetInstructions(datasetFilePath string) ([]Instruction, error) {
+	// 打开数据集文件
+	file, err := os.Open(datasetFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("打开数据集文件失败: %w", err)
+	}
+	defer file.Close()
+
+	var instructions []Instruction
+	scanner := bufio.NewScanner(file)
+	// 设置更大的缓冲区以处理长行
+	buffer := make([]byte, 1024*64)
+	scanner.Buffer(buffer, 1024*1024)
+
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+
+		// 跳过空行
+		if line == "" {
+			continue
+		}
+
+		// 解析 JSON 行
+		var instr Instruction
+		if err := json.Unmarshal([]byte(line), &instr); err != nil {
+			return nil, fmt.Errorf("解析数据集第 %d 行失败: %w", lineNum, err)
+		}
+
+		// 验证必填字段
+		if instr.Instruction == "" {
+			return nil, fmt.Errorf("数据集第 %d 行缺少 instruction 字段", lineNum)
+		}
+
+		instructions = append(instructions, instr)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("读取数据集文件失败: %w", err)
+	}
+
+	if len(instructions) == 0 {
+		return nil, fmt.Errorf("数据集文件为空或没有有效的指令数据")
+	}
+
+	return instructions, nil
 }
 
 // ExecuteStage 执行单个阶段
@@ -146,10 +205,6 @@ func (e *StageExecutor) executeDatasetBuild(
 ) error {
 	logger.Info("构建数据集清单")
 
-	// 这里假设数据集已经上传到共享存储
-	// 实际实现中，这里需要读取用户上传的数据集文件
-	// 并转换为 EasyDistill 期望的格式
-
 	projectID := project.ID
 	runID := pipeline.ID
 
@@ -173,18 +228,27 @@ func (e *StageExecutor) executeDatasetBuild(
 
 	logger.Info("工作空间目录创建完成", zap.String("workspace", workspace))
 
-	// 示例：创建示例种子数据（实际应该从数据集加载）
-	// TODO: 从实际数据集ID加载数据
-	instructions := []Instruction{
-		{
-			Instruction: "解释什么是机器学习",
-			Input:       "",
-		},
-		{
-			Instruction: "用Python写一个快速排序",
-			Input:       "",
-		},
+	// 从实际数据集加载数据
+	dataset, err := e.datasetRepo.GetByID(ctx, pipeline.DatasetID)
+	if err != nil {
+		return fmt.Errorf("获取数据集失败: %w", err)
 	}
+
+	if dataset.FilePath == "" {
+		return fmt.Errorf("数据集文件路径为空")
+	}
+
+	// 从数据集文件加载指令
+	instructions, err := e.loadDatasetInstructions(dataset.FilePath)
+	if err != nil {
+		return fmt.Errorf("加载数据集失败: %w", err)
+	}
+
+	logger.Info("数据集加载完成",
+		zap.String("dataset_id", dataset.ID),
+		zap.String("file_path", dataset.FilePath),
+		zap.Int("count", len(instructions)),
+	)
 
 	if err := e.manifestMgr.CreateSeedManifest(projectID, runID, instructions); err != nil {
 		return fmt.Errorf("创建种子数据清单失败: %w", err)
@@ -194,9 +258,11 @@ func (e *StageExecutor) executeDatasetBuild(
 
 	// 保存清单信息
 	stage.OutputManifest = map[string]string{
-		"seed_count": fmt.Sprintf("%d", len(instructions)),
-		"workspace":  workspace,
-		"created_at": time.Now().Format(time.RFC3339),
+		"seed_count":  fmt.Sprintf("%d", len(instructions)),
+		"dataset_id":  dataset.ID,
+		"dataset_name": dataset.Name,
+		"workspace":   workspace,
+		"created_at":  time.Now().Format(time.RFC3339),
 	}
 
 	return nil
@@ -447,17 +513,55 @@ func (e *StageExecutor) executeEvaluate(
 
 	logger.Info("模型评估完成")
 
-	// TODO: 解析评估结果并保存到 stage.Metrics
+	// 解析评估结果并保存到 stage.Metrics
+	resultPath := filepath.Join(e.configGen.GetRunWorkspace(projectID, runID), "eval", "results.json")
+	metrics, err := e.parseEvaluationResults(resultPath)
+	if err != nil {
+		// 如果解析失败，记录警告但不中断流程
+		logger.Warn("解析评估结果失败",
+			zap.String("result_path", resultPath),
+			zap.Error(err),
+		)
+		metrics = map[string]interface{}{
+			"error": fmt.Sprintf("解析评估结果失败: %v", err),
+		}
+	} else {
+		logger.Info("评估结果解析成功", zap.Any("metrics", metrics))
+	}
 
 	stage.ContainerID = containerID
 	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "evaluate")
+	stage.Metrics = metrics
 	stage.OutputManifest = map[string]string{
 		"container_id": containerID,
-		"result_path":  "/workspace/eval/results.json",
+		"result_path":  resultPath,
 		"config_path":  configPath,
 	}
 
 	return nil
+}
+
+// parseEvaluationResults 解析评估结果文件
+func (e *StageExecutor) parseEvaluationResults(resultPath string) (map[string]interface{}, error) {
+	// 检查文件是否存在
+	if _, err := os.Stat(resultPath); os.IsNotExist(err) {
+		return nil, fmt.Errorf("评估结果文件不存在: %s", resultPath)
+	}
+
+	// 读取结果文件
+	data, err := os.ReadFile(resultPath)
+	if err != nil {
+		return nil, fmt.Errorf("读取评估结果文件失败: %w", err)
+	}
+
+	// 解析 JSON
+	var results map[string]interface{}
+	if err := json.Unmarshal(data, &results); err != nil {
+		return nil, fmt.Errorf("解析评估结果 JSON 失败: %w", err)
+	}
+
+	// 返回解析后的指标
+	return results, nil
 }
 
 // ContainerRequest 容器请求
