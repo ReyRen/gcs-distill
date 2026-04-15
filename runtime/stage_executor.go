@@ -1,7 +1,9 @@
 package runtime
 
 import (
+	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +13,7 @@ import (
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
 	pb "github.com/ReyRen/gcs-distill/proto"
+	"github.com/ReyRen/gcs-distill/repository/postgres"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -31,19 +34,98 @@ func getExtraParamString(config types.ModelConfig, key string) string {
 	return strings.TrimSpace(text)
 }
 
+// loadDatasetInstructions 从数据集文件加载指令数据
+// 支持 JSONL 格式，每行一个 JSON 对象
+func (e *StageExecutor) loadDatasetInstructions(ctx context.Context, datasetID string) ([]Instruction, error) {
+	// 获取数据集信息
+	dataset, err := e.datasetRepo.GetByID(ctx, datasetID)
+	if err != nil {
+		return nil, fmt.Errorf("获取数据集失败: %w", err)
+	}
+
+	// 检查文件路径
+	if dataset.FilePath == "" {
+		return nil, fmt.Errorf("数据集文件路径为空")
+	}
+
+	// 打开文件
+	file, err := os.Open(dataset.FilePath)
+	if err != nil {
+		return nil, fmt.Errorf("打开数据集文件失败: %w", err)
+	}
+	defer file.Close()
+
+	var instructions []Instruction
+	scanner := bufio.NewScanner(file)
+
+	// 设置较大的缓冲区以支持长行
+	buffer := make([]byte, 1024*64)
+	scanner.Buffer(buffer, 1024*1024)
+
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+
+		// 跳过空行
+		if line == "" {
+			continue
+		}
+
+		var inst Instruction
+		if err := json.Unmarshal([]byte(line), &inst); err != nil {
+			logger.Warn("解析数据集行失败，跳过",
+				zap.Int("line", lineNum),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		// 验证必需字段
+		if inst.Instruction == "" {
+			logger.Warn("指令字段为空，跳过",
+				zap.Int("line", lineNum),
+			)
+			continue
+		}
+
+		instructions = append(instructions, inst)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("读取数据集文件失败: %w", err)
+	}
+
+	if len(instructions) == 0 {
+		return nil, fmt.Errorf("数据集中没有有效的指令数据")
+	}
+
+	logger.Info("成功加载数据集",
+		zap.String("dataset_id", datasetID),
+		zap.String("file_path", dataset.FilePath),
+		zap.Int("total_lines", lineNum),
+		zap.Int("valid_instructions", len(instructions)),
+	)
+
+	return instructions, nil
+}
+
+
 // StageExecutor 阶段执行器
 type StageExecutor struct {
 	configGen    *ConfigGenerator
 	manifestMgr  *ManifestManager
 	dataGovernor *DataGovernor
+	datasetRepo  postgres.DatasetRepository
 }
 
 // NewStageExecutor 创建阶段执行器
-func NewStageExecutor(workspaceRoot string) *StageExecutor {
+func NewStageExecutor(workspaceRoot string, datasetRepo postgres.DatasetRepository) *StageExecutor {
 	return &StageExecutor{
 		configGen:    NewConfigGenerator(workspaceRoot),
 		manifestMgr:  NewManifestManager(workspaceRoot),
 		dataGovernor: NewDataGovernor(),
+		datasetRepo:  datasetRepo,
 	}
 }
 
@@ -173,17 +255,12 @@ func (e *StageExecutor) executeDatasetBuild(
 
 	logger.Info("工作空间目录创建完成", zap.String("workspace", workspace))
 
-	// 示例：创建示例种子数据（实际应该从数据集加载）
-	// TODO: 从实际数据集ID加载数据
-	instructions := []Instruction{
-		{
-			Instruction: "解释什么是机器学习",
-			Input:       "",
-		},
-		{
-			Instruction: "用Python写一个快速排序",
-			Input:       "",
-		},
+	// 从实际数据集加载指令数据
+	logger.Info("开始加载数据集", zap.String("dataset_id", pipeline.DatasetID))
+
+	instructions, err := e.loadDatasetInstructions(ctx, pipeline.DatasetID)
+	if err != nil {
+		return fmt.Errorf("加载数据集失败: %w", err)
 	}
 
 	if err := e.manifestMgr.CreateSeedManifest(projectID, runID, instructions); err != nil {

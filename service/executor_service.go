@@ -28,6 +28,7 @@ type executorService struct {
 	pipelineRepo  postgres.PipelineRepository
 	stageRepo     postgres.StageRepository
 	projectRepo   postgres.ProjectRepository
+	datasetRepo   postgres.DatasetRepository
 	schedulerSvc  SchedulerService
 	stageExecutor *runtime.StageExecutor
 
@@ -46,6 +47,7 @@ func NewExecutorService(
 	pipelineRepo postgres.PipelineRepository,
 	stageRepo postgres.StageRepository,
 	projectRepo postgres.ProjectRepository,
+	datasetRepo postgres.DatasetRepository,
 	schedulerSvc SchedulerService,
 	workspaceRoot string,
 	maxConcurrent int,
@@ -58,8 +60,9 @@ func NewExecutorService(
 		pipelineRepo:  pipelineRepo,
 		stageRepo:     stageRepo,
 		projectRepo:   projectRepo,
+		datasetRepo:   datasetRepo,
 		schedulerSvc:  schedulerSvc,
-		stageExecutor: runtime.NewStageExecutor(workspaceRoot),
+		stageExecutor: runtime.NewStageExecutor(workspaceRoot, datasetRepo),
 		queue:         make(chan string, 100),
 		stopChan:      make(chan struct{}),
 		maxConcurrent: maxConcurrent,

@@ -83,6 +83,7 @@ func main() {
 		pipelineRepo,
 		stageRepo,
 		projectRepo,
+		datasetRepo,
 		schedulerSvc,
 		cfg.Executor.WorkspaceRoot,
 		cfg.Executor.MaxConcurrent,
