@@ -19,8 +19,12 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
-# 编译服务器
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/server
+# 清理 Go 构建缓存并编译服务器
+# 注意:
+# 1. 清理构建缓存确保嵌入文件（如 Swagger 文档）总是使用最新版本
+# 2. -a 标志强制重新编译所有包
+RUN go clean -cache && \
+    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/server
 
 # 运行时镜像
 FROM alpine:latest

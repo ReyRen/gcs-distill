@@ -24,7 +24,9 @@ help:
 	@echo ""
 	@echo "Docker 环境:"
 	@echo "  make docker-up      - 构建并启动 Docker Compose 环境"
+	@echo "  make docker-up-clean - 清理缓存并重新构建启动 Docker Compose 环境"
 	@echo "  make docker-up-server - 重建并启动 gcs-server"
+	@echo "  make docker-up-server-clean - 清理缓存并重建启动 gcs-server"
 	@echo "  make docker-up-worker - 重建并启动 gcs-worker-1"
 	@echo "  make docker-down    - 停止 Docker Compose 环境"
 	@echo "  make docker-restart - 重启已有 Docker Compose 容器"
@@ -146,10 +148,30 @@ docker-up:
 	@echo "API 服务: http://172.18.36.230:18080"
 	@echo "健康检查: curl http://172.18.36.230:18080/health"
 
+## docker-up-clean: 清理缓存并重新构建启动 Docker Compose 环境
+docker-up-clean:
+	@echo "清理缓存并重新构建 Docker Compose 环境..."
+	@$(COMPOSE) build --no-cache
+	@$(COMPOSE) up -d
+	@echo "等待服务就绪..."
+	@sleep 10
+	@$(COMPOSE) ps
+	@echo ""
+	@echo "✅ 服务已启动！"
+	@echo "API 服务: http://172.18.36.230:18080"
+	@echo "健康检查: curl http://172.18.36.230:18080/health"
+
 ## docker-up-server: 重建并启动 gcs-server
 docker-up-server:
 	@echo "重建并启动 gcs-server..."
 	@$(COMPOSE) up -d --build gcs-server
+	@$(COMPOSE) ps gcs-server
+
+## docker-up-server-clean: 清理缓存并重建启动 gcs-server
+docker-up-server-clean:
+	@echo "清理缓存并重建启动 gcs-server..."
+	@$(COMPOSE) build --no-cache gcs-server
+	@$(COMPOSE) up -d gcs-server
 	@$(COMPOSE) ps gcs-server
 
 ## docker-up-worker: 重建并启动 gcs-worker-1
