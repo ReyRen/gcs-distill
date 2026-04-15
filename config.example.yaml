@@ -30,6 +30,7 @@ redis:
 storage:
   type: nfs              # 存储类型: nfs, ceph, local
   base_path: /mnt/shared/distill  # 容器内路径，映射到宿主机 /storage-md0/renyuan/gcs-distill-data/shared-workspace
+  models_base_path: /mnt/shared/distill/models  # 学生模型存放目录
 
 # gRPC 配置
 grpc:

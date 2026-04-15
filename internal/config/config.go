@@ -48,8 +48,9 @@ type RedisConfig struct {
 
 // StorageConfig 共享存储配置
 type StorageConfig struct {
-	Type     string `yaml:"type"`      // 存储类型: nfs, ceph, local
-	BasePath string `yaml:"base_path"` // 基础路径
+	Type           string `yaml:"type"`             // 存储类型: nfs, ceph, local
+	BasePath       string `yaml:"base_path"`        // 基础路径
+	ModelsBasePath string `yaml:"models_base_path"` // 学生模型存放目录
 }
 
 // GRPCConfig gRPC 配置

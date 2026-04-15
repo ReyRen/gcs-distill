@@ -18,6 +18,7 @@ type Router struct {
 	projectHandler  *handlers.ProjectHandler
 	datasetHandler  *handlers.DatasetHandler
 	pipelineHandler *handlers.PipelineHandler
+	modelHandler    *handlers.ModelHandler
 	resourceHandler *handlers.ResourceHandler
 }
 
@@ -26,6 +27,7 @@ func NewRouter(
 	projectSvc service.ProjectService,
 	datasetSvc service.DatasetService,
 	pipelineSvc service.PipelineService,
+	modelSvc service.ModelService,
 	schedulerSvc service.SchedulerService,
 ) *Router {
 	// 设置 Gin 模式
@@ -42,6 +44,7 @@ func NewRouter(
 	projectHandler := handlers.NewProjectHandler(projectSvc)
 	datasetHandler := handlers.NewDatasetHandler(datasetSvc)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineSvc)
+	modelHandler := handlers.NewModelHandler(modelSvc)
 	resourceHandler := handlers.NewResourceHandler(schedulerSvc)
 
 	router := &Router{
@@ -49,6 +52,7 @@ func NewRouter(
 		projectHandler:  projectHandler,
 		datasetHandler:  datasetHandler,
 		pipelineHandler: pipelineHandler,
+		modelHandler:    modelHandler,
 		resourceHandler: resourceHandler,
 	}
 
@@ -115,6 +119,13 @@ func (r *Router) setupRoutes() {
 			pipelines.GET("/:id/stages/:stage_id/logs", r.pipelineHandler.GetStageLogs)
 			pipelines.GET("/:id/stages/:stage_id/logs/stream", r.pipelineHandler.StreamStageLogs)
 			pipelines.GET("/:id/stages/:stage_id/logs/download", r.pipelineHandler.DownloadStageLogs)
+		}
+
+		// 模型管理
+		models := v1.Group("/models")
+		{
+			models.GET("/student", r.modelHandler.ListStudentModels)
+			models.GET("/student/:id", r.modelHandler.GetStudentModel)
 		}
 
 		// 资源管理
