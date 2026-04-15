@@ -141,9 +141,21 @@ curl -X POST http://172.18.36.230:18080/api/v1/projects \
 
 上传数据集：
 ```bash
+# 使用仓库中的示例数据（推荐用于测试）
+curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
+  -F "file=@examples/seed_data_customer_service.jsonl"
+
+# 或使用自定义数据
 curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
   -F "file=@seed_data.jsonl"
 ```
+
+**注意：** 仓库 `examples/` 目录下提供了三个测试用种子数据集：
+- `seed_data_customer_service.jsonl` - 客服问答场景 (30条)
+- `seed_data_ai_ml.jsonl` - AI/机器学习知识问答 (40条)
+- `seed_data_programming.jsonl` - 编程教程问答 (40条)
+
+详细说明请参考 [examples/README.md](examples/README.md)
 
 3. 启动蒸馏流水线
 ```bash
