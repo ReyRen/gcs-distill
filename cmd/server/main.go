@@ -76,6 +76,7 @@ func main() {
 	// 创建服务层
 	projectSvc := service.NewProjectService(projectRepo)
 	datasetSvc := service.NewDatasetService(datasetRepo, projectRepo, &cfg.Storage)
+	modelSvc := service.NewModelService(&cfg.Storage)
 	schedulerSvc := service.NewSchedulerService(nodeCache)
 
 	// 创建执行器服务
@@ -99,7 +100,7 @@ func main() {
 	pipelineSvc := service.NewPipelineService(pipelineRepo, stageRepo, projectRepo, datasetRepo, executorSvc)
 
 	// 创建路由器
-	router := server.NewRouter(projectSvc, datasetSvc, pipelineSvc, schedulerSvc)
+	router := server.NewRouter(projectSvc, datasetSvc, pipelineSvc, modelSvc, schedulerSvc)
 
 	// 启动 HTTP 服务器
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

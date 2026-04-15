@@ -95,7 +95,8 @@ Content-Type: application/json
   },
   "student_model_config": {
     "provider_type": "local",
-    "model_name": "Qwen/Qwen2.5-0.5B-Instruct"
+    "model_name": "Qwen/Qwen2.5-0.5B-Instruct",
+    "model_path": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct"
   },
   "evaluation_config": {
     "metrics": ["bleu", "rouge", "accuracy"],
@@ -1255,6 +1256,22 @@ export default {
     <!-- 学生模型配置 -->
     <el-divider>学生模型配置</el-divider>
 
+    <el-form-item label="选择学生模型" prop="student_model_config.model_path" required>
+      <el-select
+        v-model="form.student_model_config.model_path"
+        placeholder="请选择学生模型"
+        @focus="loadStudentModels"
+      >
+        <el-option
+          v-for="model in studentModels"
+          :key="model.id"
+          :label="`${model.name} (${formatSize(model.size)})`"
+          :value="model.path"
+        />
+      </el-select>
+      <span class="el-form-item__tip">从服务器模型目录中选择</span>
+    </el-form-item>
+
     <el-form-item label="模型名称" prop="student_model_config.model_name">
       <el-input
         v-model="form.student_model_config.model_name"
@@ -1289,13 +1306,40 @@ export default {
           temperature: 0.7
         },
         student_model_config: {
-          model_name: ''
+          provider_type: 'local',  // 固定为 local（离线环境）
+          model_name: '',
+          model_path: ''
         },
         evaluation_config: {
           metrics: []
         }
-      }
+      },
+      studentModels: []  // 可用的学生模型列表
     };
+  },
+  methods: {
+    // 加载学生模型列表
+    async loadStudentModels() {
+      if (this.studentModels.length > 0) return;  // 已加载则跳过
+
+      try {
+        const response = await fetch('/api/v1/models/student');
+        const result = await response.json();
+        if (result.code === 200) {
+          this.studentModels = result.data;
+        }
+      } catch (error) {
+        console.error('加载学生模型列表失败:', error);
+      }
+    },
+    // 格式化文件大小
+    formatSize(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+    }
   }
 };
 </script>

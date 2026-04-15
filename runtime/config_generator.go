@@ -143,6 +143,11 @@ func (g *ConfigGenerator) GenerateStudentTrainConfig(
 		return nil, fmt.Errorf("模型配置不完整")
 	}
 
+	// 学生模型必须提供本地路径（离线环境）
+	if studentConfig.ModelPath == "" {
+		return nil, fmt.Errorf("学生模型路径不能为空")
+	}
+
 	// 训练配置
 	trainConfig := pipeline.TrainingConfig
 	if trainConfig.NumTrainEpochs == 0 &&
@@ -161,7 +166,7 @@ func (g *ConfigGenerator) GenerateStudentTrainConfig(
 		},
 		Models: StudentModelsConfig{
 			Teacher: teacherConfig.ModelName,
-			Student: studentConfig.ModelName,
+			Student: studentConfig.ModelPath, // 使用本地模型路径
 		},
 		Training: TrainingConfig{
 			OutputDir:               "/workspace/models/checkpoints/",

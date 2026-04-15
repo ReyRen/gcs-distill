@@ -48,10 +48,20 @@
   "student_model_config": {
     "model_name": "qwen-7b",
     "provider_type": "local",
-    "model_path": "/models/qwen-7b"
+    "model_path": "/mnt/shared/distill/models/qwen-7b"
   }
 }
 ```
+
+**字段说明**:
+- `teacher_model_config`: 教师模型配置
+  - `provider_type`: 可以是 `api` (API调用) 或 `local` (本地模型)
+  - `model_name`: 模型名称
+  - `endpoint`, `api_secret_ref`: API 模型所需字段
+- `student_model_config`: 学生模型配置
+  - `provider_type`: **必须为 `local`** (系统运行在离线环境，不支持在线模型)
+  - `model_name`: 模型名称
+  - `model_path`: **必填** - 本地模型文件路径，如 `/mnt/shared/distill/models/qwen-7b`
 
 **响应**:
 ```json
@@ -396,6 +406,74 @@
 
 ---
 
+## 模型管理 API
+
+### 1. 获取学生模型列表
+
+**GET** `/api/v1/models/student`
+
+获取所有可用的学生模型列表。系统会扫描配置的模型目录（`storage.models_base_path`），返回所有包含 `config.json` 的有效模型。
+
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "获取学生模型列表成功",
+  "data": [
+    {
+      "id": "Qwen2.5-0.5B-Instruct",
+      "name": "Qwen2.5-0.5B-Instruct",
+      "path": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct",
+      "description": "",
+      "size": 1073741824
+    },
+    {
+      "id": "Llama-2-7b-hf",
+      "name": "Llama-2-7b-hf",
+      "path": "/mnt/shared/distill/models/Llama-2-7b-hf",
+      "description": "",
+      "size": 13421772800
+    }
+  ]
+}
+```
+
+**字段说明**:
+- `id`: 模型 ID（目录名）
+- `name`: 模型名称
+- `path`: 模型完整路径
+- `description`: 模型描述
+- `size`: 模型大小（字节）
+
+**使用说明**:
+1. 前端调用此 API 获取可用模型列表
+2. 在创建项目时，从列表中选择一个模型
+3. 将选中模型的 `path` 填入 `student_model_config.model_path`
+
+### 2. 获取指定学生模型信息
+
+**GET** `/api/v1/models/student/{id}`
+
+**参数**:
+- `id`: 模型 ID（目录名）
+
+**响应**:
+```json
+{
+  "code": 200,
+  "message": "获取模型信息成功",
+  "data": {
+    "id": "Qwen2.5-0.5B-Instruct",
+    "name": "Qwen2.5-0.5B-Instruct",
+    "path": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct",
+    "description": "",
+    "size": 1073741824
+  }
+}
+```
+
+---
+
 ## 资源管理 API
 
 ### 1. 获取节点列表
@@ -469,7 +547,8 @@ curl -X POST http://172.18.36.230:18080/api/v1/projects \
     },
     "student_model_config": {
       "model_name": "qwen-7b",
-      "provider_type": "local"
+      "provider_type": "local",
+      "model_path": "/mnt/shared/distill/models/qwen-7b"
     }
   }'
 ```

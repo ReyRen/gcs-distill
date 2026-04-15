@@ -52,6 +52,7 @@ type Project struct {
 type ModelConfig struct {
 	ProviderType     ProviderType      `json:"provider_type"`
 	ModelName        string            `json:"model_name"`
+	ModelPath        string            `json:"model_path,omitempty"`       // 本地模型文件路径 (仅用于 local 类型)
 	Endpoint         string            `json:"endpoint,omitempty"`         // API 端点
 	APISecretRef     string            `json:"api_secret_ref,omitempty"`   // API 密钥引用
 	Temperature      float64           `json:"temperature,omitempty"`
