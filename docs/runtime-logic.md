@@ -408,8 +408,9 @@ message RunContainerRequest {
 ### 完整流程示例代码
 
 ```go
-// 创建执行器
-executor := runtime.NewStageExecutor("/shared")
+// 创建执行器（需要传入数据集仓库）
+datasetRepo := postgres.NewDatasetRepository(db)
+executor := runtime.NewStageExecutor("/shared", datasetRepo)
 
 // 获取流水线和项目信息
 pipeline := ... // 从数据库加载

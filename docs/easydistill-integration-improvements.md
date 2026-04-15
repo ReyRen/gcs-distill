@@ -64,8 +64,9 @@ containerReq := &ContainerRequest{
 
 **API 使用**:
 ```go
-// 读取完整日志
-executor := runtime.NewStageExecutor("/shared")
+// 读取完整日志（需要传入数据集仓库）
+datasetRepo := postgres.NewDatasetRepository(db)
+executor := runtime.NewStageExecutor("/shared", datasetRepo)
 logs, err := executor.ReadLogFile(projectID, runID, "teacher_infer")
 
 // 读取最后 100 行
@@ -232,7 +233,8 @@ func GetStageLogs(c *gin.Context) {
     stageID := c.Param("stage_id")
     tail := c.DefaultQuery("tail", "100")
 
-    executor := runtime.NewStageExecutor(workspaceRoot)
+    datasetRepo := postgres.NewDatasetRepository(db)
+    executor := runtime.NewStageExecutor(workspaceRoot, datasetRepo)
     logs, err := executor.TailLogFile(projectID, runID, stageName, tailLines)
 
     c.JSON(200, gin.H{

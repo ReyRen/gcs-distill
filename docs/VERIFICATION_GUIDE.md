@@ -146,7 +146,9 @@ containerReq := &ContainerRequest{
 
 **代码示例**:
 ```go
-executor := runtime.NewStageExecutor("/shared")
+// 创建执行器（需要传入数据集仓库）
+datasetRepo := postgres.NewDatasetRepository(db)
+executor := runtime.NewStageExecutor("/shared", datasetRepo)
 
 // 读取完整日志
 logs, err := executor.ReadLogFile(projectID, runID, "teacher_infer")
