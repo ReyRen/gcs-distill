@@ -351,6 +351,42 @@ go mod tidy
 make build
 ```
 
+### 4. Swagger 文档不更新
+
+**问题描述:**
+当你修改了 `server/apidocs/swagger/openapi.json` 或其他 Swagger 文档文件后，运行 `make docker-up` 重新编译，但访问 `/swagger` 端点时发现文档并没有更新。
+
+**原因分析:**
+Swagger 文档文件通过 Go 的 `embed.FS` 指令嵌入到二进制文件中（见 `server/apidocs/assets.go`）。当 Docker 构建时，缓存可能导致即使源文件已更新，嵌入的文件仍然是旧版本。
+
+**解决方案:**
+
+已经修复！现在 `make docker-up` 会：
+1. 使用 `--no-cache` 标志强制完全重新构建（清理 Docker 层缓存）
+2. Dockerfile 中使用 `go clean -cache` 清理 Go 构建缓存
+3. 确保嵌入的 Swagger 文档总是最新版本
+
+```bash
+# 正常启动即可，会自动清理所有缓存
+make docker-up
+
+# 或只重建 server 服务
+make docker-up-server
+```
+
+如果问题仍然存在，可以手动清理：
+```bash
+# 停止所有服务
+make docker-down
+
+# 清理悬空镜像和构建缓存
+make docker-prune
+make docker-builder-prune
+
+# 重新启动
+make docker-up
+```
+
 ## 贡献指南
 
 1. Fork 项目

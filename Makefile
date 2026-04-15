@@ -137,7 +137,8 @@ db-init:
 ## docker-up: 启动 Docker Compose 环境
 docker-up:
 	@echo "启动 Docker Compose 环境..."
-	@$(COMPOSE) up -d --build
+	@$(COMPOSE) build --no-cache
+	@$(COMPOSE) up -d
 	@echo "等待服务就绪..."
 	@sleep 10
 	@$(COMPOSE) ps
@@ -149,7 +150,8 @@ docker-up:
 ## docker-up-server: 重建并启动 gcs-server
 docker-up-server:
 	@echo "重建并启动 gcs-server..."
-	@$(COMPOSE) up -d --build gcs-server
+	@$(COMPOSE) build --no-cache gcs-server
+	@$(COMPOSE) up -d gcs-server
 	@$(COMPOSE) ps gcs-server
 
 ## docker-up-worker: 重建并启动 gcs-worker-1
