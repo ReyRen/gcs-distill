@@ -606,17 +606,32 @@
           "message": { "type": "string", "example": "请求参数错误" }
         }
       },
-      "ModelConfig": {
+      "TeacherModelConfig": {
         "type": "object",
         "properties": {
-          "provider_type": { "type": "string", "example": "api" },
-          "model_name": { "type": "string", "example": "Qwen/Qwen2.5-7B-Instruct" },
-          "endpoint": { "type": "string", "example": "https://api.openai.com/v1/chat/completions" },
-          "api_secret_ref": { "type": "string", "example": "openai_key" },
+          "provider_type": { "type": "string", "example": "api", "description": "Provider type: api or local" },
+          "model_name": { "type": "string", "example": "gpt-4", "description": "Model name" },
+          "endpoint": { "type": "string", "example": "https://api.openai.com/v1/chat/completions", "description": "API endpoint (for api provider)" },
+          "api_secret_ref": { "type": "string", "example": "openai_key", "description": "API secret reference (for api provider)" },
           "temperature": { "type": "number", "format": "double", "example": 0.7 },
           "max_tokens": { "type": "integer", "example": 2048 },
           "concurrency": { "type": "integer", "example": 10 },
           "timeout_seconds": { "type": "integer", "example": 60 },
+          "extra_params": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      },
+      "StudentModelConfig": {
+        "type": "object",
+        "required": ["provider_type", "model_name", "model_path"],
+        "properties": {
+          "provider_type": { "type": "string", "example": "local", "description": "Must be 'local' - system runs in offline environment" },
+          "model_name": { "type": "string", "example": "Qwen2.5-0.5B-Instruct", "description": "Student model name" },
+          "model_path": { "type": "string", "example": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct", "description": "Required - local model file path" },
+          "temperature": { "type": "number", "format": "double", "example": 0.7 },
+          "max_tokens": { "type": "integer", "example": 2048 },
           "extra_params": {
             "type": "object",
             "additionalProperties": true
@@ -645,8 +660,8 @@
           "name": { "type": "string", "example": "客服问答蒸馏" },
           "description": { "type": "string", "example": "将教师模型蒸馏到轻量学生模型" },
           "business_scenario": { "type": "string", "example": "智能客服" },
-          "teacher_model_config": { "$ref": "#/components/schemas/ModelConfig" },
-          "student_model_config": { "$ref": "#/components/schemas/ModelConfig" },
+          "teacher_model_config": { "$ref": "#/components/schemas/TeacherModelConfig" },
+          "student_model_config": { "$ref": "#/components/schemas/StudentModelConfig" },
           "evaluation_config": { "$ref": "#/components/schemas/EvaluationConfig" },
           "created_at": { "type": "string", "format": "date-time" },
           "updated_at": { "type": "string", "format": "date-time" }
