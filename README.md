@@ -125,9 +125,24 @@ curl -X POST http://172.18.36.230:18080/api/v1/projects \
 ```
 
 2. 上传种子数据集
+
+种子数据集需要使用 **JSONL (JSON Lines)** 格式，每行一个 JSON 对象，必须包含 `instruction` 字段：
+
+```jsonl
+{"instruction": "什么是人工智能？", "input": "", "output": ""}
+{"instruction": "解释机器学习的概念", "input": "", "output": ""}
+{"instruction": "什么是深度学习？", "input": "", "output": ""}
+```
+
+**字段说明：**
+- `instruction` (必需): 指令或问题文本
+- `input` (可选): 额外的输入上下文
+- `output` (可选): 预期输出（种子数据通常为空，由教师模型生成）
+
+上传数据集：
 ```bash
 curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
-  -F "file=@seed_data.json"
+  -F "file=@seed_data.jsonl"
 ```
 
 3. 启动蒸馏流水线
