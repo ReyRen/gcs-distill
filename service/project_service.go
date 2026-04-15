@@ -180,5 +180,15 @@ func (s *projectService) validateProject(project *types.Project) error {
 		return fmt.Errorf("学生模型名称不能为空")
 	}
 
+	// 学生模型必须是本地模型（离线环境）
+	if project.StudentModelConfig.ProviderType != types.ProviderLocal {
+		return fmt.Errorf("学生模型必须使用本地模型 (provider_type=local)，当前环境不支持在线模型")
+	}
+
+	// 学生模型必须提供模型路径
+	if project.StudentModelConfig.ModelPath == "" {
+		return fmt.Errorf("学生模型路径 (model_path) 不能为空")
+	}
+
 	return nil
 }

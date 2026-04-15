@@ -48,10 +48,20 @@
   "student_model_config": {
     "model_name": "qwen-7b",
     "provider_type": "local",
-    "model_path": "/models/qwen-7b"
+    "model_path": "/mnt/shared/distill/models/qwen-7b"
   }
 }
 ```
+
+**字段说明**:
+- `teacher_model_config`: 教师模型配置
+  - `provider_type`: 可以是 `api` (API调用) 或 `local` (本地模型)
+  - `model_name`: 模型名称
+  - `endpoint`, `api_secret_ref`: API 模型所需字段
+- `student_model_config`: 学生模型配置
+  - `provider_type`: **必须为 `local`** (系统运行在离线环境，不支持在线模型)
+  - `model_name`: 模型名称
+  - `model_path`: **必填** - 本地模型文件路径，如 `/mnt/shared/distill/models/qwen-7b`
 
 **响应**:
 ```json
@@ -469,7 +479,8 @@ curl -X POST http://172.18.36.230:18080/api/v1/projects \
     },
     "student_model_config": {
       "model_name": "qwen-7b",
-      "provider_type": "local"
+      "provider_type": "local",
+      "model_path": "/mnt/shared/distill/models/qwen-7b"
     }
   }'
 ```
