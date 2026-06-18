@@ -1,9 +1,1736 @@
 {
-  "openapi": "3.0.3",
+  "components": {
+    "parameters": {
+      "DatasetId": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "Page": {
+        "in": "query",
+        "name": "page",
+        "schema": {
+          "default": 1,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "PageSize": {
+        "in": "query",
+        "name": "page_size",
+        "schema": {
+          "default": 20,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "PipelineId": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ProjectId": {
+        "in": "path",
+        "name": "id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "ProjectIdQuery": {
+        "in": "query",
+        "name": "project_id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "StageId": {
+        "in": "path",
+        "name": "stage_id",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "schemas": {
+      "Dataset": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "example": "种子或蒸馏数据",
+            "type": "string"
+          },
+          "file_path": {
+            "example": "/mnt/shared/distill/project-a/seeds.jsonl",
+            "type": "string"
+          },
+          "id": {
+            "example": "uuid-dataset",
+            "type": "string"
+          },
+          "name": {
+            "example": "训练数据集",
+            "type": "string"
+          },
+          "project_id": {
+            "example": "uuid-project",
+            "type": "string"
+          },
+          "record_count": {
+            "example": 1000,
+            "type": "integer"
+          },
+          "source_type": {
+            "example": "upload",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DatasetListResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/Dataset"
+                },
+                "type": "array"
+              },
+              "page": {
+                "example": 1,
+                "type": "integer"
+              },
+              "page_size": {
+                "example": 20,
+                "type": "integer"
+              },
+              "total": {
+                "example": 1,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "message": {
+            "example": "获取数据集列表成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DatasetResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Dataset"
+          },
+          "message": {
+            "example": "数据集创建成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DatasetUploadRequest": {
+        "properties": {
+          "description": {
+            "example": "uploaded file test",
+            "type": "string"
+          },
+          "file": {
+            "format": "binary",
+            "type": "string"
+          },
+          "name": {
+            "example": "real-upload-dataset",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "code": {
+            "example": 400,
+            "type": "integer"
+          },
+          "message": {
+            "example": "请求参数错误",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EvaluationConfig": {
+        "properties": {
+          "extra_params": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "metrics": {
+            "example": [
+              "bleu",
+              "rouge",
+              "accuracy"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "test_set_ratio": {
+            "example": 0.2,
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      },
+      "GCSNode": {
+        "additionalProperties": true,
+        "properties": {
+          "node_addr": {
+            "example": "172.18.36.225",
+            "type": "string"
+          },
+          "node_architecture": {
+            "example": "x86_64",
+            "type": "string"
+          },
+          "node_availability": {
+            "example": "active",
+            "type": "string"
+          },
+          "node_cpus": {
+            "example": 64,
+            "format": "int64",
+            "type": "integer"
+          },
+          "node_hostname": {
+            "example": "gpu-node-01",
+            "type": "string"
+          },
+          "node_id": {
+            "example": "k2m4rsq7xx9v8p4xg5",
+            "type": "string"
+          },
+          "node_memory": {
+            "example": 274877906944,
+            "format": "int64",
+            "type": "integer"
+          },
+          "node_os": {
+            "example": "linux",
+            "type": "string"
+          },
+          "node_role": {
+            "example": "manager",
+            "type": "string"
+          },
+          "node_state": {
+            "example": "ready",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "GCSNodeList": {
+        "additionalProperties": true,
+        "properties": {
+          "count": {
+            "example": 1,
+            "type": "integer"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GCSNode"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "example": "ok",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LoRAConfig": {
+        "properties": {
+          "alpha": {
+            "example": 16,
+            "type": "integer"
+          },
+          "dropout": {
+            "example": 0.05,
+            "format": "double",
+            "type": "number"
+          },
+          "enabled": {
+            "example": true,
+            "type": "boolean"
+          },
+          "r": {
+            "example": 8,
+            "type": "integer"
+          },
+          "target_modules": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "LogResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "log_path": {
+                "example": "/path/to/log/file",
+                "type": "string"
+              },
+              "logs": {
+                "example": "日志内容...",
+                "type": "string"
+              },
+              "stage_id": {
+                "example": "stage-uuid",
+                "type": "string"
+              },
+              "stage_type": {
+                "example": "teacher_infer",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "message": {
+            "example": "获取日志成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MessageResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "message": {
+            "example": "操作成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "NodeListResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GCSNodeList"
+          },
+          "message": {
+            "example": "获取节点列表成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "NodeResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/GCSNode"
+          },
+          "message": {
+            "example": "获取节点信息成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PipelineListResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/PipelineRun"
+                },
+                "type": "array"
+              },
+              "page": {
+                "example": 1,
+                "type": "integer"
+              },
+              "page_size": {
+                "example": 20,
+                "type": "integer"
+              },
+              "total": {
+                "example": 1,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "message": {
+            "example": "获取流水线列表成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PipelineResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PipelineRun"
+          },
+          "message": {
+            "example": "获取流水线成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "PipelineRun": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "current_stage": {
+            "example": 0,
+            "type": "integer"
+          },
+          "dataset_id": {
+            "example": "uuid-dataset",
+            "type": "string"
+          },
+          "error_message": {
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "example": "uuid-pipeline",
+            "type": "string"
+          },
+          "project_id": {
+            "example": "uuid-project",
+            "type": "string"
+          },
+          "resource_request": {
+            "$ref": "#/components/schemas/ResourceRequest"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "example": "pending",
+            "type": "string"
+          },
+          "training_config": {
+            "$ref": "#/components/schemas/TrainingConfig"
+          },
+          "trigger_mode": {
+            "example": "manual",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Project": {
+        "properties": {
+          "business_scenario": {
+            "example": "智能客服",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": {
+            "example": "将教师模型蒸馏到轻量学生模型",
+            "type": "string"
+          },
+          "evaluation_config": {
+            "$ref": "#/components/schemas/EvaluationConfig"
+          },
+          "id": {
+            "example": "uuid-project",
+            "type": "string"
+          },
+          "name": {
+            "example": "客服问答蒸馏",
+            "type": "string"
+          },
+          "student_model_config": {
+            "$ref": "#/components/schemas/StudentModelConfig"
+          },
+          "teacher_model_config": {
+            "$ref": "#/components/schemas/TeacherModelConfig"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectListResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/Project"
+                },
+                "type": "array"
+              },
+              "page": {
+                "example": 1,
+                "type": "integer"
+              },
+              "page_size": {
+                "example": 20,
+                "type": "integer"
+              },
+              "total": {
+                "example": 1,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "message": {
+            "example": "获取项目列表成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ProjectResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "message": {
+            "example": "项目创建成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ResourceRequest": {
+        "properties": {
+          "cpu_cores": {
+            "description": "Number of CPU cores",
+            "example": 8,
+            "type": "integer"
+          },
+          "gpu_count": {
+            "description": "Number of GPUs to use. Set to -1 for all available GPUs.",
+            "example": 1,
+            "type": "integer"
+          },
+          "gpu_device_ids": {
+            "description": "Comma-separated GPU device IDs. This field only carries card IDs; use selected_resources when node identity is required.",
+            "example": "0,1,2",
+            "type": "string"
+          },
+          "gpu_type": {
+            "description": "GPU type",
+            "example": "RTX 4090",
+            "type": "string"
+          },
+          "memory_gb": {
+            "description": "Memory in GB",
+            "example": 32,
+            "type": "integer"
+          },
+          "selected_resources": {
+            "description": "Preferred manual resource selection passed through to gcs-v2 /api/v1/tasks/container.",
+            "items": {
+              "$ref": "#/components/schemas/SelectedResource"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "SelectedResource": {
+        "description": "Manually selected gcs-v2 node and XPU devices.",
+        "properties": {
+          "node_address": {
+            "example": "172.18.36.225",
+            "type": "string"
+          },
+          "node_name": {
+            "example": "gpu-node-01",
+            "type": "string"
+          },
+          "xpu_indices": {
+            "example": [
+              0,
+              1
+            ],
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "StageListResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/StageRun"
+            },
+            "type": "array"
+          },
+          "message": {
+            "example": "获取阶段列表成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "StageRun": {
+        "properties": {
+          "config_path": {
+            "type": "string"
+          },
+          "container_id": {
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "error_message": {
+            "type": "string"
+          },
+          "finished_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "id": {
+            "example": "uuid-stage",
+            "type": "string"
+          },
+          "input_manifest": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "log_path": {
+            "type": "string"
+          },
+          "metrics": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "node_name": {
+            "type": "string"
+          },
+          "output_manifest": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "pipeline_run_id": {
+            "example": "uuid-pipeline",
+            "type": "string"
+          },
+          "retry_count": {
+            "example": 0,
+            "type": "integer"
+          },
+          "stage_order": {
+            "example": 3,
+            "type": "integer"
+          },
+          "stage_type": {
+            "example": "teacher_infer",
+            "type": "string"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "status": {
+            "example": "running",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "StreamLogResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "log_path": {
+                "example": "/path/to/log/file",
+                "type": "string"
+              },
+              "logs": {
+                "example": "最近的日志内容...",
+                "type": "string"
+              },
+              "stage_id": {
+                "example": "stage-uuid",
+                "type": "string"
+              },
+              "stage_type": {
+                "example": "teacher_infer",
+                "type": "string"
+              },
+              "status": {
+                "example": "running",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "message": {
+            "example": "获取实时日志成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "StudentModel": {
+        "properties": {
+          "description": {
+            "description": "Model description",
+            "example": "",
+            "type": "string"
+          },
+          "id": {
+            "description": "Model ID (directory name)",
+            "example": "Qwen2.5-0.5B-Instruct",
+            "type": "string"
+          },
+          "name": {
+            "description": "Model name",
+            "example": "Qwen2.5-0.5B-Instruct",
+            "type": "string"
+          },
+          "path": {
+            "description": "Full path to model directory",
+            "example": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct",
+            "type": "string"
+          },
+          "size": {
+            "description": "Model size in bytes",
+            "example": 1073741824,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "StudentModelConfig": {
+        "properties": {
+          "extra_params": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "max_tokens": {
+            "example": 2048,
+            "type": "integer"
+          },
+          "model_name": {
+            "description": "Student model name",
+            "example": "Qwen2.5-0.5B-Instruct",
+            "type": "string"
+          },
+          "model_path": {
+            "description": "Required - local model file path",
+            "example": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct",
+            "type": "string"
+          },
+          "provider_type": {
+            "description": "Must be 'local' - system runs in offline environment",
+            "example": "local",
+            "type": "string"
+          },
+          "temperature": {
+            "example": 0.7,
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "required": [
+          "provider_type",
+          "model_name",
+          "model_path"
+        ],
+        "type": "object"
+      },
+      "StudentModelListResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/StudentModel"
+            },
+            "type": "array"
+          },
+          "message": {
+            "example": "获取学生模型列表成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "StudentModelResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/StudentModel"
+          },
+          "message": {
+            "example": "获取模型信息成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TeacherModelConfig": {
+        "properties": {
+          "api_secret_ref": {
+            "description": "API secret reference (for api provider)",
+            "example": "openai_key",
+            "type": "string"
+          },
+          "concurrency": {
+            "example": 10,
+            "type": "integer"
+          },
+          "endpoint": {
+            "description": "API endpoint (for api provider)",
+            "example": "https://api.openai.com/v1/chat/completions",
+            "type": "string"
+          },
+          "extra_params": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "max_tokens": {
+            "example": 2048,
+            "type": "integer"
+          },
+          "model_name": {
+            "description": "Model name",
+            "example": "gpt-4",
+            "type": "string"
+          },
+          "provider_type": {
+            "description": "Provider type: api or local",
+            "example": "api",
+            "type": "string"
+          },
+          "temperature": {
+            "example": 0.7,
+            "format": "double",
+            "type": "number"
+          },
+          "timeout_seconds": {
+            "example": 60,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "TrainingConfig": {
+        "properties": {
+          "gradient_accumulation_steps": {
+            "example": 1,
+            "type": "integer"
+          },
+          "learning_rate": {
+            "example": 0.00002,
+            "format": "double",
+            "type": "number"
+          },
+          "logging_steps": {
+            "example": 10,
+            "type": "integer"
+          },
+          "lora_config": {
+            "$ref": "#/components/schemas/LoRAConfig"
+          },
+          "lr_scheduler_type": {
+            "example": "cosine",
+            "type": "string"
+          },
+          "max_length": {
+            "example": 4096,
+            "type": "integer"
+          },
+          "num_train_epochs": {
+            "example": 3,
+            "type": "integer"
+          },
+          "per_device_train_batch_size": {
+            "example": 4,
+            "type": "integer"
+          },
+          "save_steps": {
+            "example": 100,
+            "type": "integer"
+          },
+          "warmup_ratio": {
+            "example": 0.03,
+            "format": "double",
+            "type": "number"
+          },
+          "weight_decay": {
+            "example": 0.01,
+            "format": "double",
+            "type": "number"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
   "info": {
+    "description": "GCS-Distill control plane HTTP API documentation.",
     "title": "GCS-Distill API",
-    "version": "v0.1.0",
-    "description": "GCS-Distill control plane HTTP API documentation."
+    "version": "v0.1.0"
+  },
+  "openapi": "3.0.3",
+  "paths": {
+    "/api/v1/datasets": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectIdQuery"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetListResponse"
+                }
+              }
+            },
+            "description": "Paged dataset list"
+          }
+        },
+        "summary": "List datasets",
+        "tags": [
+          "datasets"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Dataset"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetResponse"
+                }
+              }
+            },
+            "description": "Dataset created"
+          }
+        },
+        "summary": "Create dataset",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
+    "/api/v1/datasets/{id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Dataset deleted"
+          }
+        },
+        "summary": "Delete dataset",
+        "tags": [
+          "datasets"
+        ]
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetResponse"
+                }
+              }
+            },
+            "description": "Dataset details"
+          }
+        },
+        "summary": "Get dataset",
+        "tags": [
+          "datasets"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/DatasetId"
+        }
+      ],
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Dataset"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetResponse"
+                }
+              }
+            },
+            "description": "Dataset updated"
+          }
+        },
+        "summary": "Update dataset",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
+    "/api/v1/models/student": {
+      "get": {
+        "description": "Get all available student models from the configured models directory",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentModelListResponse"
+                }
+              }
+            },
+            "description": "Student model list"
+          }
+        },
+        "summary": "List student models",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/models/student/{id}": {
+      "get": {
+        "description": "Get details of a specific student model by ID",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudentModelResponse"
+                }
+              }
+            },
+            "description": "Student model details"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Model not found"
+          }
+        },
+        "summary": "Get student model",
+        "tags": [
+          "models"
+        ]
+      },
+      "parameters": [
+        {
+          "description": "Model ID (directory name)",
+          "in": "path",
+          "name": "id",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ]
+    },
+    "/api/v1/pipelines": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/ProjectIdQuery"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineListResponse"
+                }
+              }
+            },
+            "description": "Paged pipeline list"
+          }
+        },
+        "summary": "List pipelines",
+        "tags": [
+          "pipelines"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineRun"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineResponse"
+                }
+              }
+            },
+            "description": "Pipeline created"
+          }
+        },
+        "summary": "Create pipeline",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineResponse"
+                }
+              }
+            },
+            "description": "Pipeline details"
+          }
+        },
+        "summary": "Get pipeline",
+        "tags": [
+          "pipelines"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PipelineId"
+        }
+      ]
+    },
+    "/api/v1/pipelines/{id}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PipelineId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Pipeline cancelled"
+          }
+        },
+        "summary": "Cancel pipeline",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}/stages": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PipelineId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StageListResponse"
+                }
+              }
+            },
+            "description": "Pipeline stages"
+          }
+        },
+        "summary": "List pipeline stages",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}/stages/{stage_id}/logs": {
+      "get": {
+        "description": "Retrieve the complete log content for a specific pipeline stage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PipelineId"
+          },
+          {
+            "$ref": "#/components/parameters/StageId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogResponse"
+                }
+              }
+            },
+            "description": "Stage logs retrieved successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Stage not found"
+          }
+        },
+        "summary": "Get complete stage logs",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}/stages/{stage_id}/logs/download": {
+      "get": {
+        "description": "Download the complete log file for a specific pipeline stage",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PipelineId"
+          },
+          {
+            "$ref": "#/components/parameters/StageId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Log file download"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Stage or log file not found"
+          }
+        },
+        "summary": "Download stage log file",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}/stages/{stage_id}/logs/stream": {
+      "get": {
+        "description": "Retrieve the most recent log lines for a specific pipeline stage (suitable for polling)",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PipelineId"
+          },
+          {
+            "$ref": "#/components/parameters/StageId"
+          },
+          {
+            "description": "Number of lines to return from the end of the log",
+            "in": "query",
+            "name": "tail",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreamLogResponse"
+                }
+              }
+            },
+            "description": "Real-time logs retrieved successfully"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Stage not found"
+          }
+        },
+        "summary": "Get real-time stage logs",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}/start": {
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PipelineId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Pipeline started"
+          }
+        },
+        "summary": "Start pipeline",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/api/v1/projects": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectListResponse"
+                }
+              }
+            },
+            "description": "Paged project list"
+          }
+        },
+        "summary": "List projects",
+        "tags": [
+          "projects"
+        ]
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Project"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": "Project created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid request"
+          }
+        },
+        "summary": "Create project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}": {
+      "delete": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            },
+            "description": "Project deleted"
+          }
+        },
+        "summary": "Delete project",
+        "tags": [
+          "projects"
+        ]
+      },
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": "Project details"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Project not found"
+          }
+        },
+        "summary": "Get project",
+        "tags": [
+          "projects"
+        ]
+      },
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ProjectId"
+        }
+      ],
+      "put": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Project"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectResponse"
+                }
+              }
+            },
+            "description": "Project updated"
+          }
+        },
+        "summary": "Update project",
+        "tags": [
+          "projects"
+        ]
+      }
+    },
+    "/api/v1/projects/{id}/datasets": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ProjectId"
+        }
+      ],
+      "post": {
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetResponse"
+                }
+              }
+            },
+            "description": "Dataset uploaded successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid upload request"
+          }
+        },
+        "summary": "Upload dataset file",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
+    "/api/v1/resources/nodes": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeListResponse"
+                }
+              }
+            },
+            "description": "gcs-v2 node snapshots"
+          }
+        },
+        "summary": "List gcs-v2 nodes",
+        "tags": [
+          "resources"
+        ]
+      }
+    },
+    "/api/v1/resources/nodes/{name}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeResponse"
+                }
+              }
+            },
+            "description": "gcs-v2 node snapshot"
+          }
+        },
+        "summary": "Get gcs-v2 node",
+        "tags": [
+          "resources"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Service is healthy"
+          }
+        },
+        "summary": "Health check",
+        "tags": [
+          "health"
+        ]
+      }
+    }
   },
   "servers": [
     {
@@ -11,1015 +1738,29 @@
     }
   ],
   "tags": [
-    { "name": "health", "description": "Service health" },
-    { "name": "projects", "description": "Project management" },
-    { "name": "datasets", "description": "Dataset management" },
-    { "name": "pipelines", "description": "Pipeline management" },
-    { "name": "models", "description": "Model management" },
-    { "name": "resources", "description": "Worker resource discovery" }
-  ],
-  "paths": {
-    "/health": {
-      "get": {
-        "tags": ["health"],
-        "summary": "Health check",
-        "responses": {
-          "200": {
-            "description": "Service is healthy",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/HealthResponse" }
-              }
-            }
-          }
-        }
-      }
+    {
+      "description": "Service health",
+      "name": "health"
     },
-    "/api/v1/projects": {
-      "get": {
-        "tags": ["projects"],
-        "summary": "List projects",
-        "parameters": [
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/PageSize" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Paged project list",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectListResponse" }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["projects"],
-        "summary": "Create project",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Project" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Project created",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid request",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
+    {
+      "description": "Project management",
+      "name": "projects"
     },
-    "/api/v1/projects/{id}": {
-      "parameters": [
-        { "$ref": "#/components/parameters/ProjectId" }
-      ],
-      "get": {
-        "tags": ["projects"],
-        "summary": "Get project",
-        "responses": {
-          "200": {
-            "description": "Project details",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "Project not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": ["projects"],
-        "summary": "Update project",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Project" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Project updated",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ProjectResponse" }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": ["projects"],
-        "summary": "Delete project",
-        "responses": {
-          "200": {
-            "description": "Project deleted",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/MessageResponse" }
-              }
-            }
-          }
-        }
-      }
+    {
+      "description": "Dataset management",
+      "name": "datasets"
     },
-    "/api/v1/projects/{id}/datasets": {
-      "parameters": [
-        { "$ref": "#/components/parameters/ProjectId" }
-      ],
-      "post": {
-        "tags": ["datasets"],
-        "summary": "Upload dataset file",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": { "$ref": "#/components/schemas/DatasetUploadRequest" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Dataset uploaded successfully",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/DatasetResponse" }
-              }
-            }
-          },
-          "400": {
-            "description": "Invalid upload request",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
+    {
+      "description": "Pipeline management",
+      "name": "pipelines"
     },
-    "/api/v1/datasets": {
-      "get": {
-        "tags": ["datasets"],
-        "summary": "List datasets",
-        "parameters": [
-          { "$ref": "#/components/parameters/ProjectIdQuery" },
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/PageSize" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Paged dataset list",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/DatasetListResponse" }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["datasets"],
-        "summary": "Create dataset",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Dataset" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Dataset created",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/DatasetResponse" }
-              }
-            }
-          }
-        }
-      }
+    {
+      "description": "Model management",
+      "name": "models"
     },
-    "/api/v1/datasets/{id}": {
-      "parameters": [
-        { "$ref": "#/components/parameters/DatasetId" }
-      ],
-      "get": {
-        "tags": ["datasets"],
-        "summary": "Get dataset",
-        "responses": {
-          "200": {
-            "description": "Dataset details",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/DatasetResponse" }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": ["datasets"],
-        "summary": "Update dataset",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/Dataset" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Dataset updated",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/DatasetResponse" }
-              }
-            }
-          }
-        }
-      },
-      "delete": {
-        "tags": ["datasets"],
-        "summary": "Delete dataset",
-        "responses": {
-          "200": {
-            "description": "Dataset deleted",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/MessageResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/pipelines": {
-      "get": {
-        "tags": ["pipelines"],
-        "summary": "List pipelines",
-        "parameters": [
-          { "$ref": "#/components/parameters/ProjectIdQuery" },
-          { "$ref": "#/components/parameters/Page" },
-          { "$ref": "#/components/parameters/PageSize" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Paged pipeline list",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PipelineListResponse" }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": ["pipelines"],
-        "summary": "Create pipeline",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/PipelineRun" }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Pipeline created",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PipelineResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/pipelines/{id}": {
-      "parameters": [
-        { "$ref": "#/components/parameters/PipelineId" }
-      ],
-      "get": {
-        "tags": ["pipelines"],
-        "summary": "Get pipeline",
-        "responses": {
-          "200": {
-            "description": "Pipeline details",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/PipelineResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/pipelines/{id}/start": {
-      "post": {
-        "tags": ["pipelines"],
-        "summary": "Start pipeline",
-        "parameters": [
-          { "$ref": "#/components/parameters/PipelineId" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Pipeline started",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/MessageResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/pipelines/{id}/cancel": {
-      "post": {
-        "tags": ["pipelines"],
-        "summary": "Cancel pipeline",
-        "parameters": [
-          { "$ref": "#/components/parameters/PipelineId" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Pipeline cancelled",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/MessageResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/pipelines/{id}/stages": {
-      "get": {
-        "tags": ["pipelines"],
-        "summary": "List pipeline stages",
-        "parameters": [
-          { "$ref": "#/components/parameters/PipelineId" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Pipeline stages",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/StageListResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/pipelines/{id}/stages/{stage_id}/logs": {
-      "get": {
-        "tags": ["pipelines"],
-        "summary": "Get complete stage logs",
-        "description": "Retrieve the complete log content for a specific pipeline stage",
-        "parameters": [
-          { "$ref": "#/components/parameters/PipelineId" },
-          { "$ref": "#/components/parameters/StageId" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Stage logs retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/LogResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "Stage not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/pipelines/{id}/stages/{stage_id}/logs/stream": {
-      "get": {
-        "tags": ["pipelines"],
-        "summary": "Get real-time stage logs",
-        "description": "Retrieve the most recent log lines for a specific pipeline stage (suitable for polling)",
-        "parameters": [
-          { "$ref": "#/components/parameters/PipelineId" },
-          { "$ref": "#/components/parameters/StageId" },
-          {
-            "name": "tail",
-            "in": "query",
-            "description": "Number of lines to return from the end of the log",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 100,
-              "minimum": 1,
-              "maximum": 10000
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Real-time logs retrieved successfully",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/StreamLogResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "Stage not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/pipelines/{id}/stages/{stage_id}/logs/download": {
-      "get": {
-        "tags": ["pipelines"],
-        "summary": "Download stage log file",
-        "description": "Download the complete log file for a specific pipeline stage",
-        "parameters": [
-          { "$ref": "#/components/parameters/PipelineId" },
-          { "$ref": "#/components/parameters/StageId" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Log file download",
-            "content": {
-              "application/octet-stream": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Stage or log file not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/resources/nodes": {
-      "get": {
-        "tags": ["resources"],
-        "summary": "List worker nodes",
-        "responses": {
-          "200": {
-            "description": "Worker nodes",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/NodeListResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/resources/nodes/{name}": {
-      "get": {
-        "tags": ["resources"],
-        "summary": "Get worker node",
-        "parameters": [
-          {
-            "name": "name",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Worker node details",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/NodeResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/models/student": {
-      "get": {
-        "tags": ["models"],
-        "summary": "List student models",
-        "description": "Get all available student models from the configured models directory",
-        "responses": {
-          "200": {
-            "description": "Student model list",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/StudentModelListResponse" }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/models/student/{id}": {
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "description": "Model ID (directory name)",
-          "schema": { "type": "string" }
-        }
-      ],
-      "get": {
-        "tags": ["models"],
-        "summary": "Get student model",
-        "description": "Get details of a specific student model by ID",
-        "responses": {
-          "200": {
-            "description": "Student model details",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/StudentModelResponse" }
-              }
-            }
-          },
-          "404": {
-            "description": "Model not found",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
-              }
-            }
-          }
-        }
-      }
+    {
+      "description": "gcs-v2 resource discovery",
+      "name": "resources"
     }
-  },
-  "components": {
-    "parameters": {
-      "Page": {
-        "name": "page",
-        "in": "query",
-        "schema": { "type": "integer", "default": 1, "minimum": 1 }
-      },
-      "PageSize": {
-        "name": "page_size",
-        "in": "query",
-        "schema": { "type": "integer", "default": 20, "minimum": 1 }
-      },
-      "ProjectIdQuery": {
-        "name": "project_id",
-        "in": "query",
-        "required": true,
-        "schema": { "type": "string" }
-      },
-      "ProjectId": {
-        "name": "id",
-        "in": "path",
-        "required": true,
-        "schema": { "type": "string" }
-      },
-      "DatasetId": {
-        "name": "id",
-        "in": "path",
-        "required": true,
-        "schema": { "type": "string" }
-      },
-      "PipelineId": {
-        "name": "id",
-        "in": "path",
-        "required": true,
-        "schema": { "type": "string" }
-      },
-      "StageId": {
-        "name": "stage_id",
-        "in": "path",
-        "required": true,
-        "schema": { "type": "string" }
-      }
-    },
-    "schemas": {
-      "HealthResponse": {
-        "type": "object",
-        "properties": {
-          "status": { "type": "string", "example": "ok" }
-        }
-      },
-      "MessageResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "操作成功" }
-        }
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 400 },
-          "message": { "type": "string", "example": "请求参数错误" }
-        }
-      },
-      "TeacherModelConfig": {
-        "type": "object",
-        "properties": {
-          "provider_type": { "type": "string", "example": "api", "description": "Provider type: api or local" },
-          "model_name": { "type": "string", "example": "gpt-4", "description": "Model name" },
-          "endpoint": { "type": "string", "example": "https://api.openai.com/v1/chat/completions", "description": "API endpoint (for api provider)" },
-          "api_secret_ref": { "type": "string", "example": "openai_key", "description": "API secret reference (for api provider)" },
-          "temperature": { "type": "number", "format": "double", "example": 0.7 },
-          "max_tokens": { "type": "integer", "example": 2048 },
-          "concurrency": { "type": "integer", "example": 10 },
-          "timeout_seconds": { "type": "integer", "example": 60 },
-          "extra_params": {
-            "type": "object",
-            "additionalProperties": true
-          }
-        }
-      },
-      "StudentModelConfig": {
-        "type": "object",
-        "required": ["provider_type", "model_name", "model_path"],
-        "properties": {
-          "provider_type": { "type": "string", "example": "local", "description": "Must be 'local' - system runs in offline environment" },
-          "model_name": { "type": "string", "example": "Qwen2.5-0.5B-Instruct", "description": "Student model name" },
-          "model_path": { "type": "string", "example": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct", "description": "Required - local model file path" },
-          "temperature": { "type": "number", "format": "double", "example": 0.7 },
-          "max_tokens": { "type": "integer", "example": 2048 },
-          "extra_params": {
-            "type": "object",
-            "additionalProperties": true
-          }
-        }
-      },
-      "EvaluationConfig": {
-        "type": "object",
-        "properties": {
-          "metrics": {
-            "type": "array",
-            "items": { "type": "string" },
-            "example": ["bleu", "rouge", "accuracy"]
-          },
-          "test_set_ratio": { "type": "number", "format": "double", "example": 0.2 },
-          "extra_params": {
-            "type": "object",
-            "additionalProperties": true
-          }
-        }
-      },
-      "Project": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "example": "uuid-project" },
-          "name": { "type": "string", "example": "客服问答蒸馏" },
-          "description": { "type": "string", "example": "将教师模型蒸馏到轻量学生模型" },
-          "business_scenario": { "type": "string", "example": "智能客服" },
-          "teacher_model_config": { "$ref": "#/components/schemas/TeacherModelConfig" },
-          "student_model_config": { "$ref": "#/components/schemas/StudentModelConfig" },
-          "evaluation_config": { "$ref": "#/components/schemas/EvaluationConfig" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "Dataset": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "example": "uuid-dataset" },
-          "project_id": { "type": "string", "example": "uuid-project" },
-          "name": { "type": "string", "example": "训练数据集" },
-          "description": { "type": "string", "example": "种子或蒸馏数据" },
-          "source_type": { "type": "string", "example": "upload" },
-          "file_path": { "type": "string", "example": "/mnt/shared/distill/project-a/seeds.jsonl" },
-          "record_count": { "type": "integer", "example": 1000 },
-          "created_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "DatasetUploadRequest": {
-        "type": "object",
-        "required": ["file"],
-        "properties": {
-          "name": { "type": "string", "example": "real-upload-dataset" },
-          "description": { "type": "string", "example": "uploaded file test" },
-          "file": {
-            "type": "string",
-            "format": "binary"
-          }
-        }
-      },
-      "LoRAConfig": {
-        "type": "object",
-        "properties": {
-          "enabled": { "type": "boolean", "example": true },
-          "r": { "type": "integer", "example": 8 },
-          "alpha": { "type": "integer", "example": 16 },
-          "dropout": { "type": "number", "format": "double", "example": 0.05 },
-          "target_modules": {
-            "type": "array",
-            "items": { "type": "string" }
-          }
-        }
-      },
-      "TrainingConfig": {
-        "type": "object",
-        "properties": {
-          "num_train_epochs": { "type": "integer", "example": 3 },
-          "per_device_train_batch_size": { "type": "integer", "example": 4 },
-          "gradient_accumulation_steps": { "type": "integer", "example": 1 },
-          "learning_rate": { "type": "number", "format": "double", "example": 0.00002 },
-          "weight_decay": { "type": "number", "format": "double", "example": 0.01 },
-          "warmup_ratio": { "type": "number", "format": "double", "example": 0.03 },
-          "lr_scheduler_type": { "type": "string", "example": "cosine" },
-          "save_steps": { "type": "integer", "example": 100 },
-          "logging_steps": { "type": "integer", "example": 10 },
-          "max_length": { "type": "integer", "example": 4096 },
-          "lora_config": { "$ref": "#/components/schemas/LoRAConfig" }
-        }
-      },
-      "ResourceRequest": {
-        "type": "object",
-        "properties": {
-          "gpu_count": { "type": "integer", "example": 1, "description": "Number of GPUs to use. Set to -1 for all available GPUs." },
-          "gpu_device_ids": { "type": "string", "example": "0,1,2", "description": "Comma-separated GPU device IDs (e.g., '0,1,2'). If specified, takes priority over gpu_count." },
-          "gpu_type": { "type": "string", "example": "RTX 4090", "description": "GPU type" },
-          "memory_gb": { "type": "integer", "example": 32, "description": "Memory in GB" },
-          "cpu_cores": { "type": "integer", "example": 8, "description": "Number of CPU cores" }
-        }
-      },
-      "PipelineRun": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "example": "uuid-pipeline" },
-          "project_id": { "type": "string", "example": "uuid-project" },
-          "dataset_id": { "type": "string", "example": "uuid-dataset" },
-          "status": { "type": "string", "example": "pending" },
-          "current_stage": { "type": "integer", "example": 0 },
-          "trigger_mode": { "type": "string", "example": "manual" },
-          "training_config": { "$ref": "#/components/schemas/TrainingConfig" },
-          "resource_request": { "$ref": "#/components/schemas/ResourceRequest" },
-          "error_message": { "type": "string" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "started_at": { "type": "string", "format": "date-time" },
-          "finished_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "StageRun": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "example": "uuid-stage" },
-          "pipeline_run_id": { "type": "string", "example": "uuid-pipeline" },
-          "stage_type": { "type": "string", "example": "teacher_infer" },
-          "stage_order": { "type": "integer", "example": 3 },
-          "status": { "type": "string", "example": "running" },
-          "container_id": { "type": "string" },
-          "node_name": { "type": "string" },
-          "config_path": { "type": "string" },
-          "input_manifest": {
-            "type": "object",
-            "additionalProperties": { "type": "string" }
-          },
-          "output_manifest": {
-            "type": "object",
-            "additionalProperties": { "type": "string" }
-          },
-          "metrics": {
-            "type": "object",
-            "additionalProperties": true
-          },
-          "log_path": { "type": "string" },
-          "retry_count": { "type": "integer", "example": 0 },
-          "error_message": { "type": "string" },
-          "started_at": { "type": "string", "format": "date-time" },
-          "finished_at": { "type": "string", "format": "date-time" },
-          "created_at": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "WorkerNode": {
-        "type": "object",
-        "properties": {
-          "node_name": { "type": "string", "example": "worker-1" },
-          "node_addr": { "type": "string", "example": "gcs-worker-1:50052" },
-          "status": { "type": "string", "example": "online" },
-          "total_gpu": { "type": "integer", "example": 4 },
-          "available_gpu": { "type": "integer", "example": 2 },
-          "total_memory_gb": { "type": "integer", "example": 128 },
-          "total_cpu": { "type": "integer", "example": 32 },
-          "last_heartbeat": { "type": "string", "format": "date-time" },
-          "updated_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "ProjectResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "项目创建成功" },
-          "data": { "$ref": "#/components/schemas/Project" }
-        }
-      },
-      "ProjectListResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取项目列表成功" },
-          "data": {
-            "type": "object",
-            "properties": {
-              "items": {
-                "type": "array",
-                "items": { "$ref": "#/components/schemas/Project" }
-              },
-              "total": { "type": "integer", "example": 1 },
-              "page": { "type": "integer", "example": 1 },
-              "page_size": { "type": "integer", "example": 20 }
-            }
-          }
-        }
-      },
-      "DatasetResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "数据集创建成功" },
-          "data": { "$ref": "#/components/schemas/Dataset" }
-        }
-      },
-      "DatasetListResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取数据集列表成功" },
-          "data": {
-            "type": "object",
-            "properties": {
-              "items": {
-                "type": "array",
-                "items": { "$ref": "#/components/schemas/Dataset" }
-              },
-              "total": { "type": "integer", "example": 1 },
-              "page": { "type": "integer", "example": 1 },
-              "page_size": { "type": "integer", "example": 20 }
-            }
-          }
-        }
-      },
-      "PipelineResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取流水线成功" },
-          "data": { "$ref": "#/components/schemas/PipelineRun" }
-        }
-      },
-      "PipelineListResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取流水线列表成功" },
-          "data": {
-            "type": "object",
-            "properties": {
-              "items": {
-                "type": "array",
-                "items": { "$ref": "#/components/schemas/PipelineRun" }
-              },
-              "total": { "type": "integer", "example": 1 },
-              "page": { "type": "integer", "example": 1 },
-              "page_size": { "type": "integer", "example": 20 }
-            }
-          }
-        }
-      },
-      "StageListResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取阶段列表成功" },
-          "data": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/StageRun" }
-          }
-        }
-      },
-      "NodeResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取节点信息成功" },
-          "data": { "$ref": "#/components/schemas/WorkerNode" }
-        }
-      },
-      "NodeListResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取节点列表成功" },
-          "data": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/WorkerNode" }
-          }
-        }
-      },
-      "StudentModel": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "example": "Qwen2.5-0.5B-Instruct", "description": "Model ID (directory name)" },
-          "name": { "type": "string", "example": "Qwen2.5-0.5B-Instruct", "description": "Model name" },
-          "path": { "type": "string", "example": "/mnt/shared/distill/models/Qwen2.5-0.5B-Instruct", "description": "Full path to model directory" },
-          "description": { "type": "string", "example": "", "description": "Model description" },
-          "size": { "type": "integer", "example": 1073741824, "description": "Model size in bytes" }
-        }
-      },
-      "StudentModelResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取模型信息成功" },
-          "data": { "$ref": "#/components/schemas/StudentModel" }
-        }
-      },
-      "StudentModelListResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取学生模型列表成功" },
-          "data": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/StudentModel" }
-          }
-        }
-      },
-      "LogResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取日志成功" },
-          "data": {
-            "type": "object",
-            "properties": {
-              "logs": { "type": "string", "example": "日志内容..." },
-              "log_path": { "type": "string", "example": "/path/to/log/file" },
-              "stage_id": { "type": "string", "example": "stage-uuid" },
-              "stage_type": { "type": "string", "example": "teacher_infer" }
-            }
-          }
-        }
-      },
-      "StreamLogResponse": {
-        "type": "object",
-        "properties": {
-          "code": { "type": "integer", "example": 200 },
-          "message": { "type": "string", "example": "获取实时日志成功" },
-          "data": {
-            "type": "object",
-            "properties": {
-              "logs": { "type": "string", "example": "最近的日志内容..." },
-              "log_path": { "type": "string", "example": "/path/to/log/file" },
-              "stage_id": { "type": "string", "example": "stage-uuid" },
-              "stage_type": { "type": "string", "example": "teacher_infer" },
-              "status": { "type": "string", "example": "running" }
-            }
-          }
-        }
-      }
-    }
-  }
+  ]
 }

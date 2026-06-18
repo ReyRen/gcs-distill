@@ -4,9 +4,9 @@
 
 ## 设计目标
 
-- 作为 worker 节点任务容器的基础镜像
+- 作为 gcs-v2 容器任务的 EasyDistill 运行镜像
 - 支持通过 `easydistill --config <config>` 直接运行
-- 预留共享存储挂载目录 `/workspace`
+- 支持本地调试时把共享目录挂载到 `/workspace`
 
 ## 目录约定
 

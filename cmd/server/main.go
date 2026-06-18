@@ -9,127 +9,94 @@ import (
 	"syscall"
 	"time"
 
+	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
 	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/logger"
-	"github.com/ReyRen/gcs-distill/repository/postgres"
-	"github.com/ReyRen/gcs-distill/repository/redis"
+	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
 	"github.com/ReyRen/gcs-distill/server"
 	"github.com/ReyRen/gcs-distill/service"
 	"go.uber.org/zap"
 )
 
 var (
-	configPath = flag.String("config", "config.yaml", "配置文件路径")
+	configPath = flag.String("config", "config.toml", "config file path")
 	version    = "v0.1.0"
 )
 
 func main() {
 	flag.Parse()
 
-	// 打印版本信息
 	fmt.Printf("GCS-Distill Server %s\n", version)
-	fmt.Printf("加载配置文件: %s\n", *configPath)
+	fmt.Printf("Loading config: %s\n", *configPath)
 
-	// 加载配置
 	cfg, err := config.Load(*configPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "加载配置失败: %v\n", err)
+		fmt.Fprintf(os.Stderr, "load config failed: %v\n", err)
 		os.Exit(1)
 	}
 
-	// 初始化日志
 	if err := logger.Initialize(&cfg.Logging); err != nil {
-		fmt.Fprintf(os.Stderr, "初始化日志失败: %v\n", err)
+		fmt.Fprintf(os.Stderr, "initialize logger failed: %v\n", err)
 		os.Exit(1)
 	}
 	defer logger.Sync()
 
-	logger.Info("GCS-Distill Server 启动中...",
+	logger.Info("GCS-Distill Server starting",
 		zap.String("version", version),
 		zap.String("host", cfg.Server.Host),
 		zap.Int("port", cfg.Server.Port),
 	)
 
-	// 初始化数据库
-	db, err := postgres.NewDB(&cfg.Database)
+	db, err := mysqlrepo.NewDB(&cfg.Database)
 	if err != nil {
-		logger.Fatal("初始化数据库失败", zap.Error(err))
+		logger.Fatal("initialize database failed", zap.Error(err))
 	}
 	defer db.Close()
-	logger.Info("数据库连接成功")
+	logger.Info("database connected")
 
-	// 初始化 Redis
-	redisClient, err := redis.NewClient(&cfg.Redis)
-	if err != nil {
-		logger.Fatal("初始化Redis失败", zap.Error(err))
-	}
-	defer redisClient.Close()
-	logger.Info("Redis连接成功")
+	projectRepo := mysqlrepo.NewProjectRepository(db)
+	datasetRepo := mysqlrepo.NewDatasetRepository(db)
+	pipelineRepo := mysqlrepo.NewPipelineRepository(db)
+	stageRepo := mysqlrepo.NewStageRepository(db)
 
-	// 创建仓库层
-	projectRepo := postgres.NewProjectRepository(db)
-	datasetRepo := postgres.NewDatasetRepository(db)
-	pipelineRepo := postgres.NewPipelineRepository(db)
-	stageRepo := postgres.NewStageRepository(db)
-	nodeCache := redis.NewNodeCache(redisClient)
-
-	// 创建服务层
 	projectSvc := service.NewProjectService(projectRepo)
 	datasetSvc := service.NewDatasetService(datasetRepo, projectRepo, &cfg.Storage)
 	modelSvc := service.NewModelService(&cfg.Storage)
-	schedulerSvc := service.NewSchedulerService(nodeCache)
+	gcsClient := gcsclient.NewClient(cfg.GCS.BaseURL, time.Duration(cfg.GCS.TimeoutSeconds)*time.Second)
 
-	// 创建执行器服务
 	executorSvc := service.NewExecutorService(
 		pipelineRepo,
 		stageRepo,
 		projectRepo,
 		datasetRepo,
-		schedulerSvc,
 		cfg.Executor.WorkspaceRoot,
 		cfg.Executor.MaxConcurrent,
+		gcsClient,
+		cfg.Executor.RuntimeImage,
 	)
 
-	// 启动执行器
 	execCtx, execCancel := context.WithCancel(context.Background())
 	defer execCancel()
 	executorSvc.Start(execCtx)
 	defer executorSvc.Stop()
 
-	// 创建流水线服务（注入执行器）
 	pipelineSvc := service.NewPipelineService(pipelineRepo, stageRepo, projectRepo, datasetRepo, executorSvc)
+	router := server.NewRouter(projectSvc, datasetSvc, pipelineSvc, modelSvc, gcsClient)
 
-	// 创建路由器
-	router := server.NewRouter(projectSvc, datasetSvc, pipelineSvc, modelSvc, schedulerSvc)
-
-	// 启动 HTTP 服务器
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
-	logger.Info("HTTP服务器启动", zap.String("address", addr))
+	logger.Info("HTTP server starting", zap.String("address", addr))
 
 	go func() {
 		if err := router.Engine().Run(addr); err != nil {
-			logger.Fatal("HTTP服务器启动失败", zap.Error(err))
+			logger.Fatal("HTTP server failed", zap.Error(err))
 		}
 	}()
 
-	logger.Info("服务器启动成功")
-
-	// 等待信号
+	logger.Info("server started")
 	waitForSignal()
-
-	logger.Info("GCS-Distill Server 关闭中...")
-
-	// 设置关闭超时
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// 清理资源
-	_ = ctx
-
-	logger.Info("服务器已关闭")
+	logger.Info("GCS-Distill Server stopping")
 }
 
-// waitForSignal 等待系统信号
 func waitForSignal() {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

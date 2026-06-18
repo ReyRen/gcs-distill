@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
 	"github.com/ReyRen/gcs-distill/server/apidocs"
 	"github.com/ReyRen/gcs-distill/server/handlers"
 	"github.com/ReyRen/gcs-distill/server/middleware"
@@ -28,7 +29,7 @@ func NewRouter(
 	datasetSvc service.DatasetService,
 	pipelineSvc service.PipelineService,
 	modelSvc service.ModelService,
-	schedulerSvc service.SchedulerService,
+	gcsClient *gcsclient.Client,
 ) *Router {
 	// 设置 Gin 模式
 	gin.SetMode(gin.ReleaseMode)
@@ -45,7 +46,7 @@ func NewRouter(
 	datasetHandler := handlers.NewDatasetHandler(datasetSvc)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineSvc)
 	modelHandler := handlers.NewModelHandler(modelSvc)
-	resourceHandler := handlers.NewResourceHandler(schedulerSvc)
+	resourceHandler := handlers.NewResourceHandler(gcsClient)
 
 	router := &Router{
 		engine:          engine,

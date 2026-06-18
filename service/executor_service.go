@@ -6,9 +6,10 @@ import (
 	"sync"
 	"time"
 
+	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
-	"github.com/ReyRen/gcs-distill/repository/postgres"
+	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
 	"github.com/ReyRen/gcs-distill/runtime"
 	"go.uber.org/zap"
 )
@@ -25,11 +26,10 @@ type ExecutorService interface {
 
 // executorService 流水线执行服务实现
 type executorService struct {
-	pipelineRepo  postgres.PipelineRepository
-	stageRepo     postgres.StageRepository
-	projectRepo   postgres.ProjectRepository
-	datasetRepo   postgres.DatasetRepository
-	schedulerSvc  SchedulerService
+	pipelineRepo  mysqlrepo.PipelineRepository
+	stageRepo     mysqlrepo.StageRepository
+	projectRepo   mysqlrepo.ProjectRepository
+	datasetRepo   mysqlrepo.DatasetRepository
 	stageExecutor *runtime.StageExecutor
 
 	// 执行队列
@@ -44,13 +44,14 @@ type executorService struct {
 
 // NewExecutorService 创建流水线执行服务
 func NewExecutorService(
-	pipelineRepo postgres.PipelineRepository,
-	stageRepo postgres.StageRepository,
-	projectRepo postgres.ProjectRepository,
-	datasetRepo postgres.DatasetRepository,
-	schedulerSvc SchedulerService,
+	pipelineRepo mysqlrepo.PipelineRepository,
+	stageRepo mysqlrepo.StageRepository,
+	projectRepo mysqlrepo.ProjectRepository,
+	datasetRepo mysqlrepo.DatasetRepository,
 	workspaceRoot string,
 	maxConcurrent int,
+	gcsClient *gcsclient.Client,
+	runtimeImage string,
 ) ExecutorService {
 	if maxConcurrent <= 0 {
 		maxConcurrent = 5 // 默认最多并发执行5个流水线
@@ -61,8 +62,7 @@ func NewExecutorService(
 		stageRepo:     stageRepo,
 		projectRepo:   projectRepo,
 		datasetRepo:   datasetRepo,
-		schedulerSvc:  schedulerSvc,
-		stageExecutor: runtime.NewStageExecutor(workspaceRoot, datasetRepo),
+		stageExecutor: runtime.NewStageExecutor(workspaceRoot, datasetRepo, gcsClient, runtimeImage),
 		queue:         make(chan string, 100),
 		stopChan:      make(chan struct{}),
 		maxConcurrent: maxConcurrent,
@@ -91,7 +91,7 @@ func (s *executorService) Start(ctx context.Context) {
 	// 启动多个工作协程
 	for i := 0; i < s.maxConcurrent; i++ {
 		s.wg.Add(1)
-		go s.worker(ctx, i)
+		go s.runLoop(ctx, i)
 	}
 }
 
@@ -103,27 +103,27 @@ func (s *executorService) Stop() {
 	logger.Info("流水线执行器已停止")
 }
 
-// worker 工作协程
-func (s *executorService) worker(ctx context.Context, workerID int) {
+// runLoop 执行后台流水线队列
+func (s *executorService) runLoop(ctx context.Context, executorID int) {
 	defer s.wg.Done()
 
-	logger.Info("工作协程启动", zap.Int("worker_id", workerID))
+	logger.Info("执行协程启动", zap.Int("executor_id", executorID))
 
 	for {
 		select {
 		case <-s.stopChan:
-			logger.Info("工作协程退出", zap.Int("worker_id", workerID))
+			logger.Info("执行协程退出", zap.Int("executor_id", executorID))
 			return
 		case pipelineID := <-s.queue:
 			logger.Info("开始执行流水线",
-				zap.Int("worker_id", workerID),
+				zap.Int("executor_id", executorID),
 				zap.String("pipeline_id", pipelineID),
 			)
 
 			// 执行流水线
 			if err := s.executePipeline(ctx, pipelineID); err != nil {
 				logger.Error("流水线执行失败",
-					zap.Int("worker_id", workerID),
+					zap.Int("executor_id", executorID),
 					zap.String("pipeline_id", pipelineID),
 					zap.Error(err),
 				)
@@ -146,39 +146,8 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		return fmt.Errorf("获取项目失败: %w", err)
 	}
 
-	// 查找可用的 Worker 节点
-	node, err := s.schedulerSvc.FindAvailableNode(ctx, pipeline.ResourceRequest)
-	if err != nil {
-		// 更新流水线状态为失败
-		_ = s.pipelineRepo.UpdateStatus(ctx, pipelineID, types.StatusFailed,
-			fmt.Sprintf("无可用 Worker 节点: %v", err))
-		return fmt.Errorf("查找可用节点失败: %w", err)
-	}
-
-	logger.Info("找到可用 Worker 节点",
-		zap.String("pipeline_id", pipelineID),
-		zap.String("node_name", node.NodeName),
-		zap.String("node_addr", node.NodeAddr),
-	)
-
-	// 分配资源
-	if err := s.schedulerSvc.AllocateResources(ctx, node.NodeName, pipeline.ResourceRequest); err != nil {
-		_ = s.pipelineRepo.UpdateStatus(ctx, pipelineID, types.StatusFailed,
-			fmt.Sprintf("资源分配失败: %v", err))
-		return fmt.Errorf("分配资源失败: %w", err)
-	}
-
-	// 确保在退出时释放资源
-	defer func() {
-		if err := s.schedulerSvc.ReleaseResources(ctx, node.NodeName, pipeline.ResourceRequest); err != nil {
-			logger.Error("释放资源失败",
-				zap.String("pipeline_id", pipelineID),
-				zap.String("node_name", node.NodeName),
-				zap.Error(err),
-			)
-		}
-	}()
-
+	// 资源调度统一交给 gcs-v2。gcs-distill 只负责业务编排和阶段状态，
+	// 不再维护自己的节点资源占用，避免出现两个资源入口。
 	// 获取所有阶段
 	stages, err := s.stageRepo.ListByPipeline(ctx, pipelineID)
 	if err != nil {
@@ -201,13 +170,13 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		now := time.Now()
 		stage.Status = types.StatusRunning
 		stage.StartedAt = &now
-		stage.NodeName = node.NodeName
+		stage.NodeName = "gcs-v2"
 		if err := s.stageRepo.Update(ctx, stage); err != nil {
 			logger.Error("更新阶段状态失败", zap.Error(err))
 		}
 
 		// 执行阶段
-		err := s.stageExecutor.ExecuteStage(ctx, stage, pipeline, project, node.NodeAddr)
+		err := s.stageExecutor.ExecuteStage(ctx, stage, pipeline, project)
 
 		finishTime := time.Now()
 		stage.FinishedAt = &finishTime

@@ -6,7 +6,7 @@ import (
 
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
-	"github.com/ReyRen/gcs-distill/repository/postgres"
+	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
 	"go.uber.org/zap"
 )
 
@@ -26,11 +26,11 @@ type ProjectService interface {
 
 // projectService 项目服务实现
 type projectService struct {
-	projectRepo postgres.ProjectRepository
+	projectRepo mysqlrepo.ProjectRepository
 }
 
 // NewProjectService 创建项目服务
-func NewProjectService(projectRepo postgres.ProjectRepository) ProjectService {
+func NewProjectService(projectRepo mysqlrepo.ProjectRepository) ProjectService {
 	return &projectService{
 		projectRepo: projectRepo,
 	}

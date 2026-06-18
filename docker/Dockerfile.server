@@ -1,4 +1,3 @@
-# GCS-Distill Server (Control 节点) Dockerfile
 ARG GO_VERSION=1.25
 ARG GOPROXY=https://goproxy.cn|https://proxy.golang.org|direct
 FROM golang:${GO_VERSION}-alpine AS builder
@@ -6,44 +5,32 @@ FROM golang:${GO_VERSION}-alpine AS builder
 ARG GOPROXY
 ENV GOPROXY=${GOPROXY}
 
-# 安装编译依赖
 RUN apk add --no-cache git make
 
-# 设置工作目录
 WORKDIR /build
 
-# 复制依赖文件
 COPY go.mod go.sum ./
 RUN go mod download
 
-# 复制源代码
 COPY . .
 
-# 清理 Go 构建缓存并编译服务器
-# 注意:
-# 1. 清理构建缓存确保嵌入文件（如 Swagger 文档）总是使用最新版本
-# 2. -a 标志强制重新编译所有包
-RUN go clean -cache && \
+# Keep embedded Swagger/OpenAPI current whenever the server image is built.
+RUN go run ./cmd/openapi && \
+    go clean -cache && \
     CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/server
 
-# 运行时镜像
 FROM alpine:latest
 
 RUN apk --no-cache add ca-certificates tzdata
 
-# 设置时区
 ENV TZ=Asia/Shanghai
 
 WORKDIR /app
 
-# 从构建阶段复制二进制文件
 COPY --from=builder /build/server .
 
-# 创建日志目录
 RUN mkdir -p /var/log/gcs-distill
 
-# 暴露端口
-EXPOSE 8080 50051
+EXPOSE 8080
 
-# 启动服务器
-CMD ["./server", "-config", "/app/config.yaml"]
+CMD ["./server", "-config", "/app/config.toml"]

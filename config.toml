@@ -1,0 +1,42 @@
+# GCS-Distill config.
+# Database fields follow gcs-model-center-v2 so GCS services can share one MySQL instance.
+
+[server]
+host = "0.0.0.0"
+port = 8080
+mode = "release"
+
+[database]
+enabled = true
+driver = "mysql"
+host = "127.0.0.1"
+port = 3306
+name = "ai_market"
+user = "root"
+password = ""
+password_env = "AI_MARKET_DB_PASSWORD"
+max_open_conns = 20
+max_idle_conns = 5
+conn_max_lifetime_seconds = 300
+
+[storage]
+type = "nfs"
+base_path = "/mnt/shared/distill"
+models_base_path = "/mnt/shared/distill/models"
+
+[gcs]
+base_url = "http://127.0.0.1:8072/api/v1"
+timeout_seconds = 30
+
+[logging]
+level = "info"
+output = "stdout"
+file_path = "/var/log/gcs-distill/server.log"
+max_size = 100
+max_age = 7
+compress = true
+
+[executor]
+workspace_root = "/mnt/shared/distill"
+max_concurrent = 5
+runtime_image = "gcs-distill/easydistill:latest"

@@ -5,18 +5,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
-	pb "github.com/ReyRen/gcs-distill/proto"
-	"github.com/ReyRen/gcs-distill/repository/postgres"
+	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 func getExtraParamString(config types.ModelConfig, key string) string {
@@ -110,22 +109,28 @@ func (e *StageExecutor) loadDatasetInstructions(ctx context.Context, datasetID s
 	return instructions, nil
 }
 
-
 // StageExecutor 阶段执行器
 type StageExecutor struct {
 	configGen    *ConfigGenerator
 	manifestMgr  *ManifestManager
 	dataGovernor *DataGovernor
-	datasetRepo  postgres.DatasetRepository
+	datasetRepo  mysqlrepo.DatasetRepository
+	gcsClient    *gcsclient.Client
+	runtimeImage string
 }
 
 // NewStageExecutor 创建阶段执行器
-func NewStageExecutor(workspaceRoot string, datasetRepo postgres.DatasetRepository) *StageExecutor {
+func NewStageExecutor(workspaceRoot string, datasetRepo mysqlrepo.DatasetRepository, gcsClient *gcsclient.Client, runtimeImage string) *StageExecutor {
+	if strings.TrimSpace(runtimeImage) == "" {
+		runtimeImage = "gcs-distill/easydistill:latest"
+	}
 	return &StageExecutor{
 		configGen:    NewConfigGenerator(workspaceRoot),
 		manifestMgr:  NewManifestManager(workspaceRoot),
 		dataGovernor: NewDataGovernor(),
 		datasetRepo:  datasetRepo,
+		gcsClient:    gcsClient,
+		runtimeImage: runtimeImage,
 	}
 }
 
@@ -135,12 +140,10 @@ func (e *StageExecutor) ExecuteStage(
 	stage *types.StageRun,
 	pipeline *types.PipelineRun,
 	project *types.Project,
-	workerAddr string,
 ) error {
 	logger.Info("开始执行阶段",
 		zap.String("stage_type", string(stage.StageType)),
 		zap.String("stage_id", stage.ID),
-		zap.String("worker", workerAddr),
 	)
 
 	// 根据阶段类型执行不同逻辑
@@ -150,13 +153,13 @@ func (e *StageExecutor) ExecuteStage(
 	case types.StageDatasetBuild:
 		return e.executeDatasetBuild(ctx, stage, project, pipeline)
 	case types.StageTeacherInfer:
-		return e.executeTeacherInfer(ctx, stage, project, pipeline, workerAddr)
+		return e.executeTeacherInfer(ctx, stage, project, pipeline)
 	case types.StageDataGovern:
 		return e.executeDataGovern(ctx, stage, project, pipeline)
 	case types.StageStudentTrain:
-		return e.executeStudentTrain(ctx, stage, project, pipeline, workerAddr)
+		return e.executeStudentTrain(ctx, stage, project, pipeline)
 	case types.StageEvaluate:
-		return e.executeEvaluate(ctx, stage, project, pipeline, workerAddr)
+		return e.executeEvaluate(ctx, stage, project, pipeline)
 	default:
 		return fmt.Errorf("未知的阶段类型: %s", stage.StageType)
 	}
@@ -281,7 +284,6 @@ func (e *StageExecutor) executeTeacherInfer(
 	stage *types.StageRun,
 	project *types.Project,
 	pipeline *types.PipelineRun,
-	workerAddr string,
 ) error {
 	logger.Info("执行教师模型推理")
 
@@ -303,18 +305,17 @@ func (e *StageExecutor) executeTeacherInfer(
 
 	logger.Info("配置文件已生成", zap.String("config", configPath))
 
-	// 调用 Worker 执行容器
-	containerID, err := e.runDockerContainer(ctx, workerAddr, &ContainerRequest{
-		Image:       "gcs-distill/easydistill:latest",
-		Command:     []string{"--config", "/workspace/configs/teacher_infer.json"},
-		WorkDir:     "/workspace",
-		VolumeMounts: map[string]string{
-			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
-		},
-		GPUs:         pipeline.ResourceRequest.GPUCount,
-		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs,
-		Memory:       pipeline.ResourceRequest.MemoryGB,
-		CPUs:         pipeline.ResourceRequest.CPUCores,
+	// 提交 gcs-v2 容器任务执行教师推理
+	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
+		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
+		Image:             e.runtimeImage,
+		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
+		ConfigPath:        configPath,
+		LogPath:           e.configGen.GetLogPath(projectID, runID, "teacher_infer"),
+		Env:               "GCS_DISTILL_STAGE=teacher_infer;GCS_DISTILL_PIPELINE_ID=" + pipeline.ID,
+		GPUs:              pipeline.ResourceRequest.GPUCount,
+		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs,
+		SelectedResources: pipeline.ResourceRequest.SelectedResources,
 	})
 
 	if err != nil {
@@ -324,7 +325,7 @@ func (e *StageExecutor) executeTeacherInfer(
 	logger.Info("容器已启动", zap.String("container_id", containerID))
 
 	// 等待容器完成
-	if err := e.waitForContainer(ctx, workerAddr, containerID); err != nil {
+	if err := e.waitForContainerTask(ctx, containerID); err != nil {
 		return fmt.Errorf("容器执行失败: %w", err)
 	}
 
@@ -405,7 +406,6 @@ func (e *StageExecutor) executeStudentTrain(
 	stage *types.StageRun,
 	project *types.Project,
 	pipeline *types.PipelineRun,
-	workerAddr string,
 ) error {
 	logger.Info("执行学生模型训练")
 
@@ -427,18 +427,17 @@ func (e *StageExecutor) executeStudentTrain(
 
 	logger.Info("训练配置已生成", zap.String("config", configPath))
 
-	// 调用 Worker 执行训练容器
-	containerID, err := e.runDockerContainer(ctx, workerAddr, &ContainerRequest{
-		Image:       "gcs-distill/easydistill:latest",
-		Command:     []string{"--config", "/workspace/configs/student_train.json"},
-		WorkDir:     "/workspace",
-		VolumeMounts: map[string]string{
-			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
-		},
-		GPUs:         pipeline.ResourceRequest.GPUCount,
-		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs,
-		Memory:       pipeline.ResourceRequest.MemoryGB,
-		CPUs:         pipeline.ResourceRequest.CPUCores,
+	// 提交 gcs-v2 容器任务执行学生训练
+	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
+		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
+		Image:             e.runtimeImage,
+		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
+		ConfigPath:        configPath,
+		LogPath:           e.configGen.GetLogPath(projectID, runID, "student_train"),
+		Env:               "GCS_DISTILL_STAGE=student_train;GCS_DISTILL_PIPELINE_ID=" + pipeline.ID,
+		GPUs:              pipeline.ResourceRequest.GPUCount,
+		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs,
+		SelectedResources: pipeline.ResourceRequest.SelectedResources,
 	})
 
 	if err != nil {
@@ -448,7 +447,7 @@ func (e *StageExecutor) executeStudentTrain(
 	logger.Info("训练容器已启动", zap.String("container_id", containerID))
 
 	// 等待容器完成（训练可能需要很长时间）
-	if err := e.waitForContainer(ctx, workerAddr, containerID); err != nil {
+	if err := e.waitForContainerTask(ctx, containerID); err != nil {
 		return fmt.Errorf("训练失败: %w", err)
 	}
 
@@ -458,7 +457,7 @@ func (e *StageExecutor) executeStudentTrain(
 	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "student_train")
 	stage.OutputManifest = map[string]string{
 		"container_id":    containerID,
-		"checkpoint_path": "/workspace/models/checkpoints/",
+		"checkpoint_path": filepath.Join(e.configGen.GetRunWorkspace(projectID, runID), "models", "checkpoints"),
 		"config_path":     configPath,
 	}
 
@@ -471,7 +470,6 @@ func (e *StageExecutor) executeEvaluate(
 	stage *types.StageRun,
 	project *types.Project,
 	pipeline *types.PipelineRun,
-	workerAddr string,
 ) error {
 	logger.Info("执行模型评估")
 
@@ -493,18 +491,17 @@ func (e *StageExecutor) executeEvaluate(
 
 	logger.Info("评估配置已生成", zap.String("config", configPath))
 
-	// 调用 Worker 执行评估容器
-	containerID, err := e.runDockerContainer(ctx, workerAddr, &ContainerRequest{
-		Image:       "gcs-distill/easydistill:latest",
-		Command:     []string{"--config", "/workspace/configs/evaluate.json"},
-		WorkDir:     "/workspace",
-		VolumeMounts: map[string]string{
-			e.configGen.GetRunWorkspace(projectID, runID): "/workspace",
-		},
-		GPUs:         1, // 评估只需要1个GPU
-		GPUDeviceIDs: pipeline.ResourceRequest.GPUDeviceIDs, // 但可以指定使用哪个GPU
-		Memory:       pipeline.ResourceRequest.MemoryGB,
-		CPUs:         pipeline.ResourceRequest.CPUCores,
+	// 提交 gcs-v2 容器任务执行评估
+	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
+		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
+		Image:             e.runtimeImage,
+		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
+		ConfigPath:        configPath,
+		LogPath:           e.configGen.GetLogPath(projectID, runID, "evaluate"),
+		Env:               "GCS_DISTILL_STAGE=evaluate;GCS_DISTILL_PIPELINE_ID=" + pipeline.ID,
+		GPUs:              1,                                     // 评估只需要1个GPU
+		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs, // 但可以指定使用哪个GPU
+		SelectedResources: pipeline.ResourceRequest.SelectedResources,
 	})
 
 	if err != nil {
@@ -514,7 +511,7 @@ func (e *StageExecutor) executeEvaluate(
 	logger.Info("评估容器已启动", zap.String("container_id", containerID))
 
 	// 等待容器完成
-	if err := e.waitForContainer(ctx, workerAddr, containerID); err != nil {
+	if err := e.waitForContainerTask(ctx, containerID); err != nil {
 		return fmt.Errorf("评估失败: %w", err)
 	}
 
@@ -571,110 +568,152 @@ func (e *StageExecutor) parseEvaluationResults(resultPath string) (map[string]in
 	return results, nil
 }
 
-// ContainerRequest 容器请求
-type ContainerRequest struct {
-	Image        string
-	Command      []string
-	WorkDir      string
-	VolumeMounts map[string]string
-	GPUs         int
-	GPUDeviceIDs string // GPU 设备 ID，如 "0,1,2"
-	Memory       int
-	CPUs         int
+func stageContainerName(pipelineID string, stageType types.StageType) string {
+	raw := "distill-" + pipelineID + "-" + string(stageType)
+	var b strings.Builder
+	lastDash := false
+	for _, r := range raw {
+		valid := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.' || r == '-'
+		if valid {
+			b.WriteRune(r)
+			lastDash = r == '-'
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-_.")
+	if out == "" {
+		return "distill-stage"
+	}
+	if len(out) > 120 {
+		return out[:120]
+	}
+	return out
 }
 
-// runDockerContainer 在 Worker 节点上运行 Docker 容器
-func (e *StageExecutor) runDockerContainer(
-	ctx context.Context,
-	workerAddr string,
-	req *ContainerRequest,
-) (string, error) {
-	// 连接到 Worker 的 gRPC 服务
-	conn, err := grpc.Dial(workerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return "", fmt.Errorf("连接Worker失败: %w", err)
+func stableTaskID(seed string) int {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(seed))
+	value := int(h.Sum32() % 1000000000)
+	if value <= 0 {
+		return int(time.Now().UnixNano() % 1000000000)
 	}
-	defer conn.Close()
+	return value
+}
 
-	client := pb.NewWorkerServiceClient(conn)
-
-	// 构建卷挂载
-	var volumes []*pb.VolumeMount
-	for host, container := range req.VolumeMounts {
-		volumes = append(volumes, &pb.VolumeMount{
-			HostPath:      host,
-			ContainerPath: container,
+func selectedResourcesForGCS(resources []types.SelectedResource) []gcsclient.SelectedResource {
+	out := make([]gcsclient.SelectedResource, 0, len(resources))
+	for _, item := range resources {
+		out = append(out, gcsclient.SelectedResource{
+			NodeName:    item.NodeName,
+			NodeAddress: item.NodeAddress,
+			XPUIndices:  append([]int(nil), item.XPUIndices...),
 		})
 	}
-
-	// 调用 RunContainer
-	resp, err := client.RunContainer(ctx, &pb.RunContainerRequest{
-		Image:        req.Image,
-		Command:      req.Command,
-		WorkDir:      req.WorkDir,
-		VolumeMounts: volumes,
-		GpuCount:     int32(req.GPUs),
-		GpuDeviceIds: req.GPUDeviceIDs,
-		MemoryGb:     int32(req.Memory),
-		CpuCores:     int32(req.CPUs),
-	})
-
-	if err != nil {
-		return "", fmt.Errorf("启动容器失败: %w", err)
-	}
-
-	return resp.ContainerId, nil
+	return out
 }
 
-// waitForContainer 等待容器执行完成
-func (e *StageExecutor) waitForContainer(
-	ctx context.Context,
-	workerAddr string,
-	containerID string,
-) error {
-	// 连接到 Worker
-	conn, err := grpc.Dial(workerAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return fmt.Errorf("连接Worker失败: %w", err)
+func xpuCountForRequest(gpuCount int, gpuDeviceIDs string) int {
+	if gpuCount > 0 {
+		return gpuCount
 	}
-	defer conn.Close()
+	ids := strings.Split(gpuDeviceIDs, ",")
+	count := 0
+	for _, id := range ids {
+		if strings.TrimSpace(id) != "" {
+			count++
+		}
+	}
+	if count > 0 {
+		return count
+	}
+	return 1
+}
 
-	client := pb.NewWorkerServiceClient(conn)
+// ContainerRequest 容器请求
+type ContainerRequest struct {
+	ContainerName     string
+	Image             string
+	HostWorkDir       string
+	ConfigPath        string
+	LogPath           string
+	Env               string
+	GPUs              int
+	GPUDeviceIDs      string // GPU 设备 ID，如 "0,1,2"
+	SelectedResources []types.SelectedResource
+}
 
-	// 轮询容器状态
+func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequest) (string, error) {
+	if e.gcsClient == nil {
+		return "", fmt.Errorf("gcs client is not configured")
+	}
+	workDir := strings.TrimSpace(req.HostWorkDir)
+	if workDir == "" {
+		return "", fmt.Errorf("容器任务工作目录为空")
+	}
+	containerName := strings.TrimSpace(req.ContainerName)
+	if containerName == "" {
+		return "", fmt.Errorf("container name is required")
+	}
+
+	configPath := strings.TrimSpace(req.ConfigPath)
+	if configPath == "" {
+		return "", fmt.Errorf("config path is required")
+	}
+
+	resp, err := e.gcsClient.CreateContainerTask(ctx, gcsclient.ContainerTaskRequest{
+		TaskUID:           0,
+		TaskID:            stableTaskID(containerName + "|" + workDir),
+		ContainerName:     containerName,
+		Image:             req.Image,
+		Args:              []string{"--config", configPath},
+		WorkingDir:        workDir,
+		LogPath:           req.LogPath,
+		Envs:              req.Env,
+		WorkerNums:        1,
+		XPUNums:           xpuCountForRequest(req.GPUs, req.GPUDeviceIDs),
+		SelectedResources: selectedResourcesForGCS(req.SelectedResources),
+	})
+	if err != nil {
+		return "", err
+	}
+	if resp.ContainerName != "" {
+		return resp.ContainerName, nil
+	}
+	return containerName, nil
+}
+
+func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName string) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("等待容器超时")
+			return fmt.Errorf("等待 gcs-v2 容器任务超时: %w", ctx.Err())
 		case <-ticker.C:
-			// 获取容器状态
-			statusResp, err := client.GetContainerStatus(ctx, &pb.GetContainerStatusRequest{
-				ContainerId: containerID,
-			})
+			task, found, err := e.gcsClient.GetTask(ctx, containerName)
 			if err != nil {
-				logger.Warn("获取容器状态失败", zap.Error(err))
+				logger.Warn("查询 gcs-v2 任务状态失败", zap.String("container_name", containerName), zap.Error(err))
 				continue
 			}
-
-			logger.Info("容器状态",
-				zap.String("container_id", containerID),
-				zap.String("status", statusResp.Status),
-			)
-
-			// 检查状态
-			if statusResp.Status == "exited" {
-				if statusResp.ExitCode == 0 {
-					logger.Info("容器执行成功", zap.String("container_id", containerID))
-					return nil
-				}
-				return fmt.Errorf("容器执行失败，退出码: %d", statusResp.ExitCode)
+			if !found {
+				logger.Warn("gcs-v2 暂未返回任务状态", zap.String("container_name", containerName))
+				continue
 			}
-
-			if statusResp.Status == "error" || statusResp.Status == "failed" {
-				return fmt.Errorf("容器执行失败: %s", statusResp.Error)
+			logger.Info("gcs-v2 容器任务状态",
+				zap.String("container_name", containerName),
+				zap.Int("state", task.TaskStates),
+				zap.String("time", task.TaskTime),
+			)
+			if task.TaskStates == gcsclient.TaskStateContainerDone {
+				return nil
+			}
+			if task.TaskStates >= gcsclient.TaskStateBaseError {
+				return fmt.Errorf("gcs-v2 容器任务失败，状态码: %d", task.TaskStates)
 			}
 		}
 	}

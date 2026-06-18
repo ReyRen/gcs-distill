@@ -12,7 +12,7 @@ import (
 	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
-	"github.com/ReyRen/gcs-distill/repository/postgres"
+	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -37,15 +37,15 @@ type DatasetService interface {
 
 // datasetService 数据集服务实现
 type datasetService struct {
-	datasetRepo postgres.DatasetRepository
-	projectRepo postgres.ProjectRepository
+	datasetRepo mysqlrepo.DatasetRepository
+	projectRepo mysqlrepo.ProjectRepository
 	storageCfg  *config.StorageConfig
 }
 
 // NewDatasetService 创建数据集服务
 func NewDatasetService(
-	datasetRepo postgres.DatasetRepository,
-	projectRepo postgres.ProjectRepository,
+	datasetRepo mysqlrepo.DatasetRepository,
+	projectRepo mysqlrepo.ProjectRepository,
 	storageCfg *config.StorageConfig,
 ) DatasetService {
 	return &datasetService{

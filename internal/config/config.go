@@ -1,226 +1,276 @@
 package config
 
 import (
+	"bufio"
 	"fmt"
 	"os"
-
-	"gopkg.in/yaml.v3"
+	"strconv"
+	"strings"
+	"time"
 )
 
-// Config 应用配置
 type Config struct {
-	Server   ServerConfig   `yaml:"server"`
-	Database DatabaseConfig `yaml:"database"`
-	Redis    RedisConfig    `yaml:"redis"`
-	Storage  StorageConfig  `yaml:"storage"`
-	GRPC     GRPCConfig     `yaml:"grpc"`
-	Logging  LoggingConfig  `yaml:"logging"`
-	Executor ExecutorConfig `yaml:"executor"`
+	Server   ServerConfig
+	Database DatabaseConfig
+	Storage  StorageConfig
+	GCS      GCSConfig
+	Logging  LoggingConfig
+	Executor ExecutorConfig
 }
 
-// ServerConfig HTTP 服务配置
 type ServerConfig struct {
-	Host string `yaml:"host"` // 服务地址
-	Port int    `yaml:"port"` // 服务端口
-	Mode string `yaml:"mode"` // 运行模式: debug, release, test
+	Host string
+	Port int
+	Mode string
 }
 
-// DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host     string `yaml:"host"`     // 数据库主机
-	Port     int    `yaml:"port"`     // 数据库端口
-	User     string `yaml:"user"`     // 用户名
-	Password string `yaml:"password"` // 密码
-	DBName   string `yaml:"dbname"`   // 数据库名
-	SSLMode  string `yaml:"sslmode"`  // SSL 模式
-	MaxConns int    `yaml:"max_conns"` // 最大连接数
-	MinConns int    `yaml:"min_conns"` // 最小连接数
+	Enabled                bool
+	Driver                 string
+	Host                   string
+	Port                   int
+	Name                   string
+	User                   string
+	Password               string
+	PasswordEnv            string
+	MaxOpenConns           int
+	MaxIdleConns           int
+	ConnMaxLifetimeSeconds int
 }
 
-// RedisConfig Redis 配置
-type RedisConfig struct {
-	Host     string `yaml:"host"`     // Redis 主机
-	Port     int    `yaml:"port"`     // Redis 端口
-	Password string `yaml:"password"` // 密码
-	DB       int    `yaml:"db"`       // 数据库编号
-	PoolSize int    `yaml:"pool_size"` // 连接池大小
+func (c DatabaseConfig) ResolvePassword() string {
+	if c.Password != "" {
+		return c.Password
+	}
+	if c.PasswordEnv == "" {
+		return ""
+	}
+	return os.Getenv(c.PasswordEnv)
 }
 
-// StorageConfig 共享存储配置
+func (c DatabaseConfig) DSN() string {
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&loc=Local&charset=utf8mb4",
+		c.User, c.ResolvePassword(), c.Host, c.Port, c.Name)
+}
+
+func (c DatabaseConfig) ConnMaxLifetime() time.Duration {
+	seconds := c.ConnMaxLifetimeSeconds
+	if seconds <= 0 {
+		seconds = 300
+	}
+	return time.Duration(seconds) * time.Second
+}
+
 type StorageConfig struct {
-	Type           string `yaml:"type"`             // 存储类型: nfs, ceph, local
-	BasePath       string `yaml:"base_path"`        // 基础路径
-	ModelsBasePath string `yaml:"models_base_path"` // 学生模型存放目录
+	Type           string
+	BasePath       string
+	ModelsBasePath string
 }
 
-// GRPCConfig gRPC 配置
-type GRPCConfig struct {
-	Port            int `yaml:"port"`             // gRPC 端口
-	MaxRecvMsgSize  int `yaml:"max_recv_msg_size"` // 最大接收消息大小 (MB)
-	MaxSendMsgSize  int `yaml:"max_send_msg_size"` // 最大发送消息大小 (MB)
-	ConnectionTimeout int `yaml:"connection_timeout"` // 连接超时 (秒)
+type GCSConfig struct {
+	BaseURL        string
+	TimeoutSeconds int
 }
 
-// LoggingConfig 日志配置
 type LoggingConfig struct {
-	Level    string `yaml:"level"`     // 日志级别: debug, info, warn, error
-	Output   string `yaml:"output"`    // 输出: stdout, file
-	FilePath string `yaml:"file_path"` // 日志文件路径
-	MaxSize  int    `yaml:"max_size"`  // 单个日志文件最大大小 (MB)
-	MaxAge   int    `yaml:"max_age"`   // 日志文件保留天数
-	Compress bool   `yaml:"compress"`  // 是否压缩旧日志
+	Level    string
+	Output   string
+	FilePath string
+	MaxSize  int
+	MaxAge   int
+	Compress bool
 }
 
-// ExecutorConfig 执行器配置
 type ExecutorConfig struct {
-	WorkspaceRoot string `yaml:"workspace_root"` // 工作空间根目录
-	MaxConcurrent int    `yaml:"max_concurrent"` // 最大并发执行数
+	WorkspaceRoot string
+	MaxConcurrent int
+	RuntimeImage  string
 }
 
-// Load 从文件加载配置
 func Load(configPath string) (*Config, error) {
-	// 读取配置文件
-	data, err := os.ReadFile(configPath)
+	cfg := Default()
+	file, err := os.Open(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("读取配置文件失败: %w", err)
+		return nil, fmt.Errorf("read config file failed: %w", err)
 	}
+	defer file.Close()
 
-	// 解析 YAML
-	var config Config
-	if err := yaml.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("解析配置文件失败: %w", err)
+	section := ""
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
+			section = strings.TrimSpace(strings.Trim(line, "[]"))
+			continue
+		}
+		key, value, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.Trim(strings.TrimSpace(value), `"`)
+		if err := applyValue(cfg, section, key, value); err != nil {
+			return nil, err
+		}
 	}
-
-	// 设置默认值
-	setDefaults(&config)
-
-	// 验证配置
-	if err := validate(&config); err != nil {
-		return nil, fmt.Errorf("配置验证失败: %w", err)
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan config file failed: %w", err)
 	}
-
-	return &config, nil
+	if err := validate(cfg); err != nil {
+		return nil, fmt.Errorf("validate config failed: %w", err)
+	}
+	return cfg, nil
 }
 
-// setDefaults 设置默认值
-func setDefaults(config *Config) {
-	// Server 默认值
-	if config.Server.Host == "" {
-		config.Server.Host = "0.0.0.0"
-	}
-	if config.Server.Port == 0 {
-		config.Server.Port = 8080
-	}
-	if config.Server.Mode == "" {
-		config.Server.Mode = "release"
-	}
-
-	// Database 默认值
-	if config.Database.Port == 0 {
-		config.Database.Port = 5432
-	}
-	if config.Database.SSLMode == "" {
-		config.Database.SSLMode = "disable"
-	}
-	if config.Database.MaxConns == 0 {
-		config.Database.MaxConns = 25
-	}
-	if config.Database.MinConns == 0 {
-		config.Database.MinConns = 5
-	}
-
-	// Redis 默认值
-	if config.Redis.Port == 0 {
-		config.Redis.Port = 6379
-	}
-	if config.Redis.PoolSize == 0 {
-		config.Redis.PoolSize = 10
-	}
-
-	// GRPC 默认值
-	if config.GRPC.Port == 0 {
-		config.GRPC.Port = 50051
-	}
-	if config.GRPC.MaxRecvMsgSize == 0 {
-		config.GRPC.MaxRecvMsgSize = 10 // 10 MB
-	}
-	if config.GRPC.MaxSendMsgSize == 0 {
-		config.GRPC.MaxSendMsgSize = 10 // 10 MB
-	}
-	if config.GRPC.ConnectionTimeout == 0 {
-		config.GRPC.ConnectionTimeout = 30 // 30 秒
-	}
-
-	// Logging 默认值
-	if config.Logging.Level == "" {
-		config.Logging.Level = "info"
-	}
-	if config.Logging.Output == "" {
-		config.Logging.Output = "stdout"
-	}
-	if config.Logging.MaxSize == 0 {
-		config.Logging.MaxSize = 100 // 100 MB
-	}
-	if config.Logging.MaxAge == 0 {
-		config.Logging.MaxAge = 7 // 7 天
-	}
-
-	// Executor 默认值
-	if config.Executor.WorkspaceRoot == "" {
-		config.Executor.WorkspaceRoot = "/shared"
-	}
-	if config.Executor.MaxConcurrent <= 0 {
-		config.Executor.MaxConcurrent = 5
+func Default() *Config {
+	return &Config{
+		Server: ServerConfig{Host: "0.0.0.0", Port: 8080, Mode: "release"},
+		Database: DatabaseConfig{
+			Enabled:                true,
+			Driver:                 "mysql",
+			Host:                   "127.0.0.1",
+			Port:                   3306,
+			Name:                   "ai_market",
+			User:                   "root",
+			PasswordEnv:            "AI_MARKET_DB_PASSWORD",
+			MaxOpenConns:           20,
+			MaxIdleConns:           5,
+			ConnMaxLifetimeSeconds: 300,
+		},
+		Storage: StorageConfig{
+			Type:           "nfs",
+			BasePath:       "/mnt/shared/distill",
+			ModelsBasePath: "/mnt/shared/distill/models",
+		},
+		GCS: GCSConfig{BaseURL: "http://127.0.0.1:8072/api/v1", TimeoutSeconds: 30},
+		Logging: LoggingConfig{
+			Level:    "info",
+			Output:   "stdout",
+			FilePath: "/var/log/gcs-distill/server.log",
+			MaxSize:  100,
+			MaxAge:   7,
+			Compress: true,
+		},
+		Executor: ExecutorConfig{
+			WorkspaceRoot: "/mnt/shared/distill",
+			MaxConcurrent: 5,
+			RuntimeImage:  "gcs-distill/easydistill:latest",
+		},
 	}
 }
 
-// validate 验证配置
 func validate(config *Config) error {
-	// 验证 Server
 	if config.Server.Port < 1 || config.Server.Port > 65535 {
-		return fmt.Errorf("无效的服务端口: %d", config.Server.Port)
+		return fmt.Errorf("invalid server.port: %d", config.Server.Port)
 	}
 	if config.Server.Mode != "debug" && config.Server.Mode != "release" && config.Server.Mode != "test" {
-		return fmt.Errorf("无效的运行模式: %s", config.Server.Mode)
+		return fmt.Errorf("invalid server.mode: %s", config.Server.Mode)
 	}
-
-	// 验证 Database
+	if !config.Database.Enabled {
+		return fmt.Errorf("database.enabled must be true because gcs-distill requires persistent state")
+	}
+	if config.Database.Driver != "mysql" {
+		return fmt.Errorf("database.driver must be mysql: %s", config.Database.Driver)
+	}
 	if config.Database.Host == "" {
-		return fmt.Errorf("数据库主机不能为空")
+		return fmt.Errorf("database.host must not be empty")
 	}
 	if config.Database.User == "" {
-		return fmt.Errorf("数据库用户名不能为空")
+		return fmt.Errorf("database.user must not be empty")
 	}
-	if config.Database.DBName == "" {
-		return fmt.Errorf("数据库名不能为空")
+	if config.Database.Name == "" {
+		return fmt.Errorf("database.name must not be empty")
 	}
-
-	// 验证 Redis
-	if config.Redis.Host == "" {
-		return fmt.Errorf("Redis 主机不能为空")
-	}
-
-	// 验证 Storage
 	if config.Storage.BasePath == "" {
-		return fmt.Errorf("存储基础路径不能为空")
+		return fmt.Errorf("storage.base_path must not be empty")
 	}
 
-	// 验证 Logging
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLogLevels[config.Logging.Level] {
-		return fmt.Errorf("无效的日志级别: %s", config.Logging.Level)
+		return fmt.Errorf("invalid logging.level: %s", config.Logging.Level)
 	}
-
 	return nil
 }
 
-// GetDSN 获取数据库连接字符串
-func (c *DatabaseConfig) GetDSN() string {
-	return fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		c.Host, c.Port, c.User, c.Password, c.DBName, c.SSLMode)
+func applyValue(cfg *Config, section, key, value string) error {
+	switch section + "." + key {
+	case "server.host":
+		cfg.Server.Host = value
+	case "server.port":
+		return setInt(value, &cfg.Server.Port, "server.port")
+	case "server.mode":
+		cfg.Server.Mode = value
+	case "database.enabled":
+		return setBool(value, &cfg.Database.Enabled, "database.enabled")
+	case "database.driver":
+		cfg.Database.Driver = value
+	case "database.host":
+		cfg.Database.Host = value
+	case "database.port":
+		return setInt(value, &cfg.Database.Port, "database.port")
+	case "database.name":
+		cfg.Database.Name = value
+	case "database.user":
+		cfg.Database.User = value
+	case "database.password":
+		cfg.Database.Password = value
+	case "database.password_env":
+		cfg.Database.PasswordEnv = value
+	case "database.max_open_conns":
+		return setInt(value, &cfg.Database.MaxOpenConns, "database.max_open_conns")
+	case "database.max_idle_conns":
+		return setInt(value, &cfg.Database.MaxIdleConns, "database.max_idle_conns")
+	case "database.conn_max_lifetime_seconds":
+		return setInt(value, &cfg.Database.ConnMaxLifetimeSeconds, "database.conn_max_lifetime_seconds")
+	case "storage.type":
+		cfg.Storage.Type = value
+	case "storage.base_path":
+		cfg.Storage.BasePath = value
+	case "storage.models_base_path":
+		cfg.Storage.ModelsBasePath = value
+	case "gcs.base_url":
+		cfg.GCS.BaseURL = strings.TrimRight(value, "/")
+	case "gcs.timeout_seconds":
+		return setInt(value, &cfg.GCS.TimeoutSeconds, "gcs.timeout_seconds")
+	case "logging.level":
+		cfg.Logging.Level = value
+	case "logging.output":
+		cfg.Logging.Output = value
+	case "logging.file_path":
+		cfg.Logging.FilePath = value
+	case "logging.max_size":
+		return setInt(value, &cfg.Logging.MaxSize, "logging.max_size")
+	case "logging.max_age":
+		return setInt(value, &cfg.Logging.MaxAge, "logging.max_age")
+	case "logging.compress":
+		return setBool(value, &cfg.Logging.Compress, "logging.compress")
+	case "executor.workspace_root":
+		cfg.Executor.WorkspaceRoot = value
+	case "executor.max_concurrent":
+		return setInt(value, &cfg.Executor.MaxConcurrent, "executor.max_concurrent")
+	case "executor.runtime_image":
+		cfg.Executor.RuntimeImage = value
+	}
+	return nil
 }
 
-// GetRedisAddr 获取 Redis 地址
-func (c *RedisConfig) GetRedisAddr() string {
-	return fmt.Sprintf("%s:%d", c.Host, c.Port)
+func setInt(value string, target *int, name string) error {
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("%s must be an integer: %w", name, err)
+	}
+	*target = parsed
+	return nil
+}
+
+func setBool(value string, target *bool, name string) error {
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return fmt.Errorf("%s must be a boolean: %w", name, err)
+	}
+	*target = parsed
+	return nil
 }

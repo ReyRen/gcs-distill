@@ -1,374 +1,200 @@
-# GCS-Distill: 大模型蒸馏平台
+# GCS-Distill
 
-GCS-Distill 是一个企业级大模型蒸馏平台，用于将教师大模型在特定任务上的输出能力迁移到轻量级学生小模型中，形成可独立部署、推理成本更低、响应速度更快的专用模型能力。
+`gcs-distill` 是 GCS 系列里的蒸馏编排服务，底层蒸馏运行时基于 ModelScope EasyDistill。它负责项目、数据集、蒸馏流水线、阶段状态、EasyDistill 配置和共享存储清单；容器资源调度和实际执行统一交给 `gcs-v2` 与 `gcs-info-catch-v2`。
 
-## 功能特性
+## 当前边界
 
-- **六阶段蒸馏流水线**: 教师模型配置 → 蒸馏数据构建 → 教师推理与样本生成 → 蒸馏数据治理 → 学生模型训练 → 蒸馏效果评估
-- **分布式容器调度**: 基于 Docker Swarm 的 Worker 节点资源调度和任务执行
-- **EasyDistill 集成**: 底层使用 [ModelScope EasyDistill](https://github.com/modelscope/easydistill) 执行蒸馏训练
-- **REST API 服务**: 提供完整的项目管理、数据集管理、流水线管理 API
-- **实时状态跟踪**: Redis + PostgreSQL 实现运行态和业务态分离的状态管理
-- **共享存储支持**: 自动管理蒸馏数据、模型产物和评估报告的存储
+- `gcs-distill`: 蒸馏控制面，维护业务对象、流水线阶段、运行目录和 EasyDistill 配置。
+- `gcs-model-center-v2`: 模型资产与模型服务控制面，使用统一 MySQL 数据库配置风格。
+- `gcs-v2`: GCS 统一调度面，负责节点选择、XPU 绑定、容器任务、运行态和终态历史。
+- `gcs-info-catch-v2`: GCS 执行代理，负责 Docker 容器生命周期、设备绑定和容器日志。
 
-## 架构设计
+`gcs-distill` 不直接操作 Docker、不维护 GPU 节点调度状态，也不内置独立数据库服务。阶段 3/5/6 的 EasyDistill 容器只通过 `POST /api/v1/tasks/container` 提交给 `gcs-v2`。
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                       前端 (Frontend)                         │
-└───────────────────────┬─────────────────────────────────────┘
-                        │ REST API
-┌───────────────────────▼─────────────────────────────────────┐
-│                  控制面 (gcs-distill API)                      │
-│  - 项目管理   - 数据集管理   - 流水线编排                       │
-│  - 资源调度   - 配置生成     - 状态管理                         │
-└───────────────────────┬─────────────────────────────────────┘
-                        │ gRPC
-┌───────────────────────▼─────────────────────────────────────┐
-│                执行面 (Worker 节点)                           │
-│  - 资源上报   - 容器执行   - 日志收集                          │
-│  - EasyDistill 容器                                          │
-└─────────────────────────────────────────────────────────────┘
-                        │
-┌───────────────────────▼─────────────────────────────────────┐
-│                存储面 (Storage)                               │
-│  - Redis: 运行态缓存                                          │
-│  - PostgreSQL: 业务元数据                                     │
-│  - 共享存储: 数据集、模型、日志                                 │
-└─────────────────────────────────────────────────────────────┘
+## 底层统一
+
+数据库层已经按 `gcs-model-center-v2` 的方式统一：
+
+- 使用 MySQL 与 `database/sql`，驱动为 `github.com/go-sql-driver/mysql`。
+- 配置文件使用 TOML，`[database]` 字段与 model-center 保持一致。
+- 默认数据库名为 `ai_market`，可以和 model-center 共用同一个库。
+- distill 表统一使用 `distill_` 前缀，避免和 model-center 的 `mc_*` 表冲突。
+- 服务启动时自动执行 MySQL DDL 迁移；`migrations/001_distill_mysql.sql` 仅作为离线初始化和审计脚本。
+
+如果和 model-center 共用库，建议先确保数据库存在：
+
+```sql
+CREATE DATABASE IF NOT EXISTS ai_market CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
 
-## 快速开始
+## 流水线阶段
 
-### 使用 Docker Compose（推荐）
+1. `teacher_config`: 校验教师模型配置。
+2. `dataset_build`: 创建运行目录，生成种子数据清单。
+3. `teacher_infer`: 生成 `teacher_infer.json`，提交 EasyDistill 教师推理容器。
+4. `data_govern`: 过滤、去重并拆分训练/测试数据。
+5. `student_train`: 生成 `student_train.json`，提交 EasyDistill 学生训练容器。
+6. `evaluate`: 生成 `evaluate.json`，提交 EasyDistill 评估容器并解析结果。
 
-最快的启动方式，适合开发和测试环境：
+运行目录统一放在共享存储：
+
+```text
+{executor.workspace_root}/projects/{project_id}/runs/{pipeline_id}/
+├── configs/
+├── data/
+│   ├── seed/
+│   ├── generated/
+│   └── filtered/
+├── eval/
+├── logs/
+└── models/
+    └── checkpoints/
+```
+
+这些路径会写入 EasyDistill 配置文件，并作为容器工作目录提交给 `gcs-v2`。共享存储必须在 `gcs-v2` 执行节点上以同一路径可访问。
+
+## 快速启动
+
+前置条件：
+
+- Go 1.25+
+- Docker / Docker Compose
+- MySQL 8.0+，建议复用 model-center 的 `ai_market`
+- 已运行并可访问的 `gcs-v2`
+- 已接入 `gcs-v2` 的 `gcs-info-catch-v2`
+- 多节点环境中的共享存储路径保持一致
+
+本仓库的 Compose 只启动 distill server；MySQL、`gcs-v2` 和执行代理由对应项目独立部署。
 
 ```bash
-# 1. 克隆仓库
-git clone https://github.com/ReyRen/gcs-distill.git
-cd gcs-distill
-
-# 2. 一键启动所有服务
-make docker-up
-
-# 3. 验证部署
-curl http://172.18.36.230:18080/health
-
-# 详细说明请参考: docs/quickstart.md
-```
-
-说明：`make docker-up` 会执行构建并启动，相当于对 `docker compose up -d --build` 做了一层封装，额外会等待片刻并打印服务状态。
-当前仓库只维护一份容器化部署配置模板 [config.example.yaml](config.example.yaml)。如果后续要接入别的 PostgreSQL/Redis 服务器，直接修改其中的主机地址和端口即可。
-
-### 配置调整
-
-### 前置要求
-
-- Docker 和 Docker Compose
-- PostgreSQL 13+
-- Redis 6+
-- 共享存储 (NFS 或分布式文件系统)
-
-### 部署步骤
-
-1. 克隆仓库
-```bash
-git clone https://github.com/ReyRen/gcs-distill.git
-cd gcs-distill
-```
-
-2. 按需调整配置
-```bash
-# 编辑 config.example.yaml
-# 如果数据库和 Redis 不在 Compose 内，直接把 host/port 改成对应地址
-# storage.base_path 和 logging.file_path 保持容器内路径不变
-```
-
-3. 构建 EasyDistill 镜像
-```bash
+cp config.toml config.local.toml
 make docker-build
-```
-
-如果你的网络访问 PyPI 较慢，可以临时指定镜像源，例如：
-```bash
-make docker-build PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
-```
-
-4. 构建服务镜像
-```bash
-make docker-build-all
-```
-
-5. 启动服务
-```bash
 make docker-up
+curl http://127.0.0.1:18080/health
 ```
 
-### 使用示例
+本地直接运行：
 
-1. 创建蒸馏项目
 ```bash
-curl -X POST http://172.18.36.230:18080/api/v1/projects \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "客服问答蒸馏",
-    "description": "将 Qwen2.5-7B 蒸馏到 Qwen2.5-0.5B",
-    "teacher_model": {
-      "model_name": "Qwen/Qwen2.5-7B-Instruct",
-      "provider_type": "local"
-    },
-    "student_model": {
-      "model_name": "Qwen/Qwen2.5-0.5B-Instruct"
-    }
-  }'
+make run-server
 ```
 
-2. 上传种子数据集
+Swagger UI:
 
-种子数据集需要使用 **JSONL (JSON Lines)** 格式，每行一个 JSON 对象，必须包含 `instruction` 字段：
-
-```jsonl
-{"instruction": "什么是人工智能？", "input": "", "output": ""}
-{"instruction": "解释机器学习的概念", "input": "", "output": ""}
-{"instruction": "什么是深度学习？", "input": "", "output": ""}
+```text
+http://127.0.0.1:18080/swagger/index.html
 ```
 
-**字段说明：**
-- `instruction` (必需): 指令或问题文本
-- `input` (可选): 额外的输入上下文
-- `output` (可选): 预期输出（种子数据通常为空，由教师模型生成）
+## 配置
 
-上传数据集：
+关键配置在 `config.toml`：
+
+```toml
+[server]
+host = "0.0.0.0"
+port = 8080
+
+[database]
+enabled = true
+driver = "mysql"
+host = "127.0.0.1"
+port = 3306
+name = "ai_market"
+user = "root"
+password = ""
+password_env = "AI_MARKET_DB_PASSWORD"
+max_open_conns = 20
+max_idle_conns = 5
+conn_max_lifetime_seconds = 300
+
+[storage]
+base_path = "/mnt/shared/distill"
+models_base_path = "/mnt/shared/distill/models"
+
+[gcs]
+base_url = "http://gcs-v2:8072/api/v1"
+timeout_seconds = 30
+
+[executor]
+workspace_root = "/mnt/shared/distill"
+max_concurrent = 5
+runtime_image = "gcs-distill/easydistill:latest"
+```
+
+`database.password` 优先级高于 `database.password_env`。生产环境建议把密码放到 `AI_MARKET_DB_PASSWORD`，不要写入仓库配置。
+
+## 资源选择
+
+推荐使用 `resource_request.selected_resources` 表达完整节点和 XPU 选择：
+
+```json
+{
+  "resource_request": {
+    "gpu_count": 1,
+    "selected_resources": [
+      {
+        "node_name": "gpu-node-01",
+        "node_address": "172.18.36.225",
+        "xpu_indices": [0]
+      }
+    ]
+  }
+}
+```
+
+`gpu_device_ids` 仍是请求模型字段的一部分，但只表达卡号，不包含节点信息；需要跨节点或精确绑定时应使用 `selected_resources`。
+
+## 常用 API
+
+- `GET /health`: 健康检查。
+- `GET /swagger/openapi.json`: OpenAPI JSON。
+- `POST /api/v1/projects`: 创建蒸馏项目。
+- `GET /api/v1/projects`: 查询项目列表。
+- `POST /api/v1/projects/{id}/datasets`: 上传项目数据集。
+- `POST /api/v1/pipelines`: 创建并提交蒸馏流水线。
+- `GET /api/v1/pipelines/{id}`: 查询流水线。
+- `GET /api/v1/pipelines/{id}/stages`: 查询阶段列表。
+- `GET /api/v1/pipelines/{id}/stages/{stage_id}/logs`: 查询阶段日志。
+- `POST /api/v1/pipelines/{id}/cancel`: 取消流水线。
+- `GET /api/v1/resources/nodes`: 代理查询 `gcs-v2` 节点快照。
+- `GET /api/v1/resources/nodes/{name}`: 按名称查询 `gcs-v2` 节点快照。
+
+## 构建与校验
+
 ```bash
-# 使用仓库中的示例数据（推荐用于测试）
-curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
-  -F "file=@examples/seed_data_customer_service.jsonl"
-
-# 或使用自定义数据
-curl -X POST http://172.18.36.230:18080/api/v1/projects/{project_id}/datasets \
-  -F "file=@seed_data.jsonl"
+make swagger
+make build
+make test
 ```
 
-**注意：** 仓库 `examples/` 目录下提供了三个测试用种子数据集：
-- `seed_data_customer_service.jsonl` - 客服问答场景 (30条)
-- `seed_data_ai_ml.jsonl` - AI/机器学习知识问答 (40条)
-- `seed_data_programming.jsonl` - 编程教程问答 (40条)
-
-详细说明请参考 [examples/README.md](examples/README.md)
-
-3. 启动蒸馏流水线
-```bash
-curl -X POST http://172.18.36.230:18080/api/v1/pipelines \
-  -H "Content-Type: application/json" \
-  -d '{
-    "project_id": "{project_id}",
-    "dataset_id": "{dataset_id}",
-    "training_config": {
-      "num_train_epochs": 3,
-      "learning_rate": 2e-5,
-      "per_device_train_batch_size": 4
-    }
-  }'
-```
-
-4. 查看流水线状态
-```bash
-curl http://172.18.36.230:18080/api/v1/pipelines/{pipeline_id}
-```
+`make build` 和 Docker server 镜像构建都会先执行 `go run ./cmd/openapi`，确保嵌入的 Swagger/OpenAPI 文件在每次编译时自动更新并经过基础一致性检查。
 
 ## 目录结构
 
-```
+```text
 gcs-distill/
-├── cmd/                    # 可执行程序入口
-│   ├── server/            # 控制面服务入口
-│   └── worker/            # Worker 节点入口
-├── server/                # HTTP 路由和 API Handler
-├── service/               # 业务逻辑层
-│   ├── project.go         # 项目管理服务
-│   ├── dataset.go         # 数据集管理服务
-│   ├── pipeline.go        # 流水线服务
-│   └── scheduler.go       # 资源调度服务
-├── repository/            # 数据访问层
-│   ├── postgres/          # PostgreSQL 仓库
-│   └── redis/             # Redis 仓库
-├── internal/              # 内部包
-│   ├── types/             # 领域模型定义
-│   ├── config/            # 配置管理
-│   └── logger/            # 日志系统
-├── proto/                 # gRPC 协议定义
-│   └── worker.proto       # Worker 服务协议
-├── runtime/               # 运行时逻辑
-│   ├── config_generator.go  # EasyDistill 配置生成
-│   ├── manifest.go          # 运行清单管理
-│   └── stage_executor.go    # 阶段执行器
-├── utils/                 # 工具函数
-├── migrations/            # 数据库迁移脚本
-├── docker/                # Docker 相关资源
-│   └── easydistill/       # EasyDistill 镜像
-├── docs/                  # 文档
-│   ├── api-reference.md       # API 接口参考
-│   ├── frontend-guide.md      # 前端实现指南
-│   ├── deployment.md          # 部署指南
-│   └── quickstart.md          # 快速启动指南
-└── README.md
+├── cmd/
+│   ├── openapi/        # OpenAPI 校验和格式化
+│   └── server/         # HTTP 服务入口
+├── docker/
+│   ├── Dockerfile.server
+│   └── easydistill/    # EasyDistill 运行镜像
+├── docs/
+├── internal/
+│   ├── client/gcs/     # gcs-v2 HTTP 客户端
+│   ├── config/
+│   ├── logger/
+│   └── types/
+├── repository/mysql/   # 统一 MySQL 仓库实现
+├── runtime/            # EasyDistill 配置、清单、阶段执行
+├── server/             # Gin 路由、Handler、嵌入式 Swagger
+├── service/            # 业务服务和流水线执行队列
+└── migrations/
 ```
-
-## 蒸馏流程说明
-
-### 六个核心阶段
-
-1. **教师模型配置**
-   - 验证教师模型可访问性
-   - 配置 API 端点或本地模型路径
-   - 存储配置版本
-
-2. **蒸馏数据构建**
-   - 导入业务语料、历史样本或知识库文档
-   - 数据标准化和字段映射
-   - 生成 seed instructions 数据集
-
-3. **教师推理与样本生成**
-   - 使用 EasyDistill 的 `kd_black_box_local` 模式
-   - 教师模型对种子数据生成高质量响应
-   - 输出 labeled 数据集
-
-4. **蒸馏数据治理**
-   - 空响应过滤
-   - 长度和格式校验
-   - 去重和质量评分
-   - 输出 curated 训练集
-
-5. **学生模型训练**
-   - 使用 EasyDistill 的 `kd_black_box_train_only` 模式
-   - 支持 LoRA 或全参微调
-   - 定期保存 checkpoint
-
-6. **蒸馏效果评估**
-   - 使用 EasyDistill 的 `cot_eval_api` 模式
-   - 对比学生模型与教师模型性能
-   - 生成评估报告 (BLEU, ROUGE, 准确率等)
-
-### 数据流转
-
-```
-/shared/projects/{project_id}/runs/{run_id}/
-├── data/
-│   ├── seed/              # 原始种子数据
-│   ├── generated/         # 教师生成的标注数据
-│   └── filtered/          # 治理后的训练数据
-├── configs/
-│   ├── teacher_infer.json    # 阶段3配置
-│   ├── student_train.json    # 阶段5配置
-│   └── evaluate.json         # 阶段6配置
-├── models/
-│   ├── checkpoints/       # 训练检查点
-│   └── final/             # 最终导出模型
-├── logs/
-│   └── stage_{N}/         # 各阶段日志
-└── eval/
-    └── results.json       # 评估结果
-```
-
-## API 文档
-
-详细 API 文档请访问: `http://172.18.36.230:18080/swagger/index.html`
-
-主要 API 端点：
-
-- `POST /api/v1/projects` - 创建项目
-- `GET /api/v1/projects` - 列出项目
-- `POST /api/v1/projects/{id}/datasets` - 上传数据集
-- `POST /api/v1/pipelines` - 启动蒸馏流水线
-- `GET /api/v1/pipelines/{id}` - 查询流水线状态
-- `GET /api/v1/pipelines/{id}/stages` - 查看阶段详情
-- `GET /api/v1/pipelines/{id}/logs` - 获取日志
-- `POST /api/v1/pipelines/{id}/cancel` - 取消流水线
-- `GET /api/v1/nodes` - 查看 Worker 节点状态
-
-## 配置说明
-
-`config.yaml` 示例：
-
-```yaml
-# 服务配置
-server:
-  host: 0.0.0.0
-  port: 8080
-  mode: release  # debug, release, test
-
-# 数据库配置
-database:
-  host: 172.18.36.230
-  port: 5432
-  user: postgres
-  password: postgres
-  dbname: gcs_distill
-  sslmode: disable
-
-# Redis 配置
-redis:
-  host: 172.18.36.230
-  port: 6379
-  password: ""
-  db: 0
-
-# 共享存储配置
-storage:
-  type: nfs  # nfs, ceph, local
-  base_path: /storage-md0/renyuan/gcs-distill-data/shared-workspace
-
-# gRPC 配置
-grpc:
-  port: 50051
-
-# 日志配置
-logging:
-  level: info  # debug, info, warn, error
-  output: stdout  # stdout, file
-  file_path: /storage-md0/renyuan/gcs-distill-data/logs/server.log
-```
-
-## 开发指南
-
-### 编译项目
-
-```bash
-# 编译控制面
-go build -o bin/server ./cmd/server
-
-# 编译 Worker
-go build -o bin/worker ./cmd/worker
-
-# 生成 gRPC 代码
-protoc --go_out=. --go-grpc_out=. proto/worker.proto
-```
-
-### 运行测试
-
-```bash
-go test ./...
-```
-
-### 代码风格
-
-项目遵循标准的 Go 代码风格，使用 `gofmt` 和 `golint` 进行检查。
 
 ## 参考项目
 
-- [gcs-v2](https://github.com/ReyRen/gcs-v2) - GPU 容器调度系统
-- [gcs-info-catch-v2](https://github.com/ReyRen/gcs-info-catch-v2) - 信息采集系统
-- [EasyDistill](https://github.com/modelscope/easydistill) - 模型蒸馏框架
-
-## 许可证
-
-Apache License 2.0
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 联系方式
-
-如有问题，请提交 Issue 或联系项目维护者。
+- [gcs-v2](https://github.com/ReyRen/gcs-v2)
+- [gcs-info-catch-v2](https://github.com/ReyRen/gcs-info-catch-v2)
+- [gcs-model-center-v2](../gcs-model-center-v2)
+- [EasyDistill](https://github.com/modelscope/easydistill)

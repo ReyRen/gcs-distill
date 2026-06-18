@@ -3,25 +3,20 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/ReyRen/gcs-distill/service"
+	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
 	"github.com/gin-gonic/gin"
 )
 
-// ResourceHandler 资源处理器
 type ResourceHandler struct {
-	schedulerSvc service.SchedulerService
+	gcsClient *gcsclient.Client
 }
 
-// NewResourceHandler 创建资源处理器
-func NewResourceHandler(schedulerSvc service.SchedulerService) *ResourceHandler {
-	return &ResourceHandler{
-		schedulerSvc: schedulerSvc,
-	}
+func NewResourceHandler(gcsClient *gcsclient.Client) *ResourceHandler {
+	return &ResourceHandler{gcsClient: gcsClient}
 }
 
-// ListNodes 列出所有节点
 func (h *ResourceHandler) ListNodes(c *gin.Context) {
-	nodes, err := h.schedulerSvc.ListNodes(c.Request.Context())
+	nodes, err := h.gcsClient.ListNodes(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    http.StatusInternalServerError,
@@ -32,12 +27,11 @@ func (h *ResourceHandler) ListNodes(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,
-		"message": "获取节点列表成功",
+		"message": "获取 gcs-v2 节点列表成功",
 		"data":    nodes,
 	})
 }
 
-// GetNode 获取节点信息
 func (h *ResourceHandler) GetNode(c *gin.Context) {
 	nodeName := c.Param("name")
 	if nodeName == "" {
@@ -48,18 +42,25 @@ func (h *ResourceHandler) GetNode(c *gin.Context) {
 		return
 	}
 
-	node, err := h.schedulerSvc.GetNode(c.Request.Context(), nodeName)
+	node, found, err := h.gcsClient.GetNode(c.Request.Context(), nodeName)
 	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
+		})
+		return
+	}
+	if !found {
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    http.StatusNotFound,
-			"message": err.Error(),
+			"message": "节点不存在",
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,
-		"message": "获取节点信息成功",
+		"message": "获取 gcs-v2 节点信息成功",
 		"data":    node,
 	})
 }

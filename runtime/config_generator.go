@@ -22,10 +22,10 @@ func NewConfigGenerator(workspaceRoot string) *ConfigGenerator {
 
 // TeacherInferConfig 教师模型推理配置
 type TeacherInferConfig struct {
-	JobType   string                 `json:"job_type"`
-	Dataset   TeacherDatasetConfig   `json:"dataset"`
-	Inference InferenceConfig        `json:"inference"`
-	Models    TeacherModelsConfig    `json:"models"`
+	JobType   string               `json:"job_type"`
+	Dataset   TeacherDatasetConfig `json:"dataset"`
+	Inference InferenceConfig      `json:"inference"`
+	Models    TeacherModelsConfig  `json:"models"`
 }
 
 type TeacherDatasetConfig struct {
@@ -34,8 +34,8 @@ type TeacherDatasetConfig struct {
 }
 
 type InferenceConfig struct {
-	Temperature   float64 `json:"temperature"`
-	MaxNewTokens  int     `json:"max_new_tokens"`
+	Temperature  float64 `json:"temperature"`
+	MaxNewTokens int     `json:"max_new_tokens"`
 }
 
 type TeacherModelsConfig struct {
@@ -61,21 +61,21 @@ type StudentModelsConfig struct {
 }
 
 type TrainingConfig struct {
-	OutputDir              string  `json:"output_dir"`
-	NumTrainEpochs         int     `json:"num_train_epochs"`
-	PerDeviceTrainBatchSize int    `json:"per_device_train_batch_size"`
-	LearningRate           float64 `json:"learning_rate"`
-	SaveSteps              int     `json:"save_steps"`
-	WarmupSteps            int     `json:"warmup_steps,omitempty"`
-	LoggingSteps           int     `json:"logging_steps,omitempty"`
+	OutputDir               string  `json:"output_dir"`
+	NumTrainEpochs          int     `json:"num_train_epochs"`
+	PerDeviceTrainBatchSize int     `json:"per_device_train_batch_size"`
+	LearningRate            float64 `json:"learning_rate"`
+	SaveSteps               int     `json:"save_steps"`
+	WarmupSteps             int     `json:"warmup_steps,omitempty"`
+	LoggingSteps            int     `json:"logging_steps,omitempty"`
 }
 
 // EvaluateConfig 评估配置
 type EvaluateConfig struct {
-	JobType string             `json:"job_type"`
-	Dataset EvalDatasetConfig  `json:"dataset"`
-	Models  EvalModelsConfig   `json:"models"`
-	Output  EvalOutputConfig   `json:"output"`
+	JobType string            `json:"job_type"`
+	Dataset EvalDatasetConfig `json:"dataset"`
+	Models  EvalModelsConfig  `json:"models"`
+	Output  EvalOutputConfig  `json:"output"`
 }
 
 type EvalDatasetConfig struct {
@@ -102,12 +102,14 @@ func (g *ConfigGenerator) GenerateTeacherInferConfig(
 		return nil, fmt.Errorf("教师模型配置为空")
 	}
 
-	// 构建配置
+	workspace := g.GetRunWorkspace(project.ID, runID)
+
+	// 构建配置。路径使用共享存储绝对路径，便于 gcs-v2 执行代理以同路径挂载后直接执行。
 	config := TeacherInferConfig{
 		JobType: "kd_black_box_local",
 		Dataset: TeacherDatasetConfig{
-			InstructionPath: "/workspace/data/seed/instructions.json",
-			LabeledPath:     "/workspace/data/generated/labeled.json",
+			InstructionPath: filepath.Join(workspace, "data", "seed", "instructions.json"),
+			LabeledPath:     filepath.Join(workspace, "data", "generated", "labeled.json"),
 		},
 		Inference: InferenceConfig{
 			Temperature:  teacherConfig.Temperature,
@@ -157,11 +159,13 @@ func (g *ConfigGenerator) GenerateStudentTrainConfig(
 		return nil, fmt.Errorf("训练配置为空")
 	}
 
-	// 构建配置
+	workspace := g.GetRunWorkspace(project.ID, runID)
+
+	// 构建配置。路径使用共享存储绝对路径，和 gcs-v2 通用容器任务挂载策略保持一致。
 	config := StudentTrainConfig{
 		JobType: "kd_black_box_train_only",
 		Dataset: StudentDatasetConfig{
-			InstructionPath: "/workspace/data/filtered/train.json",
+			InstructionPath: filepath.Join(workspace, "data", "filtered", "train.json"),
 			Template:        "chat_template/chat_template_kd.jinja",
 		},
 		Models: StudentModelsConfig{
@@ -169,7 +173,7 @@ func (g *ConfigGenerator) GenerateStudentTrainConfig(
 			Student: studentConfig.ModelPath, // 使用本地模型路径
 		},
 		Training: TrainingConfig{
-			OutputDir:               "/workspace/models/checkpoints/",
+			OutputDir:               filepath.Join(workspace, "models", "checkpoints"),
 			NumTrainEpochs:          trainConfig.NumTrainEpochs,
 			PerDeviceTrainBatchSize: trainConfig.PerDeviceTrainBatchSize,
 			LearningRate:            trainConfig.LearningRate,
@@ -204,16 +208,17 @@ func (g *ConfigGenerator) GenerateEvaluateConfig(
 	project *types.Project,
 	runID string,
 ) ([]byte, error) {
+	workspace := g.GetRunWorkspace(project.ID, runID)
 	config := EvaluateConfig{
 		JobType: "cot_eval_api",
 		Dataset: EvalDatasetConfig{
-			TestPath: "/workspace/data/filtered/test.json",
+			TestPath: filepath.Join(workspace, "data", "filtered", "test.json"),
 		},
 		Models: EvalModelsConfig{
-			ModelPath: "/workspace/models/checkpoints/",
+			ModelPath: filepath.Join(workspace, "models", "checkpoints"),
 		},
 		Output: EvalOutputConfig{
-			ResultPath: "/workspace/eval/results.json",
+			ResultPath: filepath.Join(workspace, "eval", "results.json"),
 		},
 	}
 

@@ -230,5 +230,6 @@ with open('data.csv', 'r', encoding='utf-8') as csvfile:
 ## 参考资料
 
 - [主项目 README](../README.md)
-- [API 文档](../docs/api-reference.md)
-- [快速启动指南](../docs/quickstart.md)
+- [GCS 统一执行链路](../docs/gcs-unified-execution.md)
+- [XPU 资源选择接口](../docs/GPU_DEVICE_API.md)
+- Swagger UI: `/swagger/index.html`

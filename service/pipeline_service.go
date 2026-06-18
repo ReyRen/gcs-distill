@@ -7,7 +7,7 @@ import (
 
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
-	"github.com/ReyRen/gcs-distill/repository/postgres"
+	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
 	"go.uber.org/zap"
 )
 
@@ -39,19 +39,19 @@ type PipelineService interface {
 
 // pipelineService 流水线服务实现
 type pipelineService struct {
-	pipelineRepo postgres.PipelineRepository
-	stageRepo    postgres.StageRepository
-	projectRepo  postgres.ProjectRepository
-	datasetRepo  postgres.DatasetRepository
+	pipelineRepo mysqlrepo.PipelineRepository
+	stageRepo    mysqlrepo.StageRepository
+	projectRepo  mysqlrepo.ProjectRepository
+	datasetRepo  mysqlrepo.DatasetRepository
 	executorSvc  ExecutorService
 }
 
 // NewPipelineService 创建流水线服务
 func NewPipelineService(
-	pipelineRepo postgres.PipelineRepository,
-	stageRepo postgres.StageRepository,
-	projectRepo postgres.ProjectRepository,
-	datasetRepo postgres.DatasetRepository,
+	pipelineRepo mysqlrepo.PipelineRepository,
+	stageRepo mysqlrepo.StageRepository,
+	projectRepo mysqlrepo.ProjectRepository,
+	datasetRepo mysqlrepo.DatasetRepository,
 	executorSvc ExecutorService,
 ) PipelineService {
 	return &pipelineService{
