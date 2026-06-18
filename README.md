@@ -1,42 +1,70 @@
-# GCS-Distill
+<p align="center">
+  <img src="./docs/assets/gcs-distill-pipeline.svg" alt="GCS-Distill pipeline architecture" width="100%" />
+</p>
 
-`gcs-distill` 是 GCS 系列里的蒸馏编排服务，底层蒸馏运行时基于 ModelScope EasyDistill。它负责项目、数据集、蒸馏流水线、阶段状态、EasyDistill 配置和共享存储清单；容器资源调度和实际执行统一交给 `gcs-v2` 与 `gcs-info-catch-v2`。
+<h1 align="center">GCS-Distill</h1>
 
-## 当前边界
+<p align="center">
+  GCS 系列的蒸馏编排服务：管理项目、数据集、流水线、EasyDistill 配置、共享存储清单和阶段状态。
+</p>
 
-- `gcs-distill`: 蒸馏控制面，维护业务对象、流水线阶段、运行目录和 EasyDistill 配置。
-- `gcs-model-center-v2`: 模型资产与模型服务控制面，使用统一 MySQL 数据库配置风格。
-- `gcs-v2`: GCS 统一调度面，负责节点选择、XPU 绑定、容器任务、运行态和终态历史。
-- `gcs-info-catch-v2`: GCS 执行代理，负责 Docker 容器生命周期、设备绑定和容器日志。
+<p align="center">
+  <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=for-the-badge&logo=go&logoColor=white"></a>
+  <a href="https://github.com/ReyRen/gcs-distill"><img alt="Repository" src="https://img.shields.io/badge/GitHub-gcs--distill-181717?style=for-the-badge&logo=github"></a>
+  <img alt="Runtime" src="https://img.shields.io/badge/Runtime-EasyDistill%20%2B%20GCS%20Jobs-F59E0B?style=for-the-badge">
+  <img alt="Database" src="https://img.shields.io/badge/Database-MySQL%20distill__*-0F766E?style=for-the-badge">
+</p>
 
-`gcs-distill` 不直接操作 Docker、不维护 GPU 节点调度状态，也不内置独立数据库服务。阶段 3/5/6 的 EasyDistill 容器只通过 `POST /api/v1/tasks/container` 提交给 `gcs-v2`。
+## 项目定位
 
-## 底层统一
+`gcs-distill` 是蒸馏控制面。它负责业务对象、流水线阶段、运行目录、EasyDistill 配置和产物清单；实际容器资源调度与 Docker 执行统一交给 [`gcs-v2`](https://github.com/ReyRen/gcs-v2) 与 [`gcs-info-catch-v2`](https://github.com/ReyRen/gcs-info-catch-v2)。
 
-数据库层已经按 `gcs-model-center-v2` 的方式统一：
+它不直接操作 Docker，不维护 GPU/NPU 调度状态，也不内置独立数据库服务。阶段容器通过 `POST /api/v1/tasks/container` 提交给 `gcs-v2`。
 
-- 使用 MySQL 与 `database/sql`，驱动为 `github.com/go-sql-driver/mysql`。
-- 配置文件使用 TOML，`[database]` 字段与 model-center 保持一致。
-- 默认数据库名为 `ai_market`，可以和 model-center 共用同一个库。
-- distill 表统一使用 `distill_` 前缀，避免和 model-center 的 `mc_*` 表冲突。
-- 服务启动时自动执行 MySQL DDL 迁移；`migrations/001_distill_mysql.sql` 仅作为离线初始化和审计脚本。
+## GCS 系列关系
 
-如果和 model-center 共用库，建议先确保数据库存在：
+| 仓库 | 角色 | 与 `gcs-distill` 的关系 |
+| --- | --- | --- |
+| [`gcs-distill`](https://github.com/ReyRen/gcs-distill) | 蒸馏编排控制面 | 当前仓库，负责项目、数据集、流水线和 EasyDistill 配置 |
+| [`gcs-v2`](https://github.com/ReyRen/gcs-v2) | 集群调度控制面 | 接收 distill 阶段容器任务，统一调度 XPU 和节点 |
+| [`gcs-info-catch-v2`](https://github.com/ReyRen/gcs-info-catch-v2) | Worker 执行代理 | 由 `gcs-v2` 间接调用，负责真正运行 EasyDistill 容器 |
+| [`gcs-model-center-v2`](https://github.com/ReyRen/gcs-model-center-v2) | 模型服务控制面 | 可复用同一个 `ai_market` MySQL 实例，表前缀隔离 |
+| [`gcs-infer-center`](https://github.com/ReyRen/gcs-infer-center) | 推理应用门户 | 可作为上层应用入口，消费模型与推理服务能力 |
 
-```sql
-CREATE DATABASE IF NOT EXISTS ai_market CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```mermaid
+flowchart LR
+    UI["Distill UI / API client"] --> DS["gcs-distill"]
+    DS --> DB[(MySQL distill_*)]
+    DS --> FS["shared storage"]
+    DS -->|"container job"| GCS["gcs-v2"]
+    GCS -->|"gRPC"| Worker["gcs-info-catch-v2"]
+    Worker --> ED["EasyDistill runtime container"]
 ```
+
+## 核心能力
+
+| 能力 | 说明 |
+| --- | --- |
+| 项目管理 | 保存教师模型、学生模型、目标任务、蒸馏参数和项目元数据 |
+| 数据集管理 | 支持数据集创建、上传、记录数统计、更新和删除 |
+| 流水线编排 | 维护蒸馏流水线运行、阶段状态、取消、日志查询和日志流 |
+| 配置生成 | 为 EasyDistill 阶段生成 `teacher_infer.json`、`student_train.json`、`evaluate.json` |
+| 共享存储 | 统一管理 configs、data、eval、logs、models/checkpoints 等运行目录 |
+| GCS 集成 | 使用 `gcs-v2` 通用容器任务执行 EasyDistill 阶段容器 |
+| OpenAPI | 构建时自动校验并格式化内嵌 OpenAPI 文档 |
 
 ## 流水线阶段
 
-1. `teacher_config`: 校验教师模型配置。
-2. `dataset_build`: 创建运行目录，生成种子数据清单。
-3. `teacher_infer`: 生成 `teacher_infer.json`，提交 EasyDistill 教师推理容器。
-4. `data_govern`: 过滤、去重并拆分训练/测试数据。
-5. `student_train`: 生成 `student_train.json`，提交 EasyDistill 学生训练容器。
-6. `evaluate`: 生成 `evaluate.json`，提交 EasyDistill 评估容器并解析结果。
+| 阶段 | 说明 | 执行方式 |
+| --- | --- | --- |
+| `teacher_config` | 校验教师模型配置 | 本服务内执行 |
+| `dataset_build` | 创建运行目录，生成种子数据清单 | 本服务内执行 |
+| `teacher_infer` | 生成教师推理配置并提交容器 | `gcs-v2` container job |
+| `data_govern` | 过滤、去重并拆分训练/测试数据 | 本服务内执行 |
+| `student_train` | 生成学生训练配置并提交容器 | `gcs-v2` container job |
+| `evaluate` | 生成评估配置，提交容器并解析结果 | `gcs-v2` container job |
 
-运行目录统一放在共享存储：
+运行目录约定：
 
 ```text
 {executor.workspace_root}/projects/{project_id}/runs/{pipeline_id}/
@@ -51,150 +79,78 @@ CREATE DATABASE IF NOT EXISTS ai_market CHARACTER SET utf8mb4 COLLATE utf8mb4_un
     └── checkpoints/
 ```
 
-这些路径会写入 EasyDistill 配置文件，并作为容器工作目录提交给 `gcs-v2`。共享存储必须在 `gcs-v2` 执行节点上以同一路径可访问。
+共享存储必须在所有 `gcs-v2` 执行节点上以同一路径可访问，否则容器内配置路径会失效。
+
+## API 速览
+
+统一前缀：`/api/v1`
+
+| 场景 | 接口 |
+| --- | --- |
+| 健康与文档 | `GET /health`, `GET /swagger/index.html`, `GET /swagger/openapi.json` |
+| 项目 | `POST /projects`, `GET /projects`, `GET /projects/{id}`, `PUT /projects/{id}`, `DELETE /projects/{id}` |
+| 数据集 | `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets`, `GET /datasets/{id}`, `PUT /datasets/{id}`, `DELETE /datasets/{id}` |
+| 流水线 | `POST /pipelines`, `GET /pipelines`, `GET /pipelines/{id}`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
+| 阶段与日志 | `GET /pipelines/{id}/stages`, `GET /pipelines/{id}/stages/{stage_id}/logs`, `GET /pipelines/{id}/stages/{stage_id}/logs/stream`, `GET /pipelines/{id}/stages/{stage_id}/logs/download` |
+| 模型与资源 | `GET /models/student`, `GET /models/student/{id}`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
 
 ## 快速启动
 
-前置条件：
+前置依赖：
 
 - Go 1.25+
-- Docker / Docker Compose
-- MySQL 8.0+，建议复用 model-center 的 `ai_market`
-- 已运行并可访问的 `gcs-v2`
+- MySQL 8.0+，可复用 `gcs-model-center-v2` 的 `ai_market`
+- 已运行且可访问的 `gcs-v2`
 - 已接入 `gcs-v2` 的 `gcs-info-catch-v2`
-- 多节点环境中的共享存储路径保持一致
-
-本仓库的 Compose 只启动 distill server；MySQL、`gcs-v2` 和执行代理由对应项目独立部署。
+- 多节点共享存储路径一致
 
 ```bash
-cp config.toml config.local.toml
-make docker-build
-make docker-up
-curl http://127.0.0.1:18080/health
-```
-
-本地直接运行：
-
-```bash
+make build
+make test
 make run-server
 ```
 
-Swagger UI:
-
-```text
-http://127.0.0.1:18080/swagger/index.html
-```
-
-## 配置
-
-关键配置在 `config.toml`：
-
-```toml
-[server]
-host = "0.0.0.0"
-port = 8080
-
-[database]
-enabled = true
-driver = "mysql"
-host = "127.0.0.1"
-port = 3306
-name = "ai_market"
-user = "root"
-password = ""
-password_env = "AI_MARKET_DB_PASSWORD"
-max_open_conns = 20
-max_idle_conns = 5
-conn_max_lifetime_seconds = 300
-
-[storage]
-base_path = "/mnt/shared/distill"
-models_base_path = "/mnt/shared/distill/models"
-
-[gcs]
-base_url = "http://gcs-v2:8072/api/v1"
-timeout_seconds = 30
-
-[executor]
-workspace_root = "/mnt/shared/distill"
-max_concurrent = 5
-runtime_image = "gcs-distill/easydistill:latest"
-```
-
-`database.password` 优先级高于 `database.password_env`。生产环境建议把密码放到 `AI_MARKET_DB_PASSWORD`，不要写入仓库配置。
-
-## 资源选择
-
-推荐使用 `resource_request.selected_resources` 表达完整节点和 XPU 选择：
-
-```json
-{
-  "resource_request": {
-    "gpu_count": 1,
-    "selected_resources": [
-      {
-        "node_name": "gpu-node-01",
-        "node_address": "172.18.36.225",
-        "xpu_indices": [0]
-      }
-    ]
-  }
-}
-```
-
-`gpu_device_ids` 仍是请求模型字段的一部分，但只表达卡号，不包含节点信息；需要跨节点或精确绑定时应使用 `selected_resources`。
-
-## 常用 API
-
-- `GET /health`: 健康检查。
-- `GET /swagger/openapi.json`: OpenAPI JSON。
-- `POST /api/v1/projects`: 创建蒸馏项目。
-- `GET /api/v1/projects`: 查询项目列表。
-- `POST /api/v1/projects/{id}/datasets`: 上传项目数据集。
-- `POST /api/v1/pipelines`: 创建并提交蒸馏流水线。
-- `GET /api/v1/pipelines/{id}`: 查询流水线。
-- `GET /api/v1/pipelines/{id}/stages`: 查询阶段列表。
-- `GET /api/v1/pipelines/{id}/stages/{stage_id}/logs`: 查询阶段日志。
-- `POST /api/v1/pipelines/{id}/cancel`: 取消流水线。
-- `GET /api/v1/resources/nodes`: 代理查询 `gcs-v2` 节点快照。
-- `GET /api/v1/resources/nodes/{name}`: 按名称查询 `gcs-v2` 节点快照。
-
-## 构建与校验
+构建 EasyDistill 运行时镜像：
 
 ```bash
-make swagger
-make build
-make test
+make docker-build
+make docker-up
 ```
 
-`make build` 和 Docker server 镜像构建都会先执行 `go run ./cmd/openapi`，确保嵌入的 Swagger/OpenAPI 文件在每次编译时自动更新并经过基础一致性检查。
+## 配置边界
 
-## 目录结构
+关键配置集中在 `config.toml`：
+
+| 配置段 | 作用 |
+| --- | --- |
+| `[server]` | HTTP 服务监听和运行模式 |
+| `[database]` | MySQL 连接、连接池和密码注入 |
+| `[storage]` | distill 共享存储与模型目录 |
+| `[gcs]` | `gcs-v2` REST API 地址和超时 |
+| `[logging]` | 日志级别、输出和轮转 |
+| `[executor]` | 工作目录、并发度和 EasyDistill runtime 镜像 |
+
+生产环境建议使用 `AI_MARKET_DB_PASSWORD` 等环境变量注入敏感信息，不把现场密码写入仓库配置。
+
+## 代码结构
 
 ```text
-gcs-distill/
-├── cmd/
-│   ├── openapi/        # OpenAPI 校验和格式化
-│   └── server/         # HTTP 服务入口
-├── docker/
-│   ├── Dockerfile.server
-│   └── easydistill/    # EasyDistill 运行镜像
-├── docs/
-├── internal/
-│   ├── client/gcs/     # gcs-v2 HTTP 客户端
-│   ├── config/
-│   ├── logger/
-│   └── types/
-├── repository/mysql/   # 统一 MySQL 仓库实现
-├── runtime/            # EasyDistill 配置、清单、阶段执行
-├── server/             # Gin 路由、Handler、嵌入式 Swagger
-├── service/            # 业务服务和流水线执行队列
-└── migrations/
+cmd/openapi/          OpenAPI 校验与格式化
+cmd/server/           HTTP 服务入口
+docker/               server 与 EasyDistill runtime 镜像
+internal/client/gcs/  调用 gcs-v2 的 HTTP client
+internal/config/      TOML 配置解析
+internal/types/       业务领域类型
+repository/mysql/     MySQL repository
+runtime/              EasyDistill 配置生成与运行清单
+server/               Gin 路由、handler、middleware、内嵌 Swagger
+service/              项目、数据集、流水线与执行队列
+migrations/           distill_* 建表 SQL
 ```
 
-## 参考项目
+## 维护原则
 
-- [gcs-v2](https://github.com/ReyRen/gcs-v2)
-- [gcs-info-catch-v2](https://github.com/ReyRen/gcs-info-catch-v2)
-- [gcs-model-center-v2](../gcs-model-center-v2)
-- [EasyDistill](https://github.com/modelscope/easydistill)
+- 蒸馏业务状态只在 `gcs-distill` 维护，容器状态只通过 `gcs-v2` 对账。
+- 上游准备共享存储目录和 EasyDistill 配置，下游只消费确定路径。
+- `distill_*` 表和 `mc_*` 表可以共享数据库，但不能共享业务表。
+- 构建产物、运行日志、临时目录和本地覆盖配置不进入仓库。

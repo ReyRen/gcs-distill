@@ -1,0 +1,57 @@
+<svg width="1280" height="520" viewBox="0 0 1280 520" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">GCS Distill pipeline overview</title>
+  <desc id="desc">A distillation pipeline diagram from project data to EasyDistill container stages.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10131F"/>
+      <stop offset="0.52" stop-color="#243044"/>
+      <stop offset="1" stop-color="#39414D"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="95" y1="380" x2="1185" y2="170" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F59E0B"/>
+      <stop offset="0.48" stop-color="#34D399"/>
+      <stop offset="1" stop-color="#60A5FA"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.27"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="520" rx="36" fill="url(#bg)"/>
+  <path d="M70 386C183 268 309 242 455 286C643 343 758 201 896 178C1032 155 1134 208 1210 292" stroke="url(#accent)" stroke-width="2.5" stroke-opacity="0.48"/>
+  <text x="70" y="92" fill="#FFFBF4" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="42" font-weight="800">GCS-Distill</text>
+  <text x="70" y="132" fill="#D8D8D2" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18">Distillation orchestration over shared storage, EasyDistill runtime, and GCS container jobs</text>
+  <g filter="url(#shadow)">
+    <rect x="84" y="218" width="174" height="112" rx="20" fill="#FFFFFF" fill-opacity="0.09" stroke="#FFFFFF" stroke-opacity="0.2"/>
+    <text x="116" y="260" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="800">Project</text>
+    <text x="116" y="292" fill="#D8D8D2" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">datasets</text>
+    <text x="116" y="316" fill="#D8D8D2" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">model config</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="344" y="166" width="504" height="216" rx="24" fill="#131A27" fill-opacity="0.86" stroke="url(#accent)" stroke-opacity="0.64" stroke-width="2"/>
+    <text x="390" y="214" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="800">Pipeline Engine</text>
+    <rect x="390" y="250" width="124" height="44" rx="13" fill="#F59E0B" fill-opacity="0.16" stroke="#F59E0B" stroke-opacity="0.5"/>
+    <text x="414" y="278" fill="#FFF5E6" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">teacher</text>
+    <rect x="536" y="250" width="124" height="44" rx="13" fill="#34D399" fill-opacity="0.15" stroke="#34D399" stroke-opacity="0.5"/>
+    <text x="559" y="278" fill="#E9FFF7" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">govern</text>
+    <rect x="682" y="250" width="124" height="44" rx="13" fill="#60A5FA" fill-opacity="0.16" stroke="#60A5FA" stroke-opacity="0.5"/>
+    <text x="706" y="278" fill="#EFF6FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14" font-weight="700">student</text>
+    <text x="390" y="330" fill="#D8D8D2" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">stage state, configs, manifests, logs, artifacts</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="930" y="156" width="230" height="108" rx="20" fill="#FFFFFF" fill-opacity="0.09" stroke="#FFFFFF" stroke-opacity="0.2"/>
+    <text x="964" y="198" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="800">Shared Storage</text>
+    <text x="964" y="230" fill="#D8D8D2" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">configs, data, models</text>
+  </g>
+  <g filter="url(#shadow)">
+    <rect x="930" y="314" width="230" height="108" rx="20" fill="#FFFFFF" fill-opacity="0.09" stroke="#FFFFFF" stroke-opacity="0.2"/>
+    <text x="964" y="356" fill="#FFFFFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="20" font-weight="800">GCS Jobs</text>
+    <text x="964" y="388" fill="#D8D8D2" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="15">EasyDistill containers</text>
+  </g>
+  <path d="M260 274H330" stroke="#FFF7ED" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M316 266L330 274L316 282" stroke="#FFF7ED" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M850 222H916" stroke="#FFF7ED" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M902 214L916 222L902 230" stroke="#FFF7ED" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M850 332H916" stroke="#FFF7ED" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M902 324L916 332L902 340" stroke="#FFF7ED" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="70" y="465" fill="#AAA89F" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="14">Distillation business state lives here · container scheduling is delegated to GCS-V2</text>
+</svg>
