@@ -110,6 +110,32 @@ make test
 make run-server
 ```
 
+systemd 部署方式与 `gcs-v2` 保持一致：
+
+```bash
+make deploy
+make status-service
+make logs-service
+```
+
+`make deploy` 会按顺序执行：
+
+```text
+swagger -> server build -> install systemd unit -> enable service -> restart service
+```
+
+默认服务文件假设仓库位于 `/root/go/src/gcs-distill`，服务启动命令为：
+
+```text
+/root/go/src/gcs-distill/bin/gcs-distill-server --config /root/go/src/gcs-distill/config.toml
+```
+
+如果生产环境需要注入数据库密码，可以创建 `/etc/gcs-distill/gcs-distill.env`，例如：
+
+```bash
+AI_MARKET_DB_PASSWORD=your-password
+```
+
 构建 EasyDistill 运行时镜像：
 
 ```bash

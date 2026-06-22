@@ -1,0 +1,14 @@
+[Unit]
+Description=gcs-distill
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/root/go/src/gcs-distill
+ExecStart=/root/go/src/gcs-distill/bin/gcs-distill-server --config /root/go/src/gcs-distill/config.toml
+EnvironmentFile=-/etc/gcs-distill/gcs-distill.env
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
