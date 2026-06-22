@@ -130,17 +130,16 @@ swagger -> server build -> install systemd unit -> enable service -> restart ser
 /root/go/src/gcs-distill/bin/gcs-distill-server --config /root/go/src/gcs-distill/config.toml
 ```
 
-如果生产环境需要注入数据库密码，可以创建 `/etc/gcs-distill/gcs-distill.env`，例如：
+默认配置会尽量复用 `gcs-model-center-v2` 的统一服务：MySQL 使用同一个 `ai_market`，GCS 地址指向同一个 `gcs-v2`，共享存储位于 `/storage-root-jfs/distill`。如果生产环境不希望在 `config.toml` 直接写数据库密码，可以清空 `database.password`，设置 `database.password_env = "AI_MARKET_DB_PASSWORD"`，并创建 `/etc/gcs-distill/gcs-distill.env`：
 
 ```bash
 AI_MARKET_DB_PASSWORD=your-password
 ```
 
-构建 EasyDistill 运行时镜像：
+EasyDistill runtime 镜像不在本仓库构建，Dockerfile 应放在 EasyDistill 或专门的镜像发布仓库。`executor.runtime_image` 只是提交给 `gcs-v2` 的镜像引用；镜像应提前构建并推送到 worker 节点可拉取的 registry。执行时链路为：
 
-```bash
-make docker-build
-make docker-up
+```text
+gcs-distill config/runtime_image -> gcs-v2 container job -> gcs-info-catch-v2 docker pull/run
 ```
 
 ## 配置边界
@@ -150,20 +149,19 @@ make docker-up
 | 配置段 | 作用 |
 | --- | --- |
 | `[server]` | HTTP 服务监听和运行模式 |
-| `[database]` | MySQL 连接、连接池和密码注入 |
+| `[database]` | MySQL 连接、连接池和密码注入；默认复用 model-center 的 `ai_market` |
 | `[storage]` | distill 共享存储与模型目录 |
-| `[gcs]` | `gcs-v2` REST API 地址和超时 |
+| `[gcs]` | `gcs-v2` REST API 地址和超时；默认与 model-center 指向同一套 GCS |
 | `[logging]` | 日志级别、输出和轮转 |
 | `[executor]` | 工作目录、并发度和 EasyDistill runtime 镜像 |
 
-生产环境建议使用 `AI_MARKET_DB_PASSWORD` 等环境变量注入敏感信息，不把现场密码写入仓库配置。
+除 distill 自己的工作目录、日志和 EasyDistill runtime 镜像外，数据库、GCS 等统一服务配置应优先参考 `gcs-model-center-v2`，避免同一套 GCS 系统出现多份互相漂移的服务地址。
 
 ## 代码结构
 
 ```text
 cmd/openapi/          OpenAPI 校验与格式化
 cmd/server/           HTTP 服务入口
-docker/               server 与 EasyDistill runtime 镜像
 internal/client/gcs/  调用 gcs-v2 的 HTTP client
 internal/config/      TOML 配置解析
 internal/types/       业务领域类型
@@ -171,7 +169,6 @@ repository/mysql/     MySQL repository
 runtime/              EasyDistill 配置生成与运行清单
 server/               Gin 路由、handler、middleware、内嵌 Swagger
 service/              项目、数据集、流水线与执行队列
-migrations/           distill_* 建表 SQL
 ```
 
 ## 维护原则

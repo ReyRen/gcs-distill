@@ -18,7 +18,7 @@
 - 查询和选择节点资源。
 - 处理 `selected_resources` 手动资源选择。
 - 软占用和释放 XPU。
-- 拉取镜像、创建容器任务、保存运行态与终态历史。
+- 创建容器任务、下发执行请求、保存运行态与终态历史。
 
 `gcs-info-catch-v2` 负责执行面：
 
@@ -35,12 +35,12 @@
 [database]
 enabled = true
 driver = "mysql"
-host = "127.0.0.1"
+host = "172.18.127.67"
 port = 3306
 name = "ai_market"
 user = "root"
-password = ""
-password_env = "AI_MARKET_DB_PASSWORD"
+password = "!Market4AI"
+password_env = ""
 max_open_conns = 20
 max_idle_conns = 5
 conn_max_lifetime_seconds = 300
@@ -50,8 +50,9 @@ conn_max_lifetime_seconds = 300
 
 - model-center 表保持 `mc_*` 前缀。
 - distill 表使用 `distill_*` 前缀。
-- 服务启动时自动执行 `repository/mysql/schema.go` 中的 DDL。
-- 离线初始化脚本为 `migrations/001_distill_mysql.sql`。
+- 服务启动时会连接配置中的 MySQL，并执行 `repository/mysql/schema.go` 中的 `CREATE TABLE IF NOT EXISTS distill_*`。
+- 这里不是业务数据迁移，也不是从数据库获取表结构；它只是幂等地确认 distill 需要的表存在。已有表不会被重建。
+- 不再保留独立离线迁移脚本，避免 `schema.go` 与 SQL 文件两套表结构漂移。
 
 ## 阶段执行
 
@@ -65,7 +66,7 @@ conn_max_lifetime_seconds = 300
 | `student_train` | `configs/student_train.json` | 学生模型训练 |
 | `evaluate` | `configs/evaluate.json` | 蒸馏效果评估 |
 
-容器请求只携带蒸馏运行时真正需要的信息：容器名、镜像、共享工作目录、配置路径、日志路径、环境变量、XPU 数量和可选的手动资源选择。镜像命令固定为 EasyDistill 入口，参数固定为：
+容器请求只携带蒸馏运行时真正需要的信息：容器名、镜像、共享工作目录、配置路径、日志路径、环境变量、XPU 数量和可选的手动资源选择。`gcs-distill` 不构建 runtime 镜像，也不会部署到 worker 节点；Dockerfile 应放在 EasyDistill 或专门的镜像发布仓库。`executor.runtime_image` 必须指向已经推送、且 worker 节点可拉取的镜像。镜像命令固定为 EasyDistill 入口，参数固定为：
 
 ```text
 --config {config_path}
@@ -76,7 +77,7 @@ conn_max_lifetime_seconds = 300
 运行目录示例：
 
 ```text
-/mnt/shared/distill/projects/{project_id}/runs/{pipeline_id}
+/storage-root-jfs/distill/projects/{project_id}/runs/{pipeline_id}
 ```
 
 `gcs-info-catch-v2` 需要把这个目录以同一路径挂载进容器。EasyDistill 配置中的所有输入、输出和日志路径都使用共享存储绝对路径，因此不再依赖 `gcs-distill` 的私有执行入口或私有工作目录约定。

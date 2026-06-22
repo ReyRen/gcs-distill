@@ -131,21 +131,21 @@ func Default() *Config {
 		Database: DatabaseConfig{
 			Enabled:                true,
 			Driver:                 "mysql",
-			Host:                   "127.0.0.1",
+			Host:                   "172.18.127.67",
 			Port:                   3306,
 			Name:                   "ai_market",
 			User:                   "root",
-			PasswordEnv:            "AI_MARKET_DB_PASSWORD",
+			Password:               "!Market4AI",
 			MaxOpenConns:           20,
 			MaxIdleConns:           5,
 			ConnMaxLifetimeSeconds: 300,
 		},
 		Storage: StorageConfig{
 			Type:           "nfs",
-			BasePath:       "/mnt/shared/distill",
-			ModelsBasePath: "/mnt/shared/distill/models",
+			BasePath:       "/storage-root-jfs/distill",
+			ModelsBasePath: "/storage-root-jfs/distill/models",
 		},
-		GCS: GCSConfig{BaseURL: "http://127.0.0.1:8072/api/v1", TimeoutSeconds: 30},
+		GCS: GCSConfig{BaseURL: "http://172.18.29.80:8072/api/v1", TimeoutSeconds: 10},
 		Logging: LoggingConfig{
 			Level:    "info",
 			Output:   "stdout",
@@ -155,9 +155,9 @@ func Default() *Config {
 			Compress: true,
 		},
 		Executor: ExecutorConfig{
-			WorkspaceRoot: "/mnt/shared/distill",
+			WorkspaceRoot: "/storage-root-jfs/distill",
 			MaxConcurrent: 5,
-			RuntimeImage:  "gcs-distill/easydistill:latest",
+			RuntimeImage:  "easy-distill/easydistill:latest",
 		},
 	}
 }

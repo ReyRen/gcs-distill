@@ -37,9 +37,9 @@ func NewDB(cfg *config.DatabaseConfig) (*DB, error) {
 	}
 
 	wrapped := &DB{sql: sqlDB}
-	if err := wrapped.Migrate(ctx); err != nil {
+	if err := wrapped.EnsureSchema(ctx); err != nil {
 		_ = sqlDB.Close()
-		return nil, fmt.Errorf("initialize MySQL schema failed: %w", err)
+		return nil, fmt.Errorf("ensure MySQL schema failed: %w", err)
 	}
 
 	logger.Info("MySQL database connected",

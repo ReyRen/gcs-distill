@@ -49,7 +49,7 @@ compress = false
 [executor]
 workspace_root = "/mnt/shared/distill"
 max_concurrent = 3
-runtime_image = "gcs-distill/easydistill:test"
+runtime_image = "easy-distill/easydistill:test"
 `
 	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -72,7 +72,7 @@ runtime_image = "gcs-distill/easydistill:test"
 	if cfg.GCS.BaseURL != "http://gcs-v2:8072/api/v1" {
 		t.Fatalf("gcs base url = %q", cfg.GCS.BaseURL)
 	}
-	if cfg.Executor.RuntimeImage != "gcs-distill/easydistill:test" {
+	if cfg.Executor.RuntimeImage != "easy-distill/easydistill:test" {
 		t.Fatalf("runtime image = %q", cfg.Executor.RuntimeImage)
 	}
 }
@@ -94,5 +94,28 @@ user = "root"
 
 	if _, err := Load(configPath); err == nil {
 		t.Fatal("Load() error = nil, want non-mysql validation error")
+	}
+}
+
+func TestDefaultUsesSharedGCSServiceConfig(t *testing.T) {
+	cfg := Default()
+
+	if cfg.Database.Host != "172.18.127.67" {
+		t.Fatalf("database host = %q, want shared model-center MySQL host", cfg.Database.Host)
+	}
+	if cfg.Database.Name != "ai_market" {
+		t.Fatalf("database name = %q, want ai_market", cfg.Database.Name)
+	}
+	if cfg.GCS.BaseURL != "http://172.18.29.80:8072/api/v1" {
+		t.Fatalf("gcs base url = %q", cfg.GCS.BaseURL)
+	}
+	if cfg.Storage.BasePath != "/storage-root-jfs/distill" {
+		t.Fatalf("storage base path = %q", cfg.Storage.BasePath)
+	}
+	if cfg.Executor.WorkspaceRoot != cfg.Storage.BasePath {
+		t.Fatalf("executor workspace root = %q, want storage base path %q", cfg.Executor.WorkspaceRoot, cfg.Storage.BasePath)
+	}
+	if cfg.Executor.RuntimeImage != "easy-distill/easydistill:latest" {
+		t.Fatalf("runtime image = %q, want external EasyDistill image reference", cfg.Executor.RuntimeImage)
 	}
 }

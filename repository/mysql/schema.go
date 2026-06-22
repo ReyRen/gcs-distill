@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS distill_artifacts (
 );
 `
 
-func (db *DB) Migrate(ctx context.Context) error {
+func (db *DB) EnsureSchema(ctx context.Context) error {
 	for _, stmt := range splitSQLStatements(distillSchema) {
 		if _, err := db.sql.ExecContext(ctx, stmt); err != nil {
 			return err

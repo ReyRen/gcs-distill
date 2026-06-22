@@ -9,24 +9,24 @@ mode = "release"
 [database]
 enabled = true
 driver = "mysql"
-host = "127.0.0.1"
+host = "172.18.127.67"
 port = 3306
 name = "ai_market"
 user = "root"
-password = ""
-password_env = "AI_MARKET_DB_PASSWORD"
+password = "!Market4AI"
+password_env = ""
 max_open_conns = 20
 max_idle_conns = 5
 conn_max_lifetime_seconds = 300
 
 [storage]
 type = "nfs"
-base_path = "/mnt/shared/distill"
-models_base_path = "/mnt/shared/distill/models"
+base_path = "/storage-root-jfs/distill"
+models_base_path = "/storage-root-jfs/distill/models"
 
 [gcs]
-base_url = "http://127.0.0.1:8072/api/v1"
-timeout_seconds = 30
+base_url = "http://172.18.29.80:8072/api/v1"
+timeout_seconds = 10
 
 [logging]
 level = "info"
@@ -37,6 +37,7 @@ max_age = 7
 compress = true
 
 [executor]
-workspace_root = "/mnt/shared/distill"
+workspace_root = "/storage-root-jfs/distill"
 max_concurrent = 5
-runtime_image = "gcs-distill/easydistill:latest"
+# External EasyDistill runtime image. gcs-distill only passes this reference to gcs-v2.
+runtime_image = "easy-distill/easydistill:latest"

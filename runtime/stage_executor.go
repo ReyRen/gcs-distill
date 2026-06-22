@@ -122,7 +122,7 @@ type StageExecutor struct {
 // NewStageExecutor 创建阶段执行器
 func NewStageExecutor(workspaceRoot string, datasetRepo mysqlrepo.DatasetRepository, gcsClient *gcsclient.Client, runtimeImage string) *StageExecutor {
 	if strings.TrimSpace(runtimeImage) == "" {
-		runtimeImage = "gcs-distill/easydistill:latest"
+		runtimeImage = "easy-distill/easydistill:latest"
 	}
 	return &StageExecutor{
 		configGen:    NewConfigGenerator(workspaceRoot),
