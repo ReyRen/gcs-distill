@@ -94,6 +94,13 @@ flowchart LR
 | 阶段与日志 | `GET /pipelines/{id}/stages`, `GET /pipelines/{id}/stages/{stage_id}/logs`, `GET /pipelines/{id}/stages/{stage_id}/logs/stream`, `GET /pipelines/{id}/stages/{stage_id}/logs/download` |
 | 模型与资源 | `GET /models/student`, `GET /models/student/{id}`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
 
+API 文档入口：
+
+| 类型 | 地址 |
+| --- | --- |
+| Swagger UI | `http://<distill.host>:8080/swagger/index.html` |
+| OpenAPI JSON | `http://<distill.host>:8080/swagger/openapi.json` |
+
 ## 快速启动
 
 前置依赖：
