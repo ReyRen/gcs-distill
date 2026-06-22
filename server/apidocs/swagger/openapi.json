@@ -72,6 +72,7 @@
             "type": "string"
           },
           "file_path": {
+            "description": "Dataset file path. Uploaded/imported files may be JSONL or JSON array; dataset_build writes EasyDistill runtime files as JSON arrays.",
             "example": "/storage-root-jfs/distill/project-a/seeds.jsonl",
             "type": "string"
           },
@@ -187,6 +188,12 @@
         "properties": {
           "extra_params": {
             "additionalProperties": true,
+            "description": "EasyDistill evaluation inference params. Provide base_url, api_key, and optional max_new_tokens for the OpenAI-compatible judge API.",
+            "example": {
+              "api_key": "DASHSCOPE_API_KEY",
+              "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+              "max_new_tokens": 8196
+            },
             "type": "object"
           },
           "metrics": {
@@ -277,34 +284,6 @@
           "status": {
             "example": "ok",
             "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "LoRAConfig": {
-        "properties": {
-          "alpha": {
-            "example": 16,
-            "type": "integer"
-          },
-          "dropout": {
-            "example": 0.05,
-            "format": "double",
-            "type": "number"
-          },
-          "enabled": {
-            "example": true,
-            "type": "boolean"
-          },
-          "r": {
-            "example": 8,
-            "type": "integer"
-          },
-          "target_modules": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
           }
         },
         "type": "object"
@@ -812,6 +791,7 @@
         "properties": {
           "extra_params": {
             "additionalProperties": true,
+            "description": "Reserved passthrough params for future EasyDistill student model adapters.",
             "type": "object"
           },
           "max_tokens": {
@@ -884,7 +864,7 @@
       "TeacherModelConfig": {
         "properties": {
           "api_secret_ref": {
-            "description": "API secret reference (for api provider)",
+            "description": "API key or API secret reference for api provider. Current EasyDistill runtime needs a directly usable key string unless the runtime image resolves the reference itself.",
             "example": "openai_key",
             "type": "string"
           },
@@ -899,6 +879,7 @@
           },
           "extra_params": {
             "additionalProperties": true,
+            "description": "EasyDistill passthrough params. Use extra_params.api_key to override api_secret_ref, and extra_params.inference for advanced inference fields such as stream, system_prompt, seed, trust_remote_code, max_model_len.",
             "type": "object"
           },
           "max_tokens": {
@@ -908,6 +889,11 @@
           "model_name": {
             "description": "Model name",
             "example": "gpt-4",
+            "type": "string"
+          },
+          "model_path": {
+            "description": "Required for local teacher provider; used as models.teacher in EasyDistill local inference.",
+            "example": "/storage-root-jfs/distill/models/Qwen2.5-7B-Instruct",
             "type": "string"
           },
           "provider_type": {
@@ -941,9 +927,6 @@
           "logging_steps": {
             "example": 10,
             "type": "integer"
-          },
-          "lora_config": {
-            "$ref": "#/components/schemas/LoRAConfig"
           },
           "lr_scheduler_type": {
             "example": "cosine",

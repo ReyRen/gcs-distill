@@ -100,26 +100,16 @@ type PipelineRun struct {
 
 // TrainingConfig configures student training.
 type TrainingConfig struct {
-	NumTrainEpochs            int         `json:"num_train_epochs"`
-	PerDeviceTrainBatchSize   int         `json:"per_device_train_batch_size"`
-	GradientAccumulationSteps int         `json:"gradient_accumulation_steps,omitempty"`
-	LearningRate              float64     `json:"learning_rate"`
-	WeightDecay               float64     `json:"weight_decay,omitempty"`
-	WarmupRatio               float64     `json:"warmup_ratio,omitempty"`
-	LRSchedulerType           string      `json:"lr_scheduler_type,omitempty"`
-	SaveSteps                 int         `json:"save_steps,omitempty"`
-	LoggingSteps              int         `json:"logging_steps,omitempty"`
-	MaxLength                 int         `json:"max_length,omitempty"`
-	LoRAConfig                *LoRAConfig `json:"lora_config,omitempty"`
-}
-
-// LoRAConfig configures LoRA fine-tuning.
-type LoRAConfig struct {
-	Enabled       bool     `json:"enabled"`
-	R             int      `json:"r,omitempty"`
-	Alpha         int      `json:"alpha,omitempty"`
-	Dropout       float64  `json:"dropout,omitempty"`
-	TargetModules []string `json:"target_modules,omitempty"`
+	NumTrainEpochs            int     `json:"num_train_epochs"`
+	PerDeviceTrainBatchSize   int     `json:"per_device_train_batch_size"`
+	GradientAccumulationSteps int     `json:"gradient_accumulation_steps,omitempty"`
+	LearningRate              float64 `json:"learning_rate"`
+	WeightDecay               float64 `json:"weight_decay,omitempty"`
+	WarmupRatio               float64 `json:"warmup_ratio,omitempty"`
+	LRSchedulerType           string  `json:"lr_scheduler_type,omitempty"`
+	SaveSteps                 int     `json:"save_steps,omitempty"`
+	LoggingSteps              int     `json:"logging_steps,omitempty"`
+	MaxLength                 int     `json:"max_length,omitempty"`
 }
 
 // ResourceRequest describes pipeline resource requirements.

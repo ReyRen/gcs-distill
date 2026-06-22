@@ -10,6 +10,7 @@ test_workspace="/tmp/gcs-distill-e2e-test"
 project_id="test-project-001"
 run_id="test-run-001"
 workspace="$test_workspace/projects/$project_id/runs/$run_id"
+python_bin="${PYTHON:-python3}"
 
 cleanup() {
     echo -e "${yellow}Cleaning test workspace...${reset}"
@@ -72,13 +73,15 @@ pass "teacher config generated"
 echo ""
 echo "4. Simulate teacher inference output"
 cat > "$workspace/data/generated/labeled.json" <<'EOF'
-{"instruction":"Explain machine learning","input":"","output":"Machine learning lets systems improve behavior from data."}
-{"instruction":"Explain deep learning","input":"","output":"Deep learning uses multi-layer neural networks to learn complex patterns."}
-{"instruction":"Create a Python list","input":"","output":"Use square brackets, for example: values = [1, 2, 3]."}
-{"instruction":"Explain neural networks","input":"","output":"A neural network is a connected set of computational units."}
-{"instruction":"Explain NLP","input":"","output":"Natural language processing focuses on machine understanding of human language."}
+[
+  {"instruction":"Explain machine learning","input":"","output":"Machine learning lets systems improve behavior from data."},
+  {"instruction":"Explain deep learning","input":"","output":"Deep learning uses multi-layer neural networks to learn complex patterns."},
+  {"instruction":"Create a Python list","input":"","output":"Use square brackets, for example: values = [1, 2, 3]."},
+  {"instruction":"Explain neural networks","input":"","output":"A neural network is a connected set of computational units."},
+  {"instruction":"Explain NLP","input":"","output":"Natural language processing focuses on machine understanding of human language."}
+]
 EOF
-labeled_count="$(wc -l < "$workspace/data/generated/labeled.json" | tr -d ' ')"
+labeled_count="$("$python_bin" -c 'import json,sys; print(len(json.load(open(sys.argv[1]))))' "$workspace/data/generated/labeled.json")"
 test "$labeled_count" = "5" || fail "expected 5 labeled rows, got $labeled_count"
 pass "teacher output generated"
 
@@ -108,7 +111,7 @@ cat > "$workspace/configs/student_train.json" <<'EOF'
 {
   "job_type": "kd_black_box_train_only",
   "dataset": {
-    "instruction_path": "/workspace/data/filtered/train.json",
+    "labeled_path": "/workspace/data/filtered/train.json",
     "template": "chat_template/chat_template_kd.jinja"
   },
   "models": {

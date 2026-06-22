@@ -149,6 +149,27 @@ EasyDistill runtime 镜像不在本仓库构建，Dockerfile 应放在 EasyDisti
 gcs-distill config/runtime_image -> gcs-v2 container job -> gcs-info-catch-v2 docker pull/run
 ```
 
+## EasyDistill 执行合同
+
+`gcs-distill` 只做控制面适配，不 fork EasyDistill 算法实现。前端提交的项目、数据集、训练参数和资源选择会被转换成官方 EasyDistill 可以消费的配置文件，并由 `gcs-v2` 拉起 runtime 容器执行。
+
+运行时镜像必须满足：
+
+- Python 内可 `import easydistill`。
+- 支持 `python -m easydistill.kd.infer --config <teacher_infer.json>`。
+- 支持 `accelerate launch --module easydistill.kd.train --config <student_train.json>`。
+- 支持 `python -m easydistill.eval.data_eval --config <evaluate.json>`。
+
+阶段配置遵循 EasyDistill 当前字段约定：
+
+| 阶段 | 配置文件 | 核心字段 |
+| --- | --- | --- |
+| `teacher_infer` | `configs/teacher_infer.json` | `job_type=kd_black_box_api/local`, `dataset.instruction_path`, `dataset.labeled_path`, `dataset.template`, `inference.*` |
+| `student_train` | `configs/student_train.json` | `job_type=kd_black_box_train_only`, `dataset.labeled_path`, `dataset.template`, `models.student`, `training.*` |
+| `evaluate` | `configs/evaluate.json` | `job_type=cot_eval_api`, `dataset.input_path`, `dataset.output_path`, `inference.base_url/api_key/max_new_tokens` |
+
+前端上传的数据集可以是 JSONL 或 JSON 数组；`dataset_build` 阶段会统一转换成 EasyDistill loader 使用的 JSON 数组。评估阶段依赖 OpenAI-compatible judge API，前端需要通过 `evaluation_config.extra_params.base_url` 和 `evaluation_config.extra_params.api_key` 提供，未提供时会回退到 API 教师模型配置。
+
 ## 配置边界
 
 关键配置集中在 `config.toml`：

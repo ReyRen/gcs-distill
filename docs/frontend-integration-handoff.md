@@ -34,6 +34,29 @@ flowchart LR
 
 前端只和 `gcs-distill` REST API 对接。资源节点数据由 `gcs-distill` 代理 `gcs-v2` 返回，前端不需要直接调用 `gcs-v2`。
 
+### EasyDistill 参数合同
+
+前端表单不需要暴露 EasyDistill 原始配置文件，但必须提供后端生成配置所需的业务字段：
+
+| 前端字段 | 写入 EasyDistill 配置 | 说明 |
+| --- | --- | --- |
+| `teacher_model_config.provider_type=api` | `job_type=kd_black_box_api` | 教师推理走 OpenAI-compatible API |
+| `teacher_model_config.provider_type=local` | `job_type=kd_black_box_local` | 教师推理走本地模型，必须提供 `model_path` |
+| `teacher_model_config.endpoint` | `inference.base_url` | API 教师模型地址 |
+| `teacher_model_config.api_secret_ref` 或 `extra_params.api_key` | `inference.api_key` | 当前 EasyDistill 需要可直接使用的 key 字符串 |
+| `student_model_config.model_path` | `models.student` | 学生模型本地路径 |
+| `training_config.*` | `training.*` | 只映射 EasyDistill SFTConfig 可识别字段，不再提交 `lora_config` |
+| `evaluation_config.extra_params.base_url/api_key/max_new_tokens` | `evaluate.inference.*` | 评估阶段 judge API；缺省时 API 教师模型配置可作为回退 |
+
+数据集上传可以是 JSONL 或 JSON 数组。后端在 `dataset_build` 阶段会统一写成 EasyDistill 当前 loader 可读取的 JSON 数组：
+
+- `data/seed/instructions.json`
+- `data/generated/labeled.json`
+- `data/filtered/train.json`
+- `data/filtered/test.json`
+
+容器阶段由后端显式提交模块命令，不依赖 runtime 镜像默认 ENTRYPOINT：教师推理使用 `python -m easydistill.kd.infer`，学生训练使用 `accelerate launch --module easydistill.kd.train`，评估使用 `python -m easydistill.eval.data_eval`。
+
 ## 3. 推荐页面拆分
 
 | 页面 | 主要能力 | 关键接口 |
@@ -142,14 +165,6 @@ export interface Dataset {
   created_at?: string;
 }
 
-export interface LoRAConfig {
-  enabled: boolean;
-  r?: number;
-  alpha?: number;
-  dropout?: number;
-  target_modules?: string[];
-}
-
 export interface TrainingConfig {
   num_train_epochs: number;
   per_device_train_batch_size: number;
@@ -161,7 +176,6 @@ export interface TrainingConfig {
   save_steps?: number;
   logging_steps?: number;
   max_length?: number;
-  lora_config?: LoRAConfig;
 }
 
 export interface SelectedResource {
@@ -258,7 +272,12 @@ Content-Type: application/json
   },
   "evaluation_config": {
     "metrics": ["accuracy", "rouge"],
-    "test_set_ratio": 0.1
+    "test_set_ratio": 0.1,
+    "extra_params": {
+      "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      "api_key": "DASHSCOPE_API_KEY",
+      "max_new_tokens": 8196
+    }
   }
 }
 ```
@@ -334,14 +353,7 @@ Content-Type: application/json
     "lr_scheduler_type": "cosine",
     "save_steps": 100,
     "logging_steps": 10,
-    "max_length": 4096,
-    "lora_config": {
-      "enabled": true,
-      "r": 8,
-      "alpha": 16,
-      "dropout": 0.05,
-      "target_modules": ["q_proj", "v_proj"]
-    }
+    "max_length": 4096
   },
   "resource_request": {
     "gpu_count": 1,

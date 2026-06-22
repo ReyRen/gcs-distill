@@ -66,11 +66,17 @@ conn_max_lifetime_seconds = 300
 | `student_train` | `configs/student_train.json` | 学生模型训练 |
 | `evaluate` | `configs/evaluate.json` | 蒸馏效果评估 |
 
-容器请求只携带蒸馏运行时真正需要的信息：容器名、镜像、共享工作目录、配置路径、日志路径、环境变量、XPU 数量和可选的手动资源选择。`gcs-distill` 不构建 runtime 镜像，也不会部署到 worker 节点；Dockerfile 应放在 EasyDistill 或专门的镜像发布仓库。`executor.runtime_image` 必须指向已经推送、且 worker 节点可拉取的镜像。镜像命令固定为 EasyDistill 入口，参数固定为：
+容器请求只携带蒸馏运行时真正需要的信息：容器名、镜像、共享工作目录、配置路径、日志路径、环境变量、XPU 数量和可选的手动资源选择。`gcs-distill` 不构建 runtime 镜像，也不会部署到 worker 节点；Dockerfile 应放在 EasyDistill 或专门的镜像发布仓库。`executor.runtime_image` 必须指向已经推送、且 worker 节点可拉取的镜像。
 
-```text
---config {config_path}
-```
+为了避免官方 `kd_black_box_local` 入口在教师推理阶段自动串联训练，`gcs-distill` 会显式设置容器 `command` 和 `args`：
+
+| 阶段 | command | args |
+| --- | --- | --- |
+| `teacher_infer` | `python` | `-m easydistill.kd.infer --config {config_path}` |
+| `student_train` | `accelerate` | `launch [--multi_gpu] --num_processes {xpu_count} --module easydistill.kd.train --config {config_path}` |
+| `evaluate` | `python` | `-m easydistill.eval.data_eval --config {config_path}` |
+
+因此 runtime 镜像不需要把默认 ENTRYPOINT 设成 `easydistill`，但必须能在 Python 环境中导入 `easydistill`，并安装 `accelerate`。
 
 ## 共享存储约定
 

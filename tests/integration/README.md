@@ -16,7 +16,7 @@ Creates a temporary distillation run workspace and verifies the files that
 - workspace directory layout
 - seed dataset copy
 - EasyDistill config files
-- simulated teacher output
+- simulated teacher output as the JSON array produced by EasyDistill
 - log persistence
 - simulated student checkpoint output
 

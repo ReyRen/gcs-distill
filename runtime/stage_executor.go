@@ -2,12 +2,14 @@ package runtime
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,98 +20,6 @@ import (
 	"go.uber.org/zap"
 )
 
-func getExtraParamString(config types.ModelConfig, key string) string {
-	if config.ExtraParams == nil {
-		return ""
-	}
-	value, ok := config.ExtraParams[key]
-	if !ok || value == nil {
-		return ""
-	}
-	text, ok := value.(string)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(text)
-}
-
-// loadDatasetInstructions 从数据集文件加载指令数据
-// 支持 JSONL 格式，每行一个 JSON 对象
-func (e *StageExecutor) loadDatasetInstructions(ctx context.Context, datasetID string) ([]Instruction, error) {
-	// 获取数据集信息
-	dataset, err := e.datasetRepo.GetByID(ctx, datasetID)
-	if err != nil {
-		return nil, fmt.Errorf("获取数据集失败: %w", err)
-	}
-
-	// 检查文件路径
-	if dataset.FilePath == "" {
-		return nil, fmt.Errorf("数据集文件路径为空")
-	}
-
-	// 打开文件
-	file, err := os.Open(dataset.FilePath)
-	if err != nil {
-		return nil, fmt.Errorf("打开数据集文件失败: %w", err)
-	}
-	defer file.Close()
-
-	var instructions []Instruction
-	scanner := bufio.NewScanner(file)
-
-	// 设置较大的缓冲区以支持长行
-	buffer := make([]byte, 1024*64)
-	scanner.Buffer(buffer, 1024*1024)
-
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		line := strings.TrimSpace(scanner.Text())
-
-		// 跳过空行
-		if line == "" {
-			continue
-		}
-
-		var inst Instruction
-		if err := json.Unmarshal([]byte(line), &inst); err != nil {
-			logger.Warn("解析数据集行失败，跳过",
-				zap.Int("line", lineNum),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		// 验证必需字段
-		if inst.Instruction == "" {
-			logger.Warn("指令字段为空，跳过",
-				zap.Int("line", lineNum),
-			)
-			continue
-		}
-
-		instructions = append(instructions, inst)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("读取数据集文件失败: %w", err)
-	}
-
-	if len(instructions) == 0 {
-		return nil, fmt.Errorf("数据集中没有有效的指令数据")
-	}
-
-	logger.Info("成功加载数据集",
-		zap.String("dataset_id", datasetID),
-		zap.String("file_path", dataset.FilePath),
-		zap.Int("total_lines", lineNum),
-		zap.Int("valid_instructions", len(instructions)),
-	)
-
-	return instructions, nil
-}
-
-// StageExecutor 阶段执行器
 type StageExecutor struct {
 	configGen    *ConfigGenerator
 	manifestMgr  *ManifestManager
@@ -119,7 +29,6 @@ type StageExecutor struct {
 	runtimeImage string
 }
 
-// NewStageExecutor 创建阶段执行器
 func NewStageExecutor(workspaceRoot string, datasetRepo mysqlrepo.DatasetRepository, gcsClient *gcsclient.Client, runtimeImage string) *StageExecutor {
 	if strings.TrimSpace(runtimeImage) == "" {
 		runtimeImage = "easy-distill/easydistill:latest"
@@ -134,181 +43,122 @@ func NewStageExecutor(workspaceRoot string, datasetRepo mysqlrepo.DatasetReposit
 	}
 }
 
-// ExecuteStage 执行单个阶段
-func (e *StageExecutor) ExecuteStage(
-	ctx context.Context,
-	stage *types.StageRun,
-	pipeline *types.PipelineRun,
-	project *types.Project,
-) error {
-	logger.Info("开始执行阶段",
+func (e *StageExecutor) ExecuteStage(ctx context.Context, stage *types.StageRun, pipeline *types.PipelineRun, project *types.Project) error {
+	logger.Info("execute distill stage",
 		zap.String("stage_type", string(stage.StageType)),
 		zap.String("stage_id", stage.ID),
 	)
 
-	// 根据阶段类型执行不同逻辑
 	switch stage.StageType {
 	case types.StageTeacherConfig:
-		return e.executeTeacherConfig(ctx, stage, project, pipeline)
+		return e.executeTeacherConfig(stage, project)
 	case types.StageDatasetBuild:
 		return e.executeDatasetBuild(ctx, stage, project, pipeline)
 	case types.StageTeacherInfer:
 		return e.executeTeacherInfer(ctx, stage, project, pipeline)
 	case types.StageDataGovern:
-		return e.executeDataGovern(ctx, stage, project, pipeline)
+		return e.executeDataGovern(stage, project, pipeline)
 	case types.StageStudentTrain:
 		return e.executeStudentTrain(ctx, stage, project, pipeline)
 	case types.StageEvaluate:
 		return e.executeEvaluate(ctx, stage, project, pipeline)
 	default:
-		return fmt.Errorf("未知的阶段类型: %s", stage.StageType)
+		return fmt.Errorf("unknown stage type: %s", stage.StageType)
 	}
 }
 
-// executeTeacherConfig 执行阶段1: 教师模型配置验证
-func (e *StageExecutor) executeTeacherConfig(
-	ctx context.Context,
-	stage *types.StageRun,
-	project *types.Project,
-	pipeline *types.PipelineRun,
-) error {
-	logger.Info("验证教师模型配置")
-
-	// 验证教师模型配置
-	if project.TeacherModelConfig.ModelName == "" {
-		return fmt.Errorf("教师模型配置为空")
-	}
-
+func (e *StageExecutor) executeTeacherConfig(stage *types.StageRun, project *types.Project) error {
 	config := project.TeacherModelConfig
-
-	// 基本验证
-	if config.ModelName == "" {
-		return fmt.Errorf("教师模型名称不能为空")
+	if strings.TrimSpace(config.ModelName) == "" {
+		return fmt.Errorf("teacher model name is required")
 	}
 
-	if config.ProviderType == "" {
-		return fmt.Errorf("教师模型提供商类型不能为空")
-	}
-
-	// API 类型验证
-	if config.ProviderType == types.ProviderAPI {
+	switch config.ProviderType {
+	case types.ProviderAPI:
 		if strings.TrimSpace(config.Endpoint) == "" {
-			return fmt.Errorf("API 类型教师模型需要提供 endpoint")
+			return fmt.Errorf("api teacher endpoint is required")
 		}
-		if strings.TrimSpace(config.APISecretRef) == "" {
-			return fmt.Errorf("API 类型教师模型需要提供 api_secret_ref")
+		if strings.TrimSpace(config.APISecretRef) == "" && extraString(config, "api_key") == "" {
+			return fmt.Errorf("api teacher api_secret_ref or extra_params.api_key is required")
 		}
+	case types.ProviderLocal:
+		if localModelPath(config) == "" {
+			return fmt.Errorf("local teacher model_path is required")
+		}
+	default:
+		return fmt.Errorf("unsupported teacher provider_type: %s", config.ProviderType)
 	}
 
-	// 本地类型验证
-	if config.ProviderType == types.ProviderLocal {
-		if getExtraParamString(config, "model_path") == "" {
-			return fmt.Errorf("本地类型教师模型需要提供 model_path")
-		}
-	}
-
-	logger.Info("教师模型配置验证通过",
-		zap.String("model", config.ModelName),
-		zap.String("provider", string(config.ProviderType)),
-	)
-
-	// 保存配置到清单
 	stage.OutputManifest = map[string]string{
 		"teacher_model": config.ModelName,
 		"provider_type": string(config.ProviderType),
 		"validated_at":  time.Now().Format(time.RFC3339),
 	}
-
 	return nil
 }
 
-// executeDatasetBuild 执行阶段2: 数据集构建
-func (e *StageExecutor) executeDatasetBuild(
-	ctx context.Context,
-	stage *types.StageRun,
-	project *types.Project,
-	pipeline *types.PipelineRun,
-) error {
-	logger.Info("构建数据集清单")
-
+func (e *StageExecutor) executeDatasetBuild(ctx context.Context, stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
-
-	// 创建工作空间目录
 	workspace := e.configGen.GetRunWorkspace(projectID, runID)
+
 	dirs := []string{
+		filepath.Join(workspace, "configs"),
 		filepath.Join(workspace, "data", "seed"),
 		filepath.Join(workspace, "data", "generated"),
 		filepath.Join(workspace, "data", "filtered"),
-		filepath.Join(workspace, "configs"),
-		filepath.Join(workspace, "logs"),
+		filepath.Join(workspace, "logs", "teacher_infer"),
+		filepath.Join(workspace, "logs", "student_train"),
+		filepath.Join(workspace, "logs", "evaluate"),
 		filepath.Join(workspace, "models", "checkpoints"),
 		filepath.Join(workspace, "eval"),
 	}
-
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("创建目录失败 %s: %w", dir, err)
+			return fmt.Errorf("create workspace directory %s: %w", dir, err)
 		}
 	}
 
-	logger.Info("工作空间目录创建完成", zap.String("workspace", workspace))
-
-	// 从实际数据集加载指令数据
-	logger.Info("开始加载数据集", zap.String("dataset_id", pipeline.DatasetID))
-
 	instructions, err := e.loadDatasetInstructions(ctx, pipeline.DatasetID)
 	if err != nil {
-		return fmt.Errorf("加载数据集失败: %w", err)
+		return err
 	}
-
 	if err := e.manifestMgr.CreateSeedManifest(projectID, runID, instructions); err != nil {
-		return fmt.Errorf("创建种子数据清单失败: %w", err)
+		return fmt.Errorf("create seed manifest: %w", err)
+	}
+	templatePath, err := e.manifestMgr.CreateDefaultChatTemplate(projectID, runID)
+	if err != nil {
+		return err
 	}
 
-	logger.Info("种子数据清单创建完成", zap.Int("count", len(instructions)))
-
-	// 保存清单信息
 	stage.OutputManifest = map[string]string{
-		"seed_count": fmt.Sprintf("%d", len(instructions)),
-		"workspace":  workspace,
-		"created_at": time.Now().Format(time.RFC3339),
+		"seed_count":    fmt.Sprintf("%d", len(instructions)),
+		"workspace":     workspace,
+		"template_path": templatePath,
+		"created_at":    time.Now().Format(time.RFC3339),
 	}
-
 	return nil
 }
 
-// executeTeacherInfer 执行阶段3: 教师模型推理
-func (e *StageExecutor) executeTeacherInfer(
-	ctx context.Context,
-	stage *types.StageRun,
-	project *types.Project,
-	pipeline *types.PipelineRun,
-) error {
-	logger.Info("执行教师模型推理")
-
+func (e *StageExecutor) executeTeacherInfer(ctx context.Context, stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
 
-	// 生成配置文件
 	configData, err := e.configGen.GenerateTeacherInferConfig(project, runID)
 	if err != nil {
-		return fmt.Errorf("生成教师推理配置失败: %w", err)
+		return fmt.Errorf("generate teacher infer config: %w", err)
 	}
-
-	// 保存配置文件
 	configPath := e.configGen.GetConfigPath(projectID, runID, "teacher_infer")
-	if err := os.WriteFile(configPath, configData, 0644); err != nil {
-		return fmt.Errorf("保存配置文件失败: %w", err)
+	if err := writeConfig(configPath, configData); err != nil {
+		return err
 	}
 	stage.ConfigPath = configPath
 
-	logger.Info("配置文件已生成", zap.String("config", configPath))
-
-	// 提交 gcs-v2 容器任务执行教师推理
 	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
 		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
 		Image:             e.runtimeImage,
+		Command:           "python",
+		Args:              []string{"-m", "easydistill.kd.infer", "--config", configPath},
 		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
 		ConfigPath:        configPath,
 		LogPath:           e.configGen.GetLogPath(projectID, runID, "teacher_infer"),
@@ -317,23 +167,14 @@ func (e *StageExecutor) executeTeacherInfer(
 		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs,
 		SelectedResources: pipeline.ResourceRequest.SelectedResources,
 	})
-
 	if err != nil {
-		return fmt.Errorf("启动容器失败: %w", err)
+		return fmt.Errorf("start teacher infer container: %w", err)
 	}
-
-	logger.Info("容器已启动", zap.String("container_id", containerID))
-
-	// 等待容器完成
 	if err := e.waitForContainerTask(ctx, containerID); err != nil {
-		return fmt.Errorf("容器执行失败: %w", err)
+		return fmt.Errorf("teacher infer container failed: %w", err)
 	}
 
-	logger.Info("教师模型推理完成")
-
-	// 统计生成的数据
 	stats, _ := e.manifestMgr.GetManifestStats(projectID, runID)
-
 	stage.ContainerID = containerID
 	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "teacher_infer")
 	stage.OutputManifest = map[string]string{
@@ -341,46 +182,23 @@ func (e *StageExecutor) executeTeacherInfer(
 		"labeled_count": fmt.Sprintf("%d", stats["labeled"]),
 		"config_path":   configPath,
 	}
-
 	return nil
 }
 
-// executeDataGovern 执行阶段4: 数据治理
-func (e *StageExecutor) executeDataGovern(
-	ctx context.Context,
-	stage *types.StageRun,
-	project *types.Project,
-	pipeline *types.PipelineRun,
-) error {
-	logger.Info("执行数据治理")
-
+func (e *StageExecutor) executeDataGovern(stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
 
-	// 加载标注数据
 	labeled, err := e.manifestMgr.LoadLabeledData(projectID, runID)
 	if err != nil {
-		return fmt.Errorf("加载标注数据失败: %w", err)
+		return fmt.Errorf("load labeled data: %w", err)
 	}
 
-	logger.Info("标注数据加载完成", zap.Int("count", len(labeled)))
-
-	// 数据治理
 	train, test, stats := e.dataGovernor.FilterData(labeled)
-
-	logger.Info(e.dataGovernor.GetFilterStats(stats))
-
-	// 保存过滤后的数据
 	if err := e.manifestMgr.SaveFilteredData(projectID, runID, train, test); err != nil {
-		return fmt.Errorf("保存过滤数据失败: %w", err)
+		return fmt.Errorf("save filtered data: %w", err)
 	}
 
-	logger.Info("数据治理完成",
-		zap.Int("train", len(train)),
-		zap.Int("test", len(test)),
-	)
-
-	// 保存统计信息
 	filterRate := 0.0
 	if stats["total"] > 0 {
 		filterRate = float64(stats["filtered"]) / float64(stats["total"])
@@ -396,41 +214,29 @@ func (e *StageExecutor) executeDataGovern(
 		"test_count":  len(test),
 		"filter_rate": filterRate,
 	}
-
 	return nil
 }
 
-// executeStudentTrain 执行阶段5: 学生模型训练
-func (e *StageExecutor) executeStudentTrain(
-	ctx context.Context,
-	stage *types.StageRun,
-	project *types.Project,
-	pipeline *types.PipelineRun,
-) error {
-	logger.Info("执行学生模型训练")
-
+func (e *StageExecutor) executeStudentTrain(ctx context.Context, stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
 
-	// 生成训练配置
 	configData, err := e.configGen.GenerateStudentTrainConfig(project, pipeline, runID)
 	if err != nil {
-		return fmt.Errorf("生成训练配置失败: %w", err)
+		return fmt.Errorf("generate student train config: %w", err)
 	}
-
-	// 保存配置文件
 	configPath := e.configGen.GetConfigPath(projectID, runID, "student_train")
-	if err := os.WriteFile(configPath, configData, 0644); err != nil {
-		return fmt.Errorf("保存配置文件失败: %w", err)
+	if err := writeConfig(configPath, configData); err != nil {
+		return err
 	}
 	stage.ConfigPath = configPath
 
-	logger.Info("训练配置已生成", zap.String("config", configPath))
-
-	// 提交 gcs-v2 容器任务执行学生训练
+	xpuCount := xpuCountForRequest(pipeline.ResourceRequest.GPUCount, pipeline.ResourceRequest.GPUDeviceIDs)
 	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
 		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
 		Image:             e.runtimeImage,
+		Command:           "accelerate",
+		Args:              easyDistillTrainArgs(configPath, xpuCount),
 		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
 		ConfigPath:        configPath,
 		LogPath:           e.configGen.GetLogPath(projectID, runID, "student_train"),
@@ -439,98 +245,63 @@ func (e *StageExecutor) executeStudentTrain(
 		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs,
 		SelectedResources: pipeline.ResourceRequest.SelectedResources,
 	})
-
 	if err != nil {
-		return fmt.Errorf("启动训练容器失败: %w", err)
+		return fmt.Errorf("start student train container: %w", err)
 	}
-
-	logger.Info("训练容器已启动", zap.String("container_id", containerID))
-
-	// 等待容器完成（训练可能需要很长时间）
 	if err := e.waitForContainerTask(ctx, containerID); err != nil {
-		return fmt.Errorf("训练失败: %w", err)
+		return fmt.Errorf("student train container failed: %w", err)
 	}
 
-	logger.Info("学生模型训练完成")
-
+	checkpointPath := filepath.Join(e.configGen.GetRunWorkspace(projectID, runID), "models", "checkpoints")
 	stage.ContainerID = containerID
 	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "student_train")
 	stage.OutputManifest = map[string]string{
 		"container_id":    containerID,
-		"checkpoint_path": filepath.Join(e.configGen.GetRunWorkspace(projectID, runID), "models", "checkpoints"),
+		"checkpoint_path": checkpointPath,
 		"config_path":     configPath,
 	}
-
 	return nil
 }
 
-// executeEvaluate 执行阶段6: 模型评估
-func (e *StageExecutor) executeEvaluate(
-	ctx context.Context,
-	stage *types.StageRun,
-	project *types.Project,
-	pipeline *types.PipelineRun,
-) error {
-	logger.Info("执行模型评估")
-
+func (e *StageExecutor) executeEvaluate(ctx context.Context, stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
 
-	// 生成评估配置
 	configData, err := e.configGen.GenerateEvaluateConfig(project, runID)
 	if err != nil {
-		return fmt.Errorf("生成评估配置失败: %w", err)
+		return fmt.Errorf("generate evaluate config: %w", err)
 	}
-
-	// 保存配置文件
 	configPath := e.configGen.GetConfigPath(projectID, runID, "evaluate")
-	if err := os.WriteFile(configPath, configData, 0644); err != nil {
-		return fmt.Errorf("保存配置文件失败: %w", err)
+	if err := writeConfig(configPath, configData); err != nil {
+		return err
 	}
 	stage.ConfigPath = configPath
 
-	logger.Info("评估配置已生成", zap.String("config", configPath))
-
-	// 提交 gcs-v2 容器任务执行评估
 	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
 		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
 		Image:             e.runtimeImage,
+		Command:           "python",
+		Args:              []string{"-m", "easydistill.eval.data_eval", "--config", configPath},
 		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
 		ConfigPath:        configPath,
 		LogPath:           e.configGen.GetLogPath(projectID, runID, "evaluate"),
 		Env:               "GCS_DISTILL_STAGE=evaluate;GCS_DISTILL_PIPELINE_ID=" + pipeline.ID,
-		GPUs:              1,                                     // 评估只需要1个GPU
-		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs, // 但可以指定使用哪个GPU
+		GPUs:              1,
+		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs,
 		SelectedResources: pipeline.ResourceRequest.SelectedResources,
 	})
-
 	if err != nil {
-		return fmt.Errorf("启动评估容器失败: %w", err)
+		return fmt.Errorf("start evaluate container: %w", err)
 	}
-
-	logger.Info("评估容器已启动", zap.String("container_id", containerID))
-
-	// 等待容器完成
 	if err := e.waitForContainerTask(ctx, containerID); err != nil {
-		return fmt.Errorf("评估失败: %w", err)
+		return fmt.Errorf("evaluate container failed: %w", err)
 	}
 
-	logger.Info("模型评估完成")
-
-	// 解析评估结果并保存到 stage.Metrics
 	resultPath := filepath.Join(e.configGen.GetRunWorkspace(projectID, runID), "eval", "results.json")
 	metrics, err := e.parseEvaluationResults(resultPath)
 	if err != nil {
-		// 如果解析失败，记录警告但不中断流程
-		logger.Warn("解析评估结果失败",
-			zap.String("result_path", resultPath),
-			zap.Error(err),
-		)
-		metrics = map[string]interface{}{
-			"error": fmt.Sprintf("解析评估结果失败: %v", err),
-		}
-	} else {
-		logger.Info("评估结果解析成功", zap.Any("metrics", metrics))
+		logger.Warn("parse evaluation results failed", zap.String("result_path", resultPath), zap.Error(err))
+		metrics = map[string]interface{}{"error": err.Error()}
 	}
 
 	stage.ContainerID = containerID
@@ -541,31 +312,114 @@ func (e *StageExecutor) executeEvaluate(
 		"result_path":  resultPath,
 		"config_path":  configPath,
 	}
-
 	return nil
 }
 
-// parseEvaluationResults 解析评估结果文件
-func (e *StageExecutor) parseEvaluationResults(resultPath string) (map[string]interface{}, error) {
-	// 检查文件是否存在
-	if _, err := os.Stat(resultPath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("评估结果文件不存在: %s", resultPath)
+func (e *StageExecutor) loadDatasetInstructions(ctx context.Context, datasetID string) ([]Instruction, error) {
+	dataset, err := e.datasetRepo.GetByID(ctx, datasetID)
+	if err != nil {
+		return nil, fmt.Errorf("get dataset: %w", err)
+	}
+	if strings.TrimSpace(dataset.FilePath) == "" {
+		return nil, fmt.Errorf("dataset file_path is required")
 	}
 
-	// 读取结果文件
+	data, err := os.ReadFile(dataset.FilePath)
+	if err != nil {
+		return nil, fmt.Errorf("read dataset file: %w", err)
+	}
+
+	instructions, scanned, err := parseInstructionFile(data)
+	if err != nil {
+		return nil, err
+	}
+	if len(instructions) == 0 {
+		return nil, fmt.Errorf("dataset contains no valid instruction records")
+	}
+
+	logger.Info("dataset loaded",
+		zap.String("dataset_id", datasetID),
+		zap.String("file_path", dataset.FilePath),
+		zap.Int("scanned_records", scanned),
+		zap.Int("valid_instructions", len(instructions)),
+	)
+	return instructions, nil
+}
+
+func parseInstructionFile(data []byte) ([]Instruction, int, error) {
+	trimmed := bytes.TrimSpace(data)
+	if len(trimmed) == 0 {
+		return nil, 0, nil
+	}
+
+	if trimmed[0] == '[' {
+		var items []Instruction
+		if err := json.Unmarshal(trimmed, &items); err != nil {
+			return nil, 0, fmt.Errorf("parse dataset JSON array: %w", err)
+		}
+		return validInstructions(items), len(items), nil
+	}
+
+	var items []Instruction
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	scanner.Buffer(make([]byte, 64*1024), 16*1024*1024)
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var item Instruction
+		if err := json.Unmarshal([]byte(line), &item); err != nil {
+			logger.Warn("skip invalid dataset JSONL line", zap.Int("line", lineNum), zap.Error(err))
+			continue
+		}
+		items = append(items, item)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, lineNum, fmt.Errorf("read dataset JSONL: %w", err)
+	}
+	return validInstructions(items), lineNum, nil
+}
+
+func validInstructions(items []Instruction) []Instruction {
+	out := make([]Instruction, 0, len(items))
+	for _, item := range items {
+		if strings.TrimSpace(item.Instruction) != "" {
+			out = append(out, item)
+		}
+	}
+	return out
+}
+
+func writeConfig(path string, data []byte) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
+	}
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		return fmt.Errorf("write config file: %w", err)
+	}
+	return nil
+}
+
+func (e *StageExecutor) parseEvaluationResults(resultPath string) (map[string]interface{}, error) {
 	data, err := os.ReadFile(resultPath)
 	if err != nil {
-		return nil, fmt.Errorf("读取评估结果文件失败: %w", err)
+		return nil, fmt.Errorf("read evaluation results: %w", err)
 	}
-
-	// 解析 JSON
 	var results map[string]interface{}
 	if err := json.Unmarshal(data, &results); err != nil {
-		return nil, fmt.Errorf("解析评估结果 JSON 失败: %w", err)
+		return nil, fmt.Errorf("parse evaluation results JSON: %w", err)
 	}
-
-	// 返回解析后的指标
 	return results, nil
+}
+
+func localModelPath(config types.ModelConfig) string {
+	if strings.TrimSpace(config.ModelPath) != "" {
+		return strings.TrimSpace(config.ModelPath)
+	}
+	return strings.TrimSpace(extraString(config, "model_path"))
 }
 
 func stageContainerName(pipelineID string, stageType types.StageType) string {
@@ -633,16 +487,17 @@ func xpuCountForRequest(gpuCount int, gpuDeviceIDs string) int {
 	return 1
 }
 
-// ContainerRequest 容器请求
 type ContainerRequest struct {
 	ContainerName     string
 	Image             string
+	Command           string
+	Args              []string
 	HostWorkDir       string
 	ConfigPath        string
 	LogPath           string
 	Env               string
 	GPUs              int
-	GPUDeviceIDs      string // GPU 设备 ID，如 "0,1,2"
+	GPUDeviceIDs      string
 	SelectedResources []types.SelectedResource
 }
 
@@ -652,16 +507,20 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 	}
 	workDir := strings.TrimSpace(req.HostWorkDir)
 	if workDir == "" {
-		return "", fmt.Errorf("容器任务工作目录为空")
+		return "", fmt.Errorf("container working_dir is required")
 	}
 	containerName := strings.TrimSpace(req.ContainerName)
 	if containerName == "" {
 		return "", fmt.Errorf("container name is required")
 	}
-
 	configPath := strings.TrimSpace(req.ConfigPath)
 	if configPath == "" {
 		return "", fmt.Errorf("config path is required")
+	}
+
+	args := append([]string(nil), req.Args...)
+	if len(args) == 0 {
+		args = []string{"--config", configPath}
 	}
 
 	resp, err := e.gcsClient.CreateContainerTask(ctx, gcsclient.ContainerTaskRequest{
@@ -669,7 +528,8 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 		TaskID:            stableTaskID(containerName + "|" + workDir),
 		ContainerName:     containerName,
 		Image:             req.Image,
-		Args:              []string{"--config", configPath},
+		Command:           req.Command,
+		Args:              args,
 		WorkingDir:        workDir,
 		LogPath:           req.LogPath,
 		Envs:              req.Env,
@@ -686,6 +546,26 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 	return containerName, nil
 }
 
+func easyDistillTrainArgs(configPath string, xpuCount int) []string {
+	args := []string{"launch"}
+	if xpuCount > 1 {
+		args = append(args, "--multi_gpu")
+	}
+	args = append(args,
+		"--num_processes", strconv.Itoa(maxInt(1, xpuCount)),
+		"--module", "easydistill.kd.train",
+		"--config", configPath,
+	)
+	return args
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName string) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -693,73 +573,46 @@ func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName 
 	for {
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("等待 gcs-v2 容器任务超时: %w", ctx.Err())
+			return fmt.Errorf("wait gcs-v2 container task timeout: %w", ctx.Err())
 		case <-ticker.C:
 			task, found, err := e.gcsClient.GetTask(ctx, containerName)
 			if err != nil {
-				logger.Warn("查询 gcs-v2 任务状态失败", zap.String("container_name", containerName), zap.Error(err))
+				logger.Warn("query gcs-v2 task failed", zap.String("container_name", containerName), zap.Error(err))
 				continue
 			}
 			if !found {
-				logger.Warn("gcs-v2 暂未返回任务状态", zap.String("container_name", containerName))
+				logger.Warn("gcs-v2 task not found yet", zap.String("container_name", containerName))
 				continue
 			}
-			logger.Info("gcs-v2 容器任务状态",
-				zap.String("container_name", containerName),
-				zap.Int("state", task.TaskStates),
-				zap.String("time", task.TaskTime),
-			)
 			if task.TaskStates == gcsclient.TaskStateContainerDone {
 				return nil
 			}
 			if task.TaskStates >= gcsclient.TaskStateBaseError {
-				return fmt.Errorf("gcs-v2 容器任务失败，状态码: %d", task.TaskStates)
+				return fmt.Errorf("gcs-v2 container task failed, state=%d", task.TaskStates)
 			}
 		}
 	}
 }
 
-// ReadLogFile 从工作空间读取日志文件
 func (e *StageExecutor) ReadLogFile(projectID, runID, stageName string) (string, error) {
 	logPath := e.configGen.GetLogPath(projectID, runID, stageName)
-
-	// 检查日志文件是否存在
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("日志文件不存在: %s", logPath)
-	}
-
-	// 读取日志文件
 	content, err := os.ReadFile(logPath)
 	if err != nil {
-		return "", fmt.Errorf("读取日志文件失败: %w", err)
+		return "", fmt.Errorf("read log file: %w", err)
 	}
-
 	return string(content), nil
 }
 
-// TailLogFile 读取日志文件的最后 N 行
 func (e *StageExecutor) TailLogFile(projectID, runID, stageName string, lines int) (string, error) {
 	logPath := e.configGen.GetLogPath(projectID, runID, stageName)
-
-	// 检查日志文件是否存在
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("日志文件不存在: %s", logPath)
-	}
-
-	// 读取整个文件
 	content, err := os.ReadFile(logPath)
 	if err != nil {
-		return "", fmt.Errorf("读取日志文件失败: %w", err)
+		return "", fmt.Errorf("read log file: %w", err)
 	}
-
-	// 按行分割
 	allLines := strings.Split(string(content), "\n")
-
-	// 获取最后 N 行
 	start := len(allLines) - lines
 	if start < 0 {
 		start = 0
 	}
-
 	return strings.Join(allLines[start:], "\n"), nil
 }
