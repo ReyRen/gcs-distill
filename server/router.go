@@ -44,7 +44,7 @@ func NewRouter(
 	// 创建处理器
 	projectHandler := handlers.NewProjectHandler(projectSvc)
 	datasetHandler := handlers.NewDatasetHandler(datasetSvc)
-	pipelineHandler := handlers.NewPipelineHandler(pipelineSvc)
+	pipelineHandler := handlers.NewPipelineHandler(pipelineSvc, gcsClient)
 	modelHandler := handlers.NewModelHandler(modelSvc)
 	resourceHandler := handlers.NewResourceHandler(gcsClient)
 
@@ -103,6 +103,7 @@ func (r *Router) setupRoutes() {
 		{
 			datasets.POST("", r.datasetHandler.CreateDataset)
 			datasets.GET("", r.datasetHandler.ListDatasets)
+			datasets.GET("/candidates", r.datasetHandler.ListDatasetCandidates)
 			datasets.GET("/:id", r.datasetHandler.GetDataset)
 			datasets.PUT("/:id", r.datasetHandler.UpdateDataset)
 			datasets.DELETE("/:id", r.datasetHandler.DeleteDataset)
@@ -119,6 +120,7 @@ func (r *Router) setupRoutes() {
 			pipelines.GET("/:id/stages", r.pipelineHandler.ListStages)
 			pipelines.GET("/:id/stages/:stage_id/logs", r.pipelineHandler.GetStageLogs)
 			pipelines.GET("/:id/stages/:stage_id/logs/stream", r.pipelineHandler.StreamStageLogs)
+			pipelines.GET("/:id/stages/:stage_id/logs/ws", r.pipelineHandler.StreamStageLogsWebSocket)
 			pipelines.GET("/:id/stages/:stage_id/logs/download", r.pipelineHandler.DownloadStageLogs)
 		}
 

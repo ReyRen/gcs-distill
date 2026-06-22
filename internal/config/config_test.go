@@ -31,8 +31,10 @@ conn_max_lifetime_seconds = 600
 
 [storage]
 type = "nfs"
+root_path = "/mnt/shared"
 base_path = "/mnt/shared/distill"
 models_base_path = "/mnt/shared/distill/models"
+datasets_base_path = "/mnt/shared/infer-center/model-distill/datasets"
 
 [gcs]
 base_url = "http://gcs-v2:8072/api/v1/"
@@ -71,6 +73,9 @@ runtime_image = "easy-distill/easydistill:test"
 	}
 	if cfg.GCS.BaseURL != "http://gcs-v2:8072/api/v1" {
 		t.Fatalf("gcs base url = %q", cfg.GCS.BaseURL)
+	}
+	if cfg.Storage.DatasetsBasePath != "/mnt/shared/infer-center/model-distill/datasets" {
+		t.Fatalf("datasets base path = %q", cfg.Storage.DatasetsBasePath)
 	}
 	if cfg.Executor.RuntimeImage != "easy-distill/easydistill:test" {
 		t.Fatalf("runtime image = %q", cfg.Executor.RuntimeImage)
@@ -111,6 +116,9 @@ func TestDefaultUsesSharedGCSServiceConfig(t *testing.T) {
 	}
 	if cfg.Storage.BasePath != "/storage-root-jfs/distill" {
 		t.Fatalf("storage base path = %q", cfg.Storage.BasePath)
+	}
+	if cfg.Storage.DatasetsBasePath != "/storage-root-jfs/infer-center/model-distill/datasets" {
+		t.Fatalf("datasets base path = %q", cfg.Storage.DatasetsBasePath)
 	}
 	if cfg.Executor.WorkspaceRoot != cfg.Storage.BasePath {
 		t.Fatalf("executor workspace root = %q, want storage base path %q", cfg.Executor.WorkspaceRoot, cfg.Storage.BasePath)

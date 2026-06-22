@@ -63,7 +63,7 @@ flowchart LR
 | --- | --- | --- |
 | 项目列表 | 分页查看、创建、删除项目 | `GET /projects`, `POST /projects`, `DELETE /projects/{id}` |
 | 项目详情 | 项目信息、教师/学生模型配置、评估配置 | `GET /projects/{id}`, `PUT /projects/{id}` |
-| 数据集管理 | 上传文件、登记已有路径、查看记录数 | `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets?project_id=` |
+| 数据集管理 | 获取共享目录候选、上传文件、登记已有路径、查看记录数 | `GET /datasets/candidates`, `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets?project_id=` |
 | 流水线列表 | 查看项目下所有运行记录 | `GET /pipelines?project_id=` |
 | 创建流水线 | 选择项目、数据集、训练参数、资源 | `POST /pipelines` |
 | 流水线详情 | 状态轮询、阶段进度、日志查看、取消 | `GET /pipelines/{id}`, `GET /pipelines/{id}/stages`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
@@ -163,6 +163,16 @@ export interface Dataset {
   file_path?: string;
   record_count?: number;
   created_at?: string;
+}
+
+export interface DatasetCandidate {
+  name: string;
+  file_path: string;
+  source_dir?: string;
+  is_directory: boolean;
+  size_bytes: number;
+  updated_at: string;
+  record_count: number;
 }
 
 export interface TrainingConfig {
@@ -292,7 +302,30 @@ Content-Type: application/json
 
 ### 6.2 数据集上传或登记
 
-推荐前端优先使用上传接口：
+数据集输入目录和 model-center 使用同一个共享存储根，但 distill 不放在 model-center 目录下。默认目录是：
+
+```text
+/storage-root-jfs/infer-center/model-distill/datasets/
+```
+
+前端需要先拉取可选数据集，再让用户选择：
+
+```http
+GET /api/v1/datasets/candidates
+```
+
+返回结构：
+
+```ts
+interface DatasetCandidateList {
+  items: DatasetCandidate[];
+  total: number;
+}
+```
+
+`DatasetCandidate.file_path` 是后续登记 import 数据集时要提交的路径。后端只扫描该目录下一层文件，以及一层子目录内的 `.json`、`.jsonl`、`.ndjson`、`.txt` 文件；目录不存在时返回空数组。
+
+如果用户上传新数据集，使用：
 
 ```http
 POST /api/v1/projects/{project_id}/datasets
@@ -307,9 +340,9 @@ Content-Type: multipart/form-data
 | `name` | 否 | 不填时使用文件名 |
 | `description` | 否 | 数据集说明 |
 
-上传后后端会把文件保存到共享存储，并统计非空行数作为 `record_count`。
+上传后后端会把文件保存到 `storage.datasets_base_path/{dataset_id}/`，并统计非空行数作为 `record_count`。
 
-如果数据已经在共享存储上，也可以登记路径：
+如果数据已经在共享存储候选列表中，登记路径：
 
 ```http
 POST /api/v1/datasets
@@ -320,14 +353,14 @@ Content-Type: application/json
 {
   "project_id": "project-id",
   "name": "种子数据",
-  "description": "已存在共享存储上的 JSONL",
+  "description": "共享存储中的 JSONL",
   "source_type": "import",
-  "file_path": "/storage-root-jfs/distill/imports/seeds.jsonl",
+  "file_path": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed/train.jsonl",
   "record_count": 1000
 }
 ```
 
-`source_type` 只能是 `upload`、`import`、`generated`。
+`source_type` 只能是 `upload`、`import`、`generated`。`source_type=import` 时，`file_path` 必须位于 `storage.datasets_base_path` 下；删除 import 数据集只删除数据库记录，不删除共享源文件。
 
 ### 6.3 创建流水线
 
@@ -432,29 +465,40 @@ POST /api/v1/pipelines/{id}/cancel
 
 ## 8. 日志对接
 
-完整日志：
+日志读取参考 `gcs-model-center-v2` 的模式：`gcs-distill` 不直接读 worker 本地文件，而是根据阶段记录中的 `container_id` 代理 `gcs-v2` 的 task 日志接口。
+
+Tail 日志返回 `text/plain`：
 
 ```http
-GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs
+GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs?tail=100
 ```
 
-Tail 日志：
+兼容旧路径，同样返回 `text/plain`，不是 SSE，也不是 WebSocket：
 
 ```http
 GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs/stream?tail=100
 ```
 
-下载日志：
+实时日志使用 WebSocket：
+
+```text
+ws://<distill.host>:8080/api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs/ws?tail=100
+```
+
+gcs-v2 会先发送最近 `tail` 行快照，之后持续推送新增日志内容。前端日志面板建议优先连接 `/logs/ws`；连接失败时再降级轮询 `/logs?tail=100`。
+
+下载日志快照：
 
 ```http
-GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs/download
+GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs/download?tail=10000
 ```
 
 注意：
 
-- `logs/stream` 当前不是 SSE，也不是 WebSocket，而是一次性返回最近 N 行日志；前端如需“实时日志”，需要定时轮询该接口。
-- 阶段尚未开始时，接口会返回 200，并在 `data.logs` 中提示“日志路径尚未设置”。
-- 日志文件不存在或读取失败时，接口也可能返回 200，并把失败信息放在 `data.logs` 里。前端日志面板应直接展示 `data.logs`。
+- 阶段尚未提交到容器时没有 `container_id`，日志接口返回 `404`，前端显示“日志尚未准备”即可。
+- `logs` 和 `logs/stream` 不走通用 JSON wrapper，成功时直接读取响应文本。
+- WebSocket 消息是纯文本片段，前端直接 append 到日志缓冲区即可。
+- 日志下载接口返回二进制文件，不走通用 JSON wrapper。
 
 ## 9. 资源选择对接
 
@@ -533,6 +577,12 @@ export const distillApi = {
   createProject: (payload: Project) =>
     request<Project>("/projects", { method: "POST", body: JSON.stringify(payload) }),
 
+  listDatasetCandidates: () =>
+    request<{ items: DatasetCandidate[]; total: number }>("/datasets/candidates"),
+
+  importDataset: (payload: Dataset) =>
+    request<Dataset>("/datasets", { method: "POST", body: JSON.stringify(payload) }),
+
   uploadDataset: async (projectId: string, file: File, name?: string, description?: string) => {
     const form = new FormData();
     form.append("file", file);
@@ -561,9 +611,10 @@ export const distillApi = {
     request<StageRun[]>(`/pipelines/${pipelineId}/stages`),
 
   tailStageLogs: (pipelineId: string, stageId: string, tail = 100) =>
-    request<{ logs: string; log_path?: string; stage_id?: string; stage_type?: StageType; status?: PipelineStatus }>(
-      `/pipelines/${pipelineId}/stages/${stageId}/logs/stream?tail=${tail}`,
-    ),
+    request<string>(`/pipelines/${pipelineId}/stages/${stageId}/logs?tail=${tail}`),
+
+  stageLogWsURL: (pipelineId: string, stageId: string, tail = 100) =>
+    `${API_BASE.replace(/^http/, "ws")}/pipelines/${pipelineId}/stages/${stageId}/logs/ws?tail=${tail}`,
 };
 ```
 
@@ -572,11 +623,14 @@ export const distillApi = {
 ## 11. 实现注意事项
 
 - 创建项目和更新项目使用同一个 `Project` 结构；更新时路径参数 `id` 会覆盖 body 内的 `id`。
-- 创建数据集有两种模式：JSON 登记和 multipart 上传。前端普通用户建议只暴露上传模式，避免随意填写服务器路径。
+- 创建数据集有三种入口：候选目录登记、multipart 上传、系统生成。普通用户建议暴露候选选择和上传，不允许手填任意服务器路径。
+- `source_type=import` 的 `file_path` 必须来自 `GET /datasets/candidates` 返回的 `file_path`。
 - `GET /datasets` 和 `GET /pipelines` 都必须带 `project_id`。
 - 流水线创建后不会自动启动，需要再调用 `POST /pipelines/{id}/start`。
 - `POST /pipelines/{id}/start` 只允许 `pending` 状态调用，重复点击会失败；前端按钮需要防抖和状态禁用。
-- 日志下载接口返回二进制文件，不走通用 JSON wrapper。
+- `GET /logs` 和 `GET /logs/stream` 成功时返回纯文本，不走通用 JSON wrapper。
+- `GET /logs/download` 返回二进制文件，不走通用 JSON wrapper。
+- `GET /logs/ws` 是实时日志首选入口，消息是纯文本片段。
 - 时间字段是 ISO/RFC3339 字符串，前端展示时统一转换为本地时间。
 - `models/student` 只扫描 `models_base_path` 下包含 `config.json` 的目录。
 - 后端当前没有乐观锁和批量接口，编辑表单提交后建议刷新详情。
@@ -586,20 +640,21 @@ export const distillApi = {
 
 1. 打开 `GET /health`，确认服务可达。
 2. 打开 Swagger UI，确认版本和路径：`/swagger/index.html`。
-3. 调 `GET /models/student`，确认学生模型目录可被扫描。
-4. 调 `GET /resources/nodes`，确认 `gcs-v2` 代理可用。
-5. 创建项目，确保学生模型选择的是本地模型。
-6. 上传数据集，确认 `record_count` 和 `file_path` 返回。
-7. 创建流水线，确认阶段列表自动生成六条。
-8. 启动流水线，轮询 pipeline 和 stages。
-9. 查看 running 阶段日志 tail。
-10. 成功、失败、取消三种终态都要验证按钮和提示。
+3. 调 `GET /datasets/candidates`，确认共享数据集目录可扫描，空目录时返回空数组。
+4. 调 `GET /models/student`，确认学生模型目录可被扫描。
+5. 调 `GET /resources/nodes`，确认 `gcs-v2` 代理可用。
+6. 创建项目，确保学生模型选择的是本地模型。
+7. 上传或导入数据集，确认 `record_count` 和 `file_path` 返回。
+8. 创建流水线，确认阶段列表自动生成六条。
+9. 启动流水线，轮询 pipeline 和 stages。
+10. 查看 running 容器阶段日志：优先 `logs/ws`，失败时降级 `logs?tail=100`。
+11. 成功、失败、取消三种终态都要验证按钮和提示。
 
 ## 13. 待前后端确认项
 
 - 是否需要在 `gcs-distill` 前加统一登录鉴权和用户上下文。
 - 数据集文件格式是否固定为 JSONL，是否需要前端本地预校验 schema。
-- 教师模型 API key 由 `api_secret_ref` 引用还是前端提交明文后由后端托管。
+- 教师模型 API key 用 `api_secret_ref` 引用还是前端提交明文后由后端托管。
 - `gcs-v2` 节点返回字段是否需要稳定成前端专用 DTO。
-- 日志是否需要升级为 SSE/WebSocket；当前接口只是 tail 轮询。
+- WebSocket 日志是否需要在前端做断线重连和最大缓冲行数限制。
 - 是否需要流水线模板，减少训练参数表单复杂度。

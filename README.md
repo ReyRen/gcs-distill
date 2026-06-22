@@ -46,8 +46,8 @@ flowchart LR
 | 能力 | 说明 |
 | --- | --- |
 | 项目管理 | 保存教师模型、学生模型、目标任务、蒸馏参数和项目元数据 |
-| 数据集管理 | 支持数据集创建、上传、记录数统计、更新和删除 |
-| 流水线编排 | 维护蒸馏流水线运行、阶段状态、取消、日志查询和日志流 |
+| 数据集管理 | 从 `/storage-root-jfs/infer-center/model-distill/datasets` 扫描可选数据集，支持上传、登记、记录数统计、更新和删除 |
+| 流水线编排 | 维护蒸馏流水线运行、阶段状态、取消、日志 tail 和 WebSocket 实时日志 |
 | 配置生成 | 为 EasyDistill 阶段生成 `teacher_infer.json`、`student_train.json`、`evaluate.json` |
 | 共享存储 | 统一管理 configs、data、eval、logs、models/checkpoints 等运行目录 |
 | GCS 集成 | 使用 `gcs-v2` 通用容器任务执行 EasyDistill 阶段容器 |
@@ -81,6 +81,14 @@ flowchart LR
 
 共享存储必须在所有 `gcs-v2` 执行节点上以同一路径可访问，否则容器内配置路径会失效。
 
+前端可选择的数据集统一放在 `storage.datasets_base_path`，默认路径为：
+
+```text
+/storage-root-jfs/infer-center/model-distill/datasets/
+```
+
+`POST /projects/{id}/datasets` 上传的文件会保存到该目录下；`POST /datasets` 登记已有数据集时，`source_type=import` 的 `file_path` 也必须来自这个目录。
+
 ## API 速览
 
 统一前缀：`/api/v1`
@@ -89,9 +97,9 @@ flowchart LR
 | --- | --- |
 | 健康与文档 | `GET /health`, `GET /swagger/index.html`, `GET /swagger/openapi.json` |
 | 项目 | `POST /projects`, `GET /projects`, `GET /projects/{id}`, `PUT /projects/{id}`, `DELETE /projects/{id}` |
-| 数据集 | `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets`, `GET /datasets/{id}`, `PUT /datasets/{id}`, `DELETE /datasets/{id}` |
+| 数据集 | `GET /datasets/candidates`, `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets`, `GET /datasets/{id}`, `PUT /datasets/{id}`, `DELETE /datasets/{id}` |
 | 流水线 | `POST /pipelines`, `GET /pipelines`, `GET /pipelines/{id}`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
-| 阶段与日志 | `GET /pipelines/{id}/stages`, `GET /pipelines/{id}/stages/{stage_id}/logs`, `GET /pipelines/{id}/stages/{stage_id}/logs/stream`, `GET /pipelines/{id}/stages/{stage_id}/logs/download` |
+| 阶段与日志 | `GET /pipelines/{id}/stages`, `GET /pipelines/{id}/stages/{stage_id}/logs`, `GET /pipelines/{id}/stages/{stage_id}/logs/ws`, `GET /pipelines/{id}/stages/{stage_id}/logs/stream`, `GET /pipelines/{id}/stages/{stage_id}/logs/download` |
 | 模型与资源 | `GET /models/student`, `GET /models/student/{id}`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
 
 API 文档入口：
@@ -100,6 +108,8 @@ API 文档入口：
 | --- | --- |
 | Swagger UI | `http://<distill.host>:8080/swagger/index.html` |
 | OpenAPI JSON | `http://<distill.host>:8080/swagger/openapi.json` |
+
+日志接口与 `gcs-model-center-v2` 保持一致：`GET /logs` 返回 `text/plain` tail 内容，`GET /logs/ws` 通过 WebSocket 实时转发 `gcs-v2` task 日志；`GET /logs/stream` 仅作为兼容别名保留，不是 SSE。
 
 ## 快速启动
 
@@ -137,7 +147,7 @@ swagger -> server build -> install systemd unit -> enable service -> restart ser
 /root/go/src/gcs-distill/bin/gcs-distill-server --config /root/go/src/gcs-distill/config.toml
 ```
 
-默认配置会尽量复用 `gcs-model-center-v2` 的统一服务：MySQL 使用同一个 `ai_market`，GCS 地址指向同一个 `gcs-v2`，共享存储位于 `/storage-root-jfs/distill`。如果生产环境不希望在 `config.toml` 直接写数据库密码，可以清空 `database.password`，设置 `database.password_env = "AI_MARKET_DB_PASSWORD"`，并创建 `/etc/gcs-distill/gcs-distill.env`：
+默认配置会尽量复用 `gcs-model-center-v2` 的统一服务：MySQL 使用同一个 `ai_market`，GCS 地址指向同一个 `gcs-v2`，运行工作区位于 `/storage-root-jfs/distill`，前端可选数据集位于 `/storage-root-jfs/infer-center/model-distill/datasets`。如果生产环境不希望在 `config.toml` 直接写数据库密码，可以清空 `database.password`，设置 `database.password_env = "AI_MARKET_DB_PASSWORD"`，并创建 `/etc/gcs-distill/gcs-distill.env`：
 
 ```bash
 AI_MARKET_DB_PASSWORD=your-password
@@ -178,7 +188,7 @@ gcs-distill config/runtime_image -> gcs-v2 container job -> gcs-info-catch-v2 do
 | --- | --- |
 | `[server]` | HTTP 服务监听和运行模式 |
 | `[database]` | MySQL 连接、连接池和密码注入；默认复用 model-center 的 `ai_market` |
-| `[storage]` | distill 共享存储与模型目录 |
+| `[storage]` | distill 运行工作区、共享根、模型目录和前端可选数据集目录 |
 | `[gcs]` | `gcs-v2` REST API 地址和超时；默认与 model-center 指向同一套 GCS |
 | `[logging]` | 日志级别、输出和轮转 |
 | `[executor]` | 工作目录、并发度和 EasyDistill runtime 镜像 |

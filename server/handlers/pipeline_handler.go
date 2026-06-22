@@ -3,29 +3,30 @@ package handlers
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
-	"os"
 	"strconv"
 
+	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
 	"github.com/ReyRen/gcs-distill/internal/types"
 	"github.com/ReyRen/gcs-distill/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 )
 
-// PipelineHandler 流水线处理器
 type PipelineHandler struct {
 	pipelineSvc service.PipelineService
+	gcsClient   *gcsclient.Client
 }
 
-// NewPipelineHandler 创建流水线处理器
-func NewPipelineHandler(pipelineSvc service.PipelineService) *PipelineHandler {
+func NewPipelineHandler(pipelineSvc service.PipelineService, gcsClient *gcsclient.Client) *PipelineHandler {
 	return &PipelineHandler{
 		pipelineSvc: pipelineSvc,
+		gcsClient:   gcsClient,
 	}
 }
 
-// CreatePipeline 创建流水线
 func (h *PipelineHandler) CreatePipeline(c *gin.Context) {
 	var req types.PipelineRun
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -36,10 +37,7 @@ func (h *PipelineHandler) CreatePipeline(c *gin.Context) {
 		return
 	}
 
-	// 生成 ID
 	req.ID = uuid.New().String()
-
-	// 创建流水线
 	if err := h.pipelineSvc.CreatePipeline(c.Request.Context(), &req); err != nil {
 		_ = c.Error(err)
 
@@ -63,7 +61,6 @@ func (h *PipelineHandler) CreatePipeline(c *gin.Context) {
 	})
 }
 
-// GetPipeline 获取流水线
 func (h *PipelineHandler) GetPipeline(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -91,9 +88,7 @@ func (h *PipelineHandler) GetPipeline(c *gin.Context) {
 	})
 }
 
-// ListPipelines 列出流水线
 func (h *PipelineHandler) ListPipelines(c *gin.Context) {
-	// 解析查询参数
 	projectID := c.Query("project_id")
 	if projectID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -128,7 +123,6 @@ func (h *PipelineHandler) ListPipelines(c *gin.Context) {
 	})
 }
 
-// StartPipeline 启动流水线
 func (h *PipelineHandler) StartPipeline(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -154,7 +148,6 @@ func (h *PipelineHandler) StartPipeline(c *gin.Context) {
 	})
 }
 
-// CancelPipeline 取消流水线
 func (h *PipelineHandler) CancelPipeline(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
@@ -180,7 +173,6 @@ func (h *PipelineHandler) CancelPipeline(c *gin.Context) {
 	})
 }
 
-// ListStages 列出流水线的所有阶段
 func (h *PipelineHandler) ListStages(c *gin.Context) {
 	pipelineID := c.Param("id")
 	if pipelineID == "" {
@@ -208,260 +200,176 @@ func (h *PipelineHandler) ListStages(c *gin.Context) {
 	})
 }
 
-// GetStageLogs 获取阶段完整日志
 func (h *PipelineHandler) GetStageLogs(c *gin.Context) {
-	stageID := c.Param("stage_id")
-	if stageID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    http.StatusBadRequest,
-			"message": "阶段ID不能为空",
-		})
+	stage, containerName, ok := h.stageLogTarget(c)
+	if !ok {
 		return
 	}
 
-	// 获取阶段信息
-	stage, err := h.pipelineSvc.GetStage(c.Request.Context(), stageID)
+	tail := c.DefaultQuery("tail", "100")
+	logs, err := h.gcsClient.GetTaskLogs(c.Request.Context(), containerName, tail)
 	if err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "阶段不存在",
+		c.JSON(http.StatusBadGateway, gin.H{
+			"code":    http.StatusBadGateway,
+			"message": err.Error(),
 		})
 		return
 	}
 
-	// 检查日志路径
-	if stage.LogPath == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    http.StatusOK,
-			"message": "获取日志成功",
-			"data": gin.H{
-				"logs": "日志路径尚未设置，阶段可能还未开始执行",
-			},
-		})
-		return
-	}
-
-	// 读取日志文件
-	logContent, err := readLogFile(stage.LogPath)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    http.StatusOK,
-			"message": "获取日志成功",
-			"data": gin.H{
-				"logs": fmt.Sprintf("无法读取日志文件: %v", err),
-			},
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    http.StatusOK,
-		"message": "获取日志成功",
-		"data": gin.H{
-			"logs":      logContent,
-			"log_path":  stage.LogPath,
-			"stage_id":  stage.ID,
-			"stage_type": stage.StageType,
-		},
-	})
+	c.Header("X-GCS-Distill-Stage-ID", stage.ID)
+	c.Header("X-GCS-Distill-Stage-Type", string(stage.StageType))
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", logs)
 }
 
-// StreamStageLogs 实时流式获取阶段日志
 func (h *PipelineHandler) StreamStageLogs(c *gin.Context) {
-	stageID := c.Param("stage_id")
-	if stageID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    http.StatusBadRequest,
-			"message": "阶段ID不能为空",
-		})
-		return
-	}
-
-	// 获取可选的tail参数
-	tailLines := c.DefaultQuery("tail", "100")
-	tail, _ := strconv.Atoi(tailLines)
-	if tail <= 0 {
-		tail = 100
-	}
-
-	// 获取阶段信息
-	stage, err := h.pipelineSvc.GetStage(c.Request.Context(), stageID)
-	if err != nil {
-		_ = c.Error(err)
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "阶段不存在",
-		})
-		return
-	}
-
-	// 检查日志路径
-	if stage.LogPath == "" {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    http.StatusOK,
-			"message": "获取实时日志成功",
-			"data": gin.H{
-				"logs": "日志路径尚未设置，阶段可能还未开始执行",
-			},
-		})
-		return
-	}
-
-	// 读取日志文件的最后N行
-	logContent, err := readLogFileTail(stage.LogPath, tail)
-	if err != nil {
-		c.JSON(http.StatusOK, gin.H{
-			"code":    http.StatusOK,
-			"message": "获取实时日志成功",
-			"data": gin.H{
-				"logs": fmt.Sprintf("无法读取日志文件: %v", err),
-			},
-		})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":    http.StatusOK,
-		"message": "获取实时日志成功",
-		"data": gin.H{
-			"logs":       logContent,
-			"log_path":   stage.LogPath,
-			"stage_id":   stage.ID,
-			"stage_type": stage.StageType,
-			"status":     stage.Status,
-		},
-	})
+	h.GetStageLogs(c)
 }
 
-// DownloadStageLogs 下载阶段日志文件
-func (h *PipelineHandler) DownloadStageLogs(c *gin.Context) {
-	stageID := c.Param("stage_id")
-	if stageID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    http.StatusBadRequest,
-			"message": "阶段ID不能为空",
-		})
+func (h *PipelineHandler) StreamStageLogsWebSocket(c *gin.Context) {
+	stage, containerName, ok := h.stageLogTarget(c)
+	if !ok {
 		return
 	}
 
-	// 获取阶段信息
-	stage, err := h.pipelineSvc.GetStage(c.Request.Context(), stageID)
+	tail := c.DefaultQuery("tail", "100")
+	targetURL, err := h.gcsClient.TaskLogsWebSocketURL(containerName, tail)
 	if err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "阶段不存在",
+		c.JSON(http.StatusBadGateway, gin.H{
+			"code":    http.StatusBadGateway,
+			"message": err.Error(),
 		})
 		return
 	}
 
-	// 检查日志路径
-	if stage.LogPath == "" {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "日志文件不存在",
+	downstream, _, err := websocket.DefaultDialer.Dial(targetURL, nil)
+	if err != nil {
+		log.Printf("stage logs websocket dial failed pipeline_id=%s stage_id=%s container=%s target=%s error=%v",
+			stage.PipelineRunID, stage.ID, containerName, targetURL, err)
+		c.JSON(http.StatusBadGateway, gin.H{
+			"code":    http.StatusBadGateway,
+			"message": "连接 gcs-v2 日志 WebSocket 失败",
+		})
+		return
+	}
+	defer downstream.Close()
+
+	upstream, err := stageLogUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("stage logs websocket upgrade failed pipeline_id=%s stage_id=%s error=%v", stage.PipelineRunID, stage.ID, err)
+		return
+	}
+	defer upstream.Close()
+
+	log.Printf("stage logs websocket proxy started pipeline_id=%s stage_id=%s container=%s target=%s",
+		stage.PipelineRunID, stage.ID, containerName, targetURL)
+	proxyStageLogWebSocket(upstream, downstream)
+	log.Printf("stage logs websocket proxy ended pipeline_id=%s stage_id=%s container=%s", stage.PipelineRunID, stage.ID, containerName)
+}
+
+func (h *PipelineHandler) DownloadStageLogs(c *gin.Context) {
+	stage, containerName, ok := h.stageLogTarget(c)
+	if !ok {
+		return
+	}
+
+	tail := c.DefaultQuery("tail", "10000")
+	logs, err := h.gcsClient.GetTaskLogs(c.Request.Context(), containerName, tail)
+	if err != nil {
+		_ = c.Error(err)
+		c.JSON(http.StatusBadGateway, gin.H{
+			"code":    http.StatusBadGateway,
+			"message": err.Error(),
 		})
 		return
 	}
 
-	// 检查文件是否存在
-	if _, err := os.Stat(stage.LogPath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    http.StatusNotFound,
-			"message": "日志文件不存在",
-		})
-		return
-	}
-
-	// 设置下载文件名
-	filename := fmt.Sprintf("stage_%s_%s.log", stage.StageType, stage.ID[:8])
+	filename := fmt.Sprintf("stage_%s_%s.log", stage.StageType, shortID(stage.ID))
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Disposition", "attachment; filename="+filename)
-	c.Header("Content-Type", "application/octet-stream")
 	c.Header("Content-Transfer-Encoding", "binary")
-
-	// 发送文件
-	c.File(stage.LogPath)
+	c.Data(http.StatusOK, "application/octet-stream", logs)
 }
 
-// readLogFile 读取日志文件完整内容
-func readLogFile(logPath string) (string, error) {
-	// 检查文件是否存在
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("日志文件不存在")
+func (h *PipelineHandler) stageLogTarget(c *gin.Context) (*types.StageRun, string, bool) {
+	if h.gcsClient == nil {
+		c.JSON(http.StatusBadGateway, gin.H{
+			"code":    http.StatusBadGateway,
+			"message": "gcs-v2 client is not configured",
+		})
+		return nil, "", false
 	}
 
-	// 读取文件内容
-	content, err := os.ReadFile(logPath)
+	stageID := c.Param("stage_id")
+	if stageID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    http.StatusBadRequest,
+			"message": "阶段ID不能为空",
+		})
+		return nil, "", false
+	}
+
+	stage, err := h.pipelineSvc.GetStage(c.Request.Context(), stageID)
 	if err != nil {
-		return "", fmt.Errorf("读取日志文件失败: %w", err)
+		_ = c.Error(err)
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    http.StatusNotFound,
+			"message": "阶段不存在",
+		})
+		return nil, "", false
 	}
 
-	return string(content), nil
+	if pipelineID := c.Param("id"); pipelineID != "" && stage.PipelineRunID != pipelineID {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    http.StatusNotFound,
+			"message": "阶段不属于当前流水线",
+		})
+		return nil, "", false
+	}
+
+	if stage.ContainerID == "" {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    http.StatusNotFound,
+			"message": "阶段容器尚未创建，日志暂不可用",
+		})
+		return nil, "", false
+	}
+
+	return stage, stage.ContainerID, true
 }
 
-// readLogFileTail 读取日志文件的最后N行
-func readLogFileTail(logPath string, lines int) (string, error) {
-	// 检查文件是否存在
-	if _, err := os.Stat(logPath); os.IsNotExist(err) {
-		return "", fmt.Errorf("日志文件不存在")
+func shortID(id string) string {
+	if len(id) <= 8 {
+		return id
 	}
-
-	// 读取整个文件内容
-	content, err := os.ReadFile(logPath)
-	if err != nil {
-		return "", fmt.Errorf("读取日志文件失败: %w", err)
-	}
-
-	// 如果文件为空
-	if len(content) == 0 {
-		return "", nil
-	}
-
-	// 按行分割
-	text := string(content)
-	allLines := splitLines(text)
-
-	// 如果总行数小于等于请求的行数，返回全部
-	if len(allLines) <= lines {
-		return text, nil
-	}
-
-	// 返回最后N行
-	lastLines := allLines[len(allLines)-lines:]
-	return joinLines(lastLines), nil
+	return id[:8]
 }
 
-// splitLines 按换行符分割文本为行数组
-func splitLines(text string) []string {
-	if text == "" {
-		return []string{}
-	}
+var stageLogUpgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
 
-	// 处理不同的换行符格式
-	lines := []string{}
-	start := 0
-	for i := 0; i < len(text); i++ {
-		if text[i] == '\n' {
-			lines = append(lines, text[start:i+1])
-			start = i + 1
+func proxyStageLogWebSocket(upstream, downstream *websocket.Conn) {
+	done := make(chan struct{}, 2)
+	go pumpStageLogWebSocket(done, downstream, upstream)
+	go pumpStageLogWebSocket(done, upstream, downstream)
+	<-done
+}
+
+func pumpStageLogWebSocket(done chan<- struct{}, dst, src *websocket.Conn) {
+	defer func() { done <- struct{}{} }()
+	for {
+		messageType, payload, err := src.ReadMessage()
+		if err != nil {
+			return
+		}
+		if err := dst.WriteMessage(messageType, payload); err != nil {
+			return
 		}
 	}
-
-	// 添加最后一行（如果文件不以换行符结尾）
-	if start < len(text) {
-		lines = append(lines, text[start:])
-	}
-
-	return lines
-}
-
-// joinLines 将行数组合并为文本
-func joinLines(lines []string) string {
-	result := ""
-	for _, line := range lines {
-		result += line
-	}
-	return result
 }

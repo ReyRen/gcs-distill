@@ -62,9 +62,11 @@ func (c DatabaseConfig) ConnMaxLifetime() time.Duration {
 }
 
 type StorageConfig struct {
-	Type           string
-	BasePath       string
-	ModelsBasePath string
+	Type             string
+	RootPath         string
+	BasePath         string
+	ModelsBasePath   string
+	DatasetsBasePath string
 }
 
 type GCSConfig struct {
@@ -141,9 +143,11 @@ func Default() *Config {
 			ConnMaxLifetimeSeconds: 300,
 		},
 		Storage: StorageConfig{
-			Type:           "nfs",
-			BasePath:       "/storage-root-jfs/distill",
-			ModelsBasePath: "/storage-root-jfs/distill/models",
+			Type:             "nfs",
+			RootPath:         "/storage-root-jfs",
+			BasePath:         "/storage-root-jfs/distill",
+			ModelsBasePath:   "/storage-root-jfs/distill/models",
+			DatasetsBasePath: "/storage-root-jfs/infer-center/model-distill/datasets",
 		},
 		GCS: GCSConfig{BaseURL: "http://172.18.29.80:8072/api/v1", TimeoutSeconds: 10},
 		Logging: LoggingConfig{
@@ -187,6 +191,12 @@ func validate(config *Config) error {
 	if config.Storage.BasePath == "" {
 		return fmt.Errorf("storage.base_path must not be empty")
 	}
+	if config.Storage.RootPath == "" {
+		return fmt.Errorf("storage.root_path must not be empty")
+	}
+	if config.Storage.DatasetsBasePath == "" {
+		return fmt.Errorf("storage.datasets_base_path must not be empty")
+	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLogLevels[config.Logging.Level] {
@@ -227,10 +237,14 @@ func applyValue(cfg *Config, section, key, value string) error {
 		return setInt(value, &cfg.Database.ConnMaxLifetimeSeconds, "database.conn_max_lifetime_seconds")
 	case "storage.type":
 		cfg.Storage.Type = value
+	case "storage.root_path":
+		cfg.Storage.RootPath = value
 	case "storage.base_path":
 		cfg.Storage.BasePath = value
 	case "storage.models_base_path":
 		cfg.Storage.ModelsBasePath = value
+	case "storage.datasets_base_path":
+		cfg.Storage.DatasetsBasePath = value
 	case "gcs.base_url":
 		cfg.GCS.BaseURL = strings.TrimRight(value, "/")
 	case "gcs.timeout_seconds":

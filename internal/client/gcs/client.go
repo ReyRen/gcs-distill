@@ -70,6 +70,13 @@ type TaskInfo struct {
 	TaskTime          string `json:"task_time"`
 }
 
+type logResponse struct {
+	ContainerName string `json:"container_name"`
+	Path          string `json:"path"`
+	Tail          int    `json:"tail"`
+	Content       string `json:"content"`
+}
+
 func (c *Client) ListNodes(ctx context.Context) (map[string]any, error) {
 	var out map[string]any
 	if err := c.doJSON(ctx, http.MethodGet, "/nodes", nil, &out); err != nil {
@@ -123,6 +130,50 @@ func (c *Client) DeleteTask(ctx context.Context, containerName string) error {
 	return c.doJSON(ctx, http.MethodDelete, "/tasks/"+url.PathEscape(containerName), nil, nil)
 }
 
+func (c *Client) GetTaskLogs(ctx context.Context, containerName string, tail string) ([]byte, error) {
+	path := "/tasks/" + url.PathEscape(containerName) + "/logs"
+	query := url.Values{}
+	if tail != "" {
+		query.Set("tail", tail)
+	}
+	if encoded := query.Encode(); encoded != "" {
+		path += "?" + encoded
+	}
+
+	data, err := c.doBytes(ctx, http.MethodGet, path)
+	if err != nil {
+		return nil, err
+	}
+
+	var decoded logResponse
+	if err := json.Unmarshal(data, &decoded); err == nil && (decoded.Content != "" || decoded.ContainerName != "" || decoded.Path != "") {
+		return []byte(decoded.Content), nil
+	}
+	return data, nil
+}
+
+func (c *Client) TaskLogsWebSocketURL(containerName string, tail string) (string, error) {
+	base, err := url.Parse(c.baseURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid gcs base url: %w", err)
+	}
+	switch base.Scheme {
+	case "http":
+		base.Scheme = "ws"
+	case "https":
+		base.Scheme = "wss"
+	default:
+		return "", fmt.Errorf("unsupported gcs scheme: %s", base.Scheme)
+	}
+	base.Path = strings.TrimRight(base.Path, "/") + "/tasks/" + url.PathEscape(containerName) + "/logs/ws"
+	query := base.Query()
+	if tail != "" {
+		query.Set("tail", tail)
+	}
+	base.RawQuery = query.Encode()
+	return base.String(), nil
+}
+
 func (c *Client) doJSON(ctx context.Context, method, path string, body any, out any) error {
 	found, err := c.doJSONMaybeNotFound(ctx, method, path, body, out)
 	if err != nil {
@@ -172,4 +223,26 @@ func (c *Client) doJSONMaybeNotFound(ctx context.Context, method, path string, b
 		return false, fmt.Errorf("parse gcs-v2 response failed: %w", err)
 	}
 	return true, nil
+}
+
+func (c *Client) doBytes(ctx context.Context, method, path string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create gcs-v2 request failed: %w", err)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("call gcs-v2 failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	data, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("gcs-v2 returned 404 for %s %s", method, path)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("gcs-v2 returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(data)))
+	}
+	return data, nil
 }

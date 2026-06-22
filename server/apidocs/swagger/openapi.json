@@ -72,8 +72,8 @@
             "type": "string"
           },
           "file_path": {
-            "description": "Dataset file path. Uploaded/imported files may be JSONL or JSON array; dataset_build writes EasyDistill runtime files as JSON arrays.",
-            "example": "/storage-root-jfs/distill/project-a/seeds.jsonl",
+            "description": "Dataset file path. Import paths must come from storage.datasets_base_path (/storage-root-jfs/infer-center/model-distill/datasets by default). Uploaded/imported files may be JSONL or JSON array; dataset_build writes EasyDistill runtime files as JSON arrays.",
+            "example": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed/train.jsonl",
             "type": "string"
           },
           "id": {
@@ -94,6 +94,68 @@
           },
           "source_type": {
             "example": "upload",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DatasetCandidate": {
+        "properties": {
+          "file_path": {
+            "example": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed/train.jsonl",
+            "type": "string"
+          },
+          "is_directory": {
+            "example": false,
+            "type": "boolean"
+          },
+          "name": {
+            "example": "customer-seed/train.jsonl",
+            "type": "string"
+          },
+          "record_count": {
+            "example": 1000,
+            "type": "integer"
+          },
+          "size_bytes": {
+            "example": 1048576,
+            "format": "int64",
+            "type": "integer"
+          },
+          "source_dir": {
+            "example": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DatasetCandidateListResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/DatasetCandidate"
+                },
+                "type": "array"
+              },
+              "total": {
+                "example": 2,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "message": {
+            "example": "Dataset candidates loaded",
             "type": "string"
           }
         },
@@ -283,40 +345,6 @@
         "properties": {
           "status": {
             "example": "ok",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "LogResponse": {
-        "properties": {
-          "code": {
-            "example": 200,
-            "type": "integer"
-          },
-          "data": {
-            "properties": {
-              "log_path": {
-                "example": "/path/to/log/file",
-                "type": "string"
-              },
-              "logs": {
-                "example": "日志内容...",
-                "type": "string"
-              },
-              "stage_id": {
-                "example": "stage-uuid",
-                "type": "string"
-              },
-              "stage_type": {
-                "example": "teacher_infer",
-                "type": "string"
-              }
-            },
-            "type": "object"
-          },
-          "message": {
-            "example": "获取日志成功",
             "type": "string"
           }
         },
@@ -719,44 +747,6 @@
         },
         "type": "object"
       },
-      "StreamLogResponse": {
-        "properties": {
-          "code": {
-            "example": 200,
-            "type": "integer"
-          },
-          "data": {
-            "properties": {
-              "log_path": {
-                "example": "/path/to/log/file",
-                "type": "string"
-              },
-              "logs": {
-                "example": "最近的日志内容...",
-                "type": "string"
-              },
-              "stage_id": {
-                "example": "stage-uuid",
-                "type": "string"
-              },
-              "stage_type": {
-                "example": "teacher_infer",
-                "type": "string"
-              },
-              "status": {
-                "example": "running",
-                "type": "string"
-              }
-            },
-            "type": "object"
-          },
-          "message": {
-            "example": "获取实时日志成功",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "StudentModel": {
         "properties": {
           "description": {
@@ -1001,6 +991,7 @@
         ]
       },
       "post": {
+        "description": "Create a dataset record. For source_type=import, file_path must be selected from storage.datasets_base_path.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1024,6 +1015,27 @@
           }
         },
         "summary": "Create dataset",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
+    "/api/v1/datasets/candidates": {
+      "get": {
+        "description": "Scan storage.datasets_base_path and return JSON/JSONL/NDJSON/TXT files that the frontend can select. The default base path is /storage-root-jfs/infer-center/model-distill/datasets.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetCandidateListResponse"
+                }
+              }
+            },
+            "description": "Dataset candidates"
+          }
+        },
+        "summary": "List dataset candidates",
         "tags": [
           "datasets"
         ]
@@ -1299,25 +1311,38 @@
     },
     "/api/v1/pipelines/{id}/stages/{stage_id}/logs": {
       "get": {
-        "description": "Retrieve the complete log content for a specific pipeline stage",
+        "description": "Return plain text recent log lines for a stage by proxying gcs-v2 /tasks/{containerName}/logs. The stage must already have a container_id.",
         "parameters": [
           {
             "$ref": "#/components/parameters/PipelineId"
           },
           {
             "$ref": "#/components/parameters/StageId"
+          },
+          {
+            "description": "Number of log lines to return or seed the stream with",
+            "in": "query",
+            "name": "tail",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
           "200": {
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/LogResponse"
+                  "example": "log line 1\nlog line 2\n",
+                  "type": "string"
                 }
               }
             },
-            "description": "Stage logs retrieved successfully"
+            "description": "Plain text stage logs proxied from gcs-v2 task logs"
           },
           "404": {
             "content": {
@@ -1327,10 +1352,20 @@
                 }
               }
             },
-            "description": "Stage not found"
+            "description": "Stage not found or stage container not ready"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Failed to read logs from gcs-v2"
           }
         },
-        "summary": "Get complete stage logs",
+        "summary": "Tail stage logs",
         "tags": [
           "pipelines"
         ]
@@ -1338,13 +1373,25 @@
     },
     "/api/v1/pipelines/{id}/stages/{stage_id}/logs/download": {
       "get": {
-        "description": "Download the complete log file for a specific pipeline stage",
+        "description": "Download a plain text stage log snapshot proxied from gcs-v2 task logs. The optional tail query defaults to 10000.",
         "parameters": [
           {
             "$ref": "#/components/parameters/PipelineId"
           },
           {
             "$ref": "#/components/parameters/StageId"
+          },
+          {
+            "description": "Number of log lines to include in the downloaded snapshot",
+            "in": "query",
+            "name": "tail",
+            "required": false,
+            "schema": {
+              "default": 10000,
+              "maximum": 100000,
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -1378,7 +1425,7 @@
     },
     "/api/v1/pipelines/{id}/stages/{stage_id}/logs/stream": {
       "get": {
-        "description": "Retrieve the most recent log lines for a specific pipeline stage (suitable for polling)",
+        "description": "Compatibility alias for /logs. This endpoint is not SSE and not WebSocket; use /logs/ws for realtime display.",
         "parameters": [
           {
             "$ref": "#/components/parameters/PipelineId"
@@ -1387,7 +1434,7 @@
             "$ref": "#/components/parameters/StageId"
           },
           {
-            "description": "Number of lines to return from the end of the log",
+            "description": "Number of log lines to return or seed the stream with",
             "in": "query",
             "name": "tail",
             "required": false,
@@ -1402,13 +1449,14 @@
         "responses": {
           "200": {
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/StreamLogResponse"
+                  "example": "log line 1\nlog line 2\n",
+                  "type": "string"
                 }
               }
             },
-            "description": "Real-time logs retrieved successfully"
+            "description": "Plain text stage logs proxied from gcs-v2 task logs"
           },
           "404": {
             "content": {
@@ -1418,10 +1466,74 @@
                 }
               }
             },
-            "description": "Stage not found"
+            "description": "Stage not found or stage container not ready"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Failed to read logs from gcs-v2"
           }
         },
-        "summary": "Get real-time stage logs",
+        "summary": "Tail stage logs (compatibility alias)",
+        "tags": [
+          "pipelines"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}/stages/{stage_id}/logs/ws": {
+      "get": {
+        "description": "Upgrade to WebSocket and proxy realtime stage logs from gcs-v2 /tasks/{containerName}/logs/ws. gcs-v2 first sends the tail snapshot and then appended log content.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PipelineId"
+          },
+          {
+            "$ref": "#/components/parameters/StageId"
+          },
+          {
+            "description": "Number of log lines to return or seed the stream with",
+            "in": "query",
+            "name": "tail",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "WebSocket connection established"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Stage not found or stage container not ready"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Failed to connect gcs-v2 logs websocket"
+          }
+        },
+        "summary": "Stream stage logs",
         "tags": [
           "pipelines"
         ]

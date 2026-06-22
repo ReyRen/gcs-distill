@@ -180,6 +180,27 @@ func (h *DatasetHandler) ListDatasets(c *gin.Context) {
 }
 
 // UpdateDataset 更新数据集
+// ListDatasetCandidates lists filesystem datasets available for frontend selection.
+func (h *DatasetHandler) ListDatasetCandidates(c *gin.Context) {
+	candidates, err := h.datasetSvc.ListDatasetCandidates(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    http.StatusInternalServerError,
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    http.StatusOK,
+		"message": "获取数据集候选列表成功",
+		"data": gin.H{
+			"items": candidates,
+			"total": len(candidates),
+		},
+	})
+}
+
 func (h *DatasetHandler) UpdateDataset(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {

@@ -21,8 +21,10 @@ conn_max_lifetime_seconds = 300
 
 [storage]
 type = "nfs"
+root_path = "/storage-root-jfs"
 base_path = "/storage-root-jfs/distill"
 models_base_path = "/storage-root-jfs/distill/models"
+datasets_base_path = "/storage-root-jfs/infer-center/model-distill/datasets"
 
 [gcs]
 base_url = "http://172.18.29.80:8072/api/v1"

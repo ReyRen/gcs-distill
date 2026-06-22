@@ -88,6 +88,16 @@ conn_max_lifetime_seconds = 300
 
 `gcs-info-catch-v2` 需要把这个目录以同一路径挂载进容器。EasyDistill 配置中的所有输入、输出和日志路径都使用共享存储绝对路径，因此不再依赖 `gcs-distill` 的私有执行入口或私有工作目录约定。
 
+前端可选择的数据集不放在 model-center 目录下，而是使用同一个共享根的 distill 数据集目录：
+
+```text
+/storage-root-jfs/infer-center/model-distill/datasets
+```
+
+`gcs-distill` 只扫描这个受控目录供前端选择；`source_type=import` 的数据集路径必须来自该目录。上传数据集也会落到该目录下，避免输入数据散落到运行工作区。
+
+阶段日志展示同样保持统一边界：`gcs-distill` 不直接读 worker 本地日志文件，而是根据阶段 `container_id` 代理 `gcs-v2` 的 `/tasks/{containerName}/logs` 和 `/tasks/{containerName}/logs/ws`。真正的日志写入仍由 `gcs-info-catch-v2` 在执行容器时完成。
+
 ## 资源选择
 
 推荐使用 `resource_request.selected_resources`：
