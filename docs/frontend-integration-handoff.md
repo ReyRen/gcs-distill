@@ -68,7 +68,7 @@ flowchart LR
 | 创建流水线 | 选择项目、数据集、训练参数、资源 | `POST /pipelines` |
 | 流水线详情 | 状态轮询、阶段进度、日志查看、取消 | `GET /pipelines/{id}`, `GET /pipelines/{id}/stages`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
 | 学生模型选择 | 从共享模型目录选择本地学生模型 | `GET /models/student` |
-| 资源选择 | 查看节点，选择 GPU/NPU 节点和卡号 | `GET /resources/nodes`, `GET /resources/nodes/{name}` |
+| 资源选择 | 查看可用节点，选择 GPU/NPU 节点和卡号 | `GET /resources/available`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
 
 ## 4. 通用响应和错误处理
 
@@ -192,6 +192,18 @@ export interface SelectedResource {
   node_name: string;
   node_address: string;
   xpu_indices: number[];
+}
+
+export interface AvailableNode {
+  name: string;
+  address: string;
+  available: boolean;
+  enable_xpu_indices: number[];
+  raw: unknown;
+}
+
+export interface AvailableResources {
+  nodes: AvailableNode[];
 }
 
 export interface ResourceRequest {
@@ -502,22 +514,21 @@ GET /api/v1/pipelines/{pipeline_id}/stages/{stage_id}/logs/download?tail=10000
 
 ## 9. 资源选择对接
 
-节点列表：
+资源获取方式与 `gcs-model-center-v2` 对齐。前端资源选择页优先调用聚合接口：
 
 ```http
-GET /api/v1/resources/nodes
+GET /api/v1/resources/available
 ```
 
-节点详情：
+返回结构：
 
-```http
-GET /api/v1/resources/nodes/{name}
+```ts
+interface AvailableResources {
+  nodes: AvailableNode[];
+}
 ```
 
-返回结构来自 `gcs-v2`，字段可能随调度侧演进。前端实现建议：
-
-- 优先透传展示节点名、地址、可用 XPU/GPU 数、卡索引、显存、状态等可识别字段。
-- 手动资源选择时，最终提交给流水线的结构固定为：
+`nodes[].available` 表示该节点当前是否在 gcs-v2 brain 可用列表中，`nodes[].enable_xpu_indices` 是当前可选卡号。手动资源选择时，前端从 `AvailableNode` 映射成流水线提交结构：
 
 ```json
 {
@@ -531,8 +542,18 @@ GET /api/v1/resources/nodes/{name}
 }
 ```
 
+原始节点快照仍然保留，主要用于排障或展示调度侧原始字段：
+
+```http
+GET /api/v1/resources/nodes
+GET /api/v1/resources/nodes/{name}
+```
+
+前端实现建议：
+
+- 普通资源选择 UI 使用 `/resources/available`，不要直接解析 gcs-v2 brain 原始字段。
 - 如果不做手动选择，只传 `gpu_count`，让 `gcs-v2` 自动调度。
-- 不建议只使用 `gpu_device_ids`，它只能表达卡号，不能表达节点，跨节点选择时语义不足。
+- 不建议只使用 `gpu_device_ids`，它只能表达卡号，不能表达节点；跨节点选择时语义不足。
 
 ## 10. 前端 API Client 示例
 
@@ -610,6 +631,9 @@ export const distillApi = {
   listStages: (pipelineId: string) =>
     request<StageRun[]>(`/pipelines/${pipelineId}/stages`),
 
+  listAvailableResources: () =>
+    request<AvailableResources>("/resources/available"),
+
   tailStageLogs: (pipelineId: string, stageId: string, tail = 100) =>
     request<string>(`/pipelines/${pipelineId}/stages/${stageId}/logs?tail=${tail}`),
 
@@ -642,7 +666,7 @@ export const distillApi = {
 2. 打开 Swagger UI，确认版本和路径：`/swagger/index.html`。
 3. 调 `GET /datasets/candidates`，确认共享数据集目录可扫描，空目录时返回空数组。
 4. 调 `GET /models/student`，确认学生模型目录可被扫描。
-5. 调 `GET /resources/nodes`，确认 `gcs-v2` 代理可用。
+5. 调 `GET /resources/available`，确认 `gcs-v2` 资源聚合可用。
 6. 创建项目，确保学生模型选择的是本地模型。
 7. 上传或导入数据集，确认 `record_count` 和 `file_path` 返回。
 8. 创建流水线，确认阶段列表自动生成六条。

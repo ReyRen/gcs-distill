@@ -100,7 +100,7 @@ flowchart LR
 | 数据集 | `GET /datasets/candidates`, `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets`, `GET /datasets/{id}`, `PUT /datasets/{id}`, `DELETE /datasets/{id}` |
 | 流水线 | `POST /pipelines`, `GET /pipelines`, `GET /pipelines/{id}`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
 | 阶段与日志 | `GET /pipelines/{id}/stages`, `GET /pipelines/{id}/stages/{stage_id}/logs`, `GET /pipelines/{id}/stages/{stage_id}/logs/ws`, `GET /pipelines/{id}/stages/{stage_id}/logs/stream`, `GET /pipelines/{id}/stages/{stage_id}/logs/download` |
-| 模型与资源 | `GET /models/student`, `GET /models/student/{id}`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
+| 模型与资源 | `GET /models/student`, `GET /models/student/{id}`, `GET /resources/available`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
 
 API 文档入口：
 
@@ -110,6 +110,8 @@ API 文档入口：
 | OpenAPI JSON | `http://<distill.host>:8080/swagger/openapi.json` |
 
 日志接口与 `gcs-model-center-v2` 保持一致：`GET /logs` 返回 `text/plain` tail 内容，`GET /logs/ws` 通过 WebSocket 实时转发 `gcs-v2` task 日志；`GET /logs/stream` 仅作为兼容别名保留，不是 SSE。
+
+资源选择也与 `gcs-model-center-v2` 保持一致：前端优先调用 `GET /resources/available` 获取 `nodes[].name/address/enable_xpu_indices`，再映射到流水线 `resource_request.selected_resources`；`GET /resources/nodes` 保留为原始 `gcs-v2` 节点快照排障接口。
 
 ## 快速启动
 

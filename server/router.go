@@ -46,7 +46,8 @@ func NewRouter(
 	datasetHandler := handlers.NewDatasetHandler(datasetSvc)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineSvc, gcsClient)
 	modelHandler := handlers.NewModelHandler(modelSvc)
-	resourceHandler := handlers.NewResourceHandler(gcsClient)
+	resourceSvc := service.NewResourceService(gcsClient)
+	resourceHandler := handlers.NewResourceHandler(resourceSvc, gcsClient)
 
 	router := &Router{
 		engine:          engine,
@@ -134,6 +135,7 @@ func (r *Router) setupRoutes() {
 		// 资源管理
 		resources := v1.Group("/resources")
 		{
+			resources.GET("/available", r.resourceHandler.Available)
 			resources.GET("/nodes", r.resourceHandler.ListNodes)
 			resources.GET("/nodes/:name", r.resourceHandler.GetNode)
 		}

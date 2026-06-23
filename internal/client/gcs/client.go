@@ -77,8 +77,16 @@ type logResponse struct {
 	Content       string `json:"content"`
 }
 
-func (c *Client) ListNodes(ctx context.Context) (map[string]any, error) {
+func (c *Client) GetBrain(ctx context.Context) (map[string]any, error) {
 	var out map[string]any
+	if err := c.doJSON(ctx, http.MethodGet, "/brain", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) ListNodes(ctx context.Context) (any, error) {
+	var out any
 	if err := c.doJSON(ctx, http.MethodGet, "/nodes", nil, &out); err != nil {
 		return nil, err
 	}
@@ -91,11 +99,7 @@ func (c *Client) GetNode(ctx context.Context, nodeName string) (map[string]any, 
 		return nil, false, err
 	}
 
-	items, ok := nodes["items"].([]any)
-	if !ok {
-		return nil, false, nil
-	}
-	for _, item := range items {
+	for _, item := range nodeItems(nodes) {
 		node, ok := item.(map[string]any)
 		if !ok {
 			continue
@@ -107,6 +111,26 @@ func (c *Client) GetNode(ctx context.Context, nodeName string) (map[string]any, 
 		}
 	}
 	return nil, false, nil
+}
+
+func nodeItems(raw any) []any {
+	switch typed := raw.(type) {
+	case []any:
+		return typed
+	case map[string]any:
+		if items, ok := typed["items"].([]any); ok {
+			return items
+		}
+		if data, ok := typed["data"].(map[string]any); ok {
+			if items, ok := data["items"].([]any); ok {
+				return items
+			}
+			if nodes, ok := data["nodes"].([]any); ok {
+				return nodes
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Client) CreateContainerTask(ctx context.Context, req ContainerTaskRequest) (*AcceptedResponse, error) {

@@ -61,6 +61,64 @@
       }
     },
     "schemas": {
+      "AvailableNode": {
+        "properties": {
+          "address": {
+            "example": "172.18.36.225",
+            "type": "string"
+          },
+          "available": {
+            "example": true,
+            "type": "boolean"
+          },
+          "enable_xpu_indices": {
+            "example": [
+              0,
+              1
+            ],
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "name": {
+            "example": "gpu-node-01",
+            "type": "string"
+          },
+          "raw": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "AvailableResources": {
+        "properties": {
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/AvailableNode"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "AvailableResourcesResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/AvailableResources"
+          },
+          "message": {
+            "example": "Available resources loaded",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "Dataset": {
         "properties": {
           "created_at": {
@@ -1756,8 +1814,40 @@
         ]
       }
     },
+    "/api/v1/resources/available": {
+      "get": {
+        "description": "Aggregate gcs-v2 brain and nodes into frontend resource selection data, matching gcs-model-center-v2.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AvailableResourcesResponse"
+                }
+              }
+            },
+            "description": "Frontend-friendly resource selection data"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Failed to query gcs-v2 resources"
+          }
+        },
+        "summary": "Available resources",
+        "tags": [
+          "resources"
+        ]
+      }
+    },
     "/api/v1/resources/nodes": {
       "get": {
+        "description": "Proxy gcs-v2 raw node snapshots. Frontend resource selection should prefer /resources/available.",
         "responses": {
           "200": {
             "content": {
@@ -1778,6 +1868,7 @@
     },
     "/api/v1/resources/nodes/{name}": {
       "get": {
+        "description": "Lookup one raw gcs-v2 node snapshot by hostname/name/id. Frontend resource selection should prefer /resources/available.",
         "parameters": [
           {
             "in": "path",

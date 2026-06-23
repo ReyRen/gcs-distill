@@ -88,28 +88,33 @@ POST /api/v1/pipelines
 
 ## 节点查询
 
-distill 代理 `gcs-v2` 的节点快照，供前端展示可选资源：
+distill 资源选择接口与 `gcs-model-center-v2` 对齐，前端优先使用聚合后的可用资源：
+
+```http
+GET /api/v1/resources/available
+```
+
+响应中的 `data.nodes` 是前端可直接使用的资源列表：
+
+```json
+{
+  "nodes": [
+    {
+      "name": "gpu-node-01",
+      "address": "172.18.36.225",
+      "available": true,
+      "enable_xpu_indices": [0, 1],
+      "raw": {}
+    }
+  ]
+}
+```
+
+原始 `gcs-v2` 节点快照仍然保留，主要用于排障或展示调度侧原始字段：
 
 ```http
 GET /api/v1/resources/nodes
 GET /api/v1/resources/nodes/{name}
-```
-
-列表响应中的 `data` 保持 `gcs-v2` 原始节点快照结构，通常包含：
-
-```json
-{
-  "count": 1,
-  "items": [
-    {
-      "node_id": "node-id",
-      "node_hostname": "gpu-node-01",
-      "node_addr": "172.18.36.225",
-      "node_state": "ready",
-      "node_availability": "active"
-    }
-  ]
-}
 ```
 
 ## 前端校验建议
@@ -126,6 +131,18 @@ interface SelectedResource {
   node_name: string;
   node_address: string;
   xpu_indices: number[];
+}
+
+interface AvailableNode {
+  name: string;
+  address: string;
+  available: boolean;
+  enable_xpu_indices: number[];
+  raw: unknown;
+}
+
+interface AvailableResources {
+  nodes: AvailableNode[];
 }
 
 interface ResourceRequest {
