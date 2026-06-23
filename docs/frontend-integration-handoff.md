@@ -198,7 +198,16 @@ export interface AvailableNode {
   name: string;
   address: string;
   available: boolean;
+  workers_xpuname: string;
+  workers_xpucount: number;
   enable_xpu_indices: number[];
+  node_cpus: number;
+  node_memory: number;
+  node_state: string;
+  node_availability: string;
+  node_role: string;
+  node_os: string;
+  node_architecture: string;
   raw: unknown;
 }
 
@@ -528,7 +537,7 @@ interface AvailableResources {
 }
 ```
 
-`nodes[].available` 表示该节点当前是否在 gcs-v2 brain 可用列表中，`nodes[].enable_xpu_indices` 是当前可选卡号。手动资源选择时，前端从 `AvailableNode` 映射成流水线提交结构：
+`nodes[].available` 表示该节点当前是否在 gcs-v2 brain 可用列表中，`nodes[].workers_xpuname/workers_xpucount/enable_xpu_indices` 来自 gcs-v2 brain worker，`nodes[].node_cpus/node_memory/node_state/node_availability` 来自 gcs-v2 nodes 快照。手动资源选择时，前端从 `AvailableNode` 映射成流水线提交结构：
 
 ```json
 {

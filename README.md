@@ -111,7 +111,7 @@ API 文档入口：
 
 日志接口与 `gcs-model-center-v2` 保持一致：`GET /logs` 返回 `text/plain` tail 内容，`GET /logs/ws` 通过 WebSocket 实时转发 `gcs-v2` task 日志；`GET /logs/stream` 仅作为兼容别名保留，不是 SSE。
 
-资源选择也与 `gcs-model-center-v2` 保持一致：前端优先调用 `GET /resources/available` 获取 `nodes[].name/address/enable_xpu_indices`，再映射到流水线 `resource_request.selected_resources`；`GET /resources/nodes` 保留为原始 `gcs-v2` 节点快照排障接口。
+资源选择也与 `gcs-model-center-v2` 保持一致：前端优先调用 `GET /resources/available` 获取 `nodes[].name/address/workers_xpuname/workers_xpucount/enable_xpu_indices/node_cpus/node_memory`，再映射到流水线 `resource_request.selected_resources`；`GET /resources/nodes` 保留为原始 `gcs-v2` 节点快照排障接口。
 
 ## 快速启动
 

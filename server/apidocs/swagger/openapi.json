@@ -85,9 +85,47 @@
             "example": "gpu-node-01",
             "type": "string"
           },
+          "node_architecture": {
+            "example": "x86_64",
+            "type": "string"
+          },
+          "node_availability": {
+            "example": "active",
+            "type": "string"
+          },
+          "node_cpus": {
+            "example": 64,
+            "format": "int64",
+            "type": "integer"
+          },
+          "node_memory": {
+            "example": 540000000000,
+            "format": "int64",
+            "type": "integer"
+          },
+          "node_os": {
+            "example": "linux",
+            "type": "string"
+          },
+          "node_role": {
+            "example": "worker",
+            "type": "string"
+          },
+          "node_state": {
+            "example": "ready",
+            "type": "string"
+          },
           "raw": {
             "additionalProperties": true,
             "type": "object"
+          },
+          "workers_xpucount": {
+            "example": 4,
+            "type": "integer"
+          },
+          "workers_xpuname": {
+            "example": "NVIDIA A100",
+            "type": "string"
           }
         },
         "type": "object"

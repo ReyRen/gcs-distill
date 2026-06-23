@@ -103,8 +103,20 @@ GET /api/v1/resources/available
       "name": "gpu-node-01",
       "address": "172.18.36.225",
       "available": true,
+      "workers_xpuname": "NVIDIA A100",
+      "workers_xpucount": 4,
       "enable_xpu_indices": [0, 1],
-      "raw": {}
+      "node_cpus": 64,
+      "node_memory": 540000000000,
+      "node_state": "ready",
+      "node_availability": "active",
+      "node_role": "worker",
+      "node_os": "linux",
+      "node_architecture": "x86_64",
+      "raw": {
+        "brain_worker": {},
+        "node": {}
+      }
     }
   ]
 }
@@ -137,7 +149,16 @@ interface AvailableNode {
   name: string;
   address: string;
   available: boolean;
+  workers_xpuname: string;
+  workers_xpucount: number;
   enable_xpu_indices: number[];
+  node_cpus: number;
+  node_memory: number;
+  node_state: string;
+  node_availability: string;
+  node_role: string;
+  node_os: string;
+  node_architecture: string;
   raw: unknown;
 }
 
