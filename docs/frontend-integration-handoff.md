@@ -2,6 +2,8 @@
 
 本文面向前端实现人员，说明 `gcs-distill` 的页面范围、接口契约、核心数据结构、状态流转和实现注意事项。
 
+如果需要逐个接口查看“前端参数 -> 后端 handler/service -> gcs-v2/EasyDistill 容器”的完整映射，请优先看 [`frontend-api-backend-map.md`](frontend-api-backend-map.md)。
+
 ## 1. 服务入口
 
 默认服务端口来自 `config.toml`：
