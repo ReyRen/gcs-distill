@@ -19,7 +19,7 @@ import (
 	"go.uber.org/zap"
 )
 
-const defaultDatasetBaseRel = "infer-center/model-distill/datasets"
+const defaultDatasetBaseRel = "train-center/model-distill/datasets"
 
 type DatasetCandidate struct {
 	Name        string    `json:"name"`
@@ -191,7 +191,7 @@ func (s *datasetService) ListDatasetCandidates(ctx context.Context) ([]DatasetCa
 	default:
 	}
 
-	baseDir := s.datasetBasePath()
+	baseDir := s.datasetCandidatesPath()
 	entries, err := os.ReadDir(baseDir)
 	if os.IsNotExist(err) {
 		return []DatasetCandidate{}, nil
@@ -351,7 +351,7 @@ func (s *datasetService) DeleteDataset(ctx context.Context, id string) error {
 }
 
 func (s *datasetService) GetDatasetPath(_ string, datasetID string) string {
-	return filepath.Join(s.datasetBasePath(), datasetID)
+	return filepath.Join(s.datasetUploadsPath(), datasetID)
 }
 
 func (s *datasetService) prepareDataset(ctx context.Context, dataset *types.Dataset) error {
@@ -418,16 +418,34 @@ func (s *datasetService) validateDataset(dataset *types.Dataset) error {
 
 func (s *datasetService) datasetBasePath() string {
 	if s.storageCfg == nil {
-		return filepath.Clean(filepath.Join("/storage-root-jfs", filepath.FromSlash(defaultDatasetBaseRel)))
+		return filepath.Clean(filepath.Join("/storage-root-jfs/user-xxx", filepath.FromSlash(defaultDatasetBaseRel)))
 	}
 	if path := strings.TrimSpace(s.storageCfg.DatasetsBasePath); path != "" {
 		return filepath.Clean(path)
 	}
 	root := strings.TrimSpace(s.storageCfg.RootPath)
 	if root == "" {
-		root = "/storage-root-jfs"
+		root = "/storage-root-jfs/user-xxx"
 	}
 	return filepath.Clean(filepath.Join(root, filepath.FromSlash(defaultDatasetBaseRel)))
+}
+
+func (s *datasetService) datasetCandidatesPath() string {
+	if s.storageCfg != nil {
+		if path := strings.TrimSpace(s.storageCfg.DatasetCandidatesPath); path != "" {
+			return filepath.Clean(path)
+		}
+	}
+	return filepath.Join(s.datasetBasePath(), "candidates")
+}
+
+func (s *datasetService) datasetUploadsPath() string {
+	if s.storageCfg != nil {
+		if path := strings.TrimSpace(s.storageCfg.DatasetUploadsPath); path != "" {
+			return filepath.Clean(path)
+		}
+	}
+	return filepath.Join(s.datasetBasePath(), "uploaded")
 }
 
 func (s *datasetService) ensureDatasetFilePath(filePath string) error {
@@ -435,7 +453,7 @@ func (s *datasetService) ensureDatasetFilePath(filePath string) error {
 	if cleanPath == "." || cleanPath == "" {
 		return fmt.Errorf("数据集 file_path 不能为空")
 	}
-	if err := s.ensurePathUnderDatasetBase(cleanPath); err != nil {
+	if err := ensurePathUnderBase(cleanPath, s.datasetCandidatesPath()); err != nil {
 		return err
 	}
 
@@ -453,7 +471,11 @@ func (s *datasetService) ensureDatasetFilePath(filePath string) error {
 }
 
 func (s *datasetService) ensurePathUnderDatasetBase(path string) error {
-	base := s.datasetBasePath()
+	return ensurePathUnderBase(path, s.datasetBasePath())
+}
+
+func ensurePathUnderBase(path, base string) error {
+	base = filepath.Clean(base)
 	rel, err := filepath.Rel(base, filepath.Clean(path))
 	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
 		return fmt.Errorf("数据集路径必须位于 %s 下", base)

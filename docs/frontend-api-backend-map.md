@@ -145,8 +145,8 @@ interface Dataset {
 数据集根目录来自配置：
 
 ```text
-storage.datasets_base_path
-默认: /storage-root-jfs/infer-center/model-distill/datasets
+storage.dataset_candidates_path
+默认: /storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates
 ```
 
 ### 3.3 流水线字段
@@ -243,7 +243,7 @@ interface SelectedResource {
   "student_model_config": {
     "provider_type": "local",
     "model_name": "Qwen2.5-0.5B-Instruct",
-    "model_path": "/storage-root-jfs/distill/models/Qwen2.5-0.5B-Instruct"
+    "model_path": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct"
   },
   "evaluation_config": {
     "metrics": ["accuracy"],
@@ -361,7 +361,7 @@ EasyDistill 关系：无。数据库层会按仓储实现处理关联数据；�
 ```text
 DatasetHandler.ListDatasetCandidates
   -> DatasetService.ListDatasetCandidates
-  -> 扫描 storage.datasets_base_path
+  -> 扫描 storage.dataset_candidates_path
 ```
 
 返回数据：
@@ -394,7 +394,7 @@ EasyDistill 关系：不启动容器，只给前端选数据。真正进入 Easy
   "name": "customer-seed/train.jsonl",
   "description": "客服种子问题",
   "source_type": "import",
-  "file_path": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed/train.jsonl"
+  "file_path": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl"
 }
 ```
 
@@ -419,7 +419,7 @@ DatasetHandler.CreateDataset
        -> DatasetRepository.Create
 
   multipart -> DatasetService.CreateUploadedDataset
-            -> 保存文件到 storage.datasets_base_path/{dataset_id}/{filename}
+            -> 保存文件到 storage.dataset_uploads_path/{dataset_id}/{filename}
             -> 统计记录数
             -> DatasetRepository.Create
 ```
@@ -450,7 +450,7 @@ Form 参数：
 DatasetHandler.CreateDataset
   -> createUploadedDataset
   -> DatasetService.CreateUploadedDataset
-  -> 保存到 storage.datasets_base_path/{dataset_id}/{filename}
+  -> 保存到 storage.dataset_uploads_path/{dataset_id}/{filename}
   -> DatasetRepository.Create
 ```
 
@@ -508,7 +508,7 @@ Path 参数：`id`。
   "name": "customer-seed/train-v2.jsonl",
   "description": "更新后的数据集",
   "source_type": "import",
-  "file_path": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed/train-v2.jsonl",
+  "file_path": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train-v2.jsonl",
   "record_count": 2000
 }
 ```
@@ -820,8 +820,8 @@ PipelineHandler.StartPipeline
   "image": "easy-distill/easydistill:latest",
   "command": "python 或 accelerate",
   "args": ["..."],
-  "working_dir": "/storage-root-jfs/distill/projects/<project_id>/runs/<pipeline_id>",
-  "log_path": "/storage-root-jfs/distill/projects/<project_id>/runs/<pipeline_id>/logs/<stage>",
+  "working_dir": "/storage-root-jfs/user-xxx/train-center/model-distill/projects/<project_id>/runs/<pipeline_id>",
+  "log_path": "/storage-root-jfs/user-xxx/train-center/model-distill/projects/<project_id>/runs/<pipeline_id>/logs/<stage>",
   "envs": "GCS_DISTILL_STAGE=<stage>;GCS_DISTILL_PIPELINE_ID=<pipeline_id>",
   "worker_nums": 1,
   "xpu_nums": 2,
@@ -1013,7 +1013,7 @@ EasyDistill 关系：不进容器，只下载 `gcs-v2` 日志内容。
   },
   "models": {
     "teacher": "qwen-plus",
-    "student": "/storage-root-jfs/distill/models/Qwen2.5-0.5B-Instruct"
+    "student": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct"
   }
 }
 ```
@@ -1044,7 +1044,7 @@ python -m easydistill.kd.infer --config {workspace}/configs/teacher_infer.json
   },
   "models": {
     "teacher": "qwen-plus",
-    "student": "/storage-root-jfs/distill/models/Qwen2.5-0.5B-Instruct"
+    "student": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct"
   },
   "training": {
     "output_dir": ".../models/checkpoints",

@@ -62,11 +62,14 @@ func (c DatabaseConfig) ConnMaxLifetime() time.Duration {
 }
 
 type StorageConfig struct {
-	Type             string
-	RootPath         string
-	BasePath         string
-	ModelsBasePath   string
-	DatasetsBasePath string
+	Type                  string
+	RootPath              string
+	BasePath              string
+	ModelsBasePath        string
+	DatasetsBasePath      string
+	DatasetCandidatesPath string
+	DatasetUploadsPath    string
+	DatasetGeneratedPath  string
 }
 
 type GCSConfig struct {
@@ -128,7 +131,7 @@ func Load(configPath string) (*Config, error) {
 }
 
 func Default() *Config {
-	return &Config{
+	cfg := &Config{
 		Server: ServerConfig{Host: "0.0.0.0", Port: 8080, Mode: "release"},
 		Database: DatabaseConfig{
 			Enabled:                true,
@@ -144,10 +147,10 @@ func Default() *Config {
 		},
 		Storage: StorageConfig{
 			Type:             "nfs",
-			RootPath:         "/storage-root-jfs",
-			BasePath:         "/storage-root-jfs/distill",
-			ModelsBasePath:   "/storage-root-jfs/distill/models",
-			DatasetsBasePath: "/storage-root-jfs/infer-center/model-distill/datasets",
+			RootPath:         "/storage-root-jfs/user-xxx",
+			BasePath:         "/storage-root-jfs/user-xxx/train-center/model-distill",
+			ModelsBasePath:   "/storage-root-jfs/train-base-models",
+			DatasetsBasePath: "/storage-root-jfs/user-xxx/train-center/model-distill/datasets",
 		},
 		GCS: GCSConfig{BaseURL: "http://172.18.29.80:8072/api/v1", TimeoutSeconds: 10},
 		Logging: LoggingConfig{
@@ -159,14 +162,18 @@ func Default() *Config {
 			Compress: true,
 		},
 		Executor: ExecutorConfig{
-			WorkspaceRoot: "/storage-root-jfs/distill",
+			WorkspaceRoot: "/storage-root-jfs/user-xxx/train-center/model-distill",
 			MaxConcurrent: 5,
 			RuntimeImage:  "easy-distill/easydistill:latest",
 		},
 	}
+	normalizeStorage(&cfg.Storage)
+	return cfg
 }
 
 func validate(config *Config) error {
+	normalizeStorage(&config.Storage)
+
 	if config.Server.Port < 1 || config.Server.Port > 65535 {
 		return fmt.Errorf("invalid server.port: %d", config.Server.Port)
 	}
@@ -197,12 +204,44 @@ func validate(config *Config) error {
 	if config.Storage.DatasetsBasePath == "" {
 		return fmt.Errorf("storage.datasets_base_path must not be empty")
 	}
+	if config.Storage.DatasetCandidatesPath == "" {
+		return fmt.Errorf("storage.dataset_candidates_path must not be empty")
+	}
+	if config.Storage.DatasetUploadsPath == "" {
+		return fmt.Errorf("storage.dataset_uploads_path must not be empty")
+	}
+	if config.Storage.DatasetGeneratedPath == "" {
+		return fmt.Errorf("storage.dataset_generated_path must not be empty")
+	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLogLevels[config.Logging.Level] {
 		return fmt.Errorf("invalid logging.level: %s", config.Logging.Level)
 	}
 	return nil
+}
+
+func normalizeStorage(storage *StorageConfig) {
+	storage.RootPath = strings.TrimRight(strings.TrimSpace(storage.RootPath), "/")
+	storage.BasePath = strings.TrimRight(strings.TrimSpace(storage.BasePath), "/")
+	storage.ModelsBasePath = strings.TrimRight(strings.TrimSpace(storage.ModelsBasePath), "/")
+	storage.DatasetsBasePath = strings.TrimRight(strings.TrimSpace(storage.DatasetsBasePath), "/")
+	storage.DatasetCandidatesPath = strings.TrimRight(strings.TrimSpace(storage.DatasetCandidatesPath), "/")
+	storage.DatasetUploadsPath = strings.TrimRight(strings.TrimSpace(storage.DatasetUploadsPath), "/")
+	storage.DatasetGeneratedPath = strings.TrimRight(strings.TrimSpace(storage.DatasetGeneratedPath), "/")
+
+	if storage.DatasetsBasePath == "" {
+		return
+	}
+	if storage.DatasetCandidatesPath == "" {
+		storage.DatasetCandidatesPath = storage.DatasetsBasePath + "/candidates"
+	}
+	if storage.DatasetUploadsPath == "" {
+		storage.DatasetUploadsPath = storage.DatasetsBasePath + "/uploaded"
+	}
+	if storage.DatasetGeneratedPath == "" {
+		storage.DatasetGeneratedPath = storage.DatasetsBasePath + "/generated"
+	}
 }
 
 func applyValue(cfg *Config, section, key, value string) error {
@@ -245,6 +284,12 @@ func applyValue(cfg *Config, section, key, value string) error {
 		cfg.Storage.ModelsBasePath = value
 	case "storage.datasets_base_path":
 		cfg.Storage.DatasetsBasePath = value
+	case "storage.dataset_candidates_path":
+		cfg.Storage.DatasetCandidatesPath = value
+	case "storage.dataset_uploads_path":
+		cfg.Storage.DatasetUploadsPath = value
+	case "storage.dataset_generated_path":
+		cfg.Storage.DatasetGeneratedPath = value
 	case "gcs.base_url":
 		cfg.GCS.BaseURL = strings.TrimRight(value, "/")
 	case "gcs.timeout_seconds":

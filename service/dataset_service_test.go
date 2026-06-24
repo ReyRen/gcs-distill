@@ -9,22 +9,25 @@ import (
 	"github.com/ReyRen/gcs-distill/internal/config"
 )
 
-func TestDatasetBasePathDefaultsToInferCenterModelDistillDatasets(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "storage-root-jfs")
+func TestDatasetBasePathDefaultsToUserModelDistillDatasets(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "storage-root-jfs", "user-001")
 	svc := &datasetService{storageCfg: &config.StorageConfig{RootPath: root}}
 
-	want := filepath.Join(root, "infer-center", "model-distill", "datasets")
+	want := filepath.Join(root, "train-center", "model-distill", "datasets")
 	if got := svc.datasetBasePath(); got != want {
 		t.Fatalf("datasetBasePath() = %q, want %q", got, want)
 	}
 }
 
-func TestListDatasetCandidatesScansControlledDatasetBase(t *testing.T) {
+func TestListDatasetCandidatesScansControlledCandidatePath(t *testing.T) {
 	baseDir := t.TempDir()
-	mustWriteFile(t, filepath.Join(baseDir, "alpha", "train.jsonl"), []byte("{\"a\":1}\n{\"a\":2}\n"))
-	mustWriteFile(t, filepath.Join(baseDir, "beta.txt"), []byte("one\n"))
-	mustWriteFile(t, filepath.Join(baseDir, "skip.csv"), []byte("ignored\n"))
-	mustWriteFile(t, filepath.Join(baseDir, ".hidden.jsonl"), []byte("ignored\n"))
+	candidatesDir := filepath.Join(baseDir, "candidates")
+	uploadsDir := filepath.Join(baseDir, "uploaded")
+	mustWriteFile(t, filepath.Join(candidatesDir, "alpha", "train.jsonl"), []byte("{\"a\":1}\n{\"a\":2}\n"))
+	mustWriteFile(t, filepath.Join(candidatesDir, "beta.txt"), []byte("one\n"))
+	mustWriteFile(t, filepath.Join(candidatesDir, "skip.csv"), []byte("ignored\n"))
+	mustWriteFile(t, filepath.Join(candidatesDir, ".hidden.jsonl"), []byte("ignored\n"))
+	mustWriteFile(t, filepath.Join(uploadsDir, "uploaded.jsonl"), []byte("should not be listed\n"))
 
 	svc := &datasetService{storageCfg: &config.StorageConfig{DatasetsBasePath: baseDir}}
 	items, err := svc.ListDatasetCandidates(context.Background())
@@ -54,6 +57,32 @@ func TestEnsureDatasetFilePathRejectsOutsideBase(t *testing.T) {
 	svc := &datasetService{storageCfg: &config.StorageConfig{DatasetsBasePath: baseDir}}
 	if err := svc.ensureDatasetFilePath(outsideFile); err == nil {
 		t.Fatal("ensureDatasetFilePath() error = nil, want outside-base error")
+	}
+}
+
+func TestEnsureDatasetFilePathOnlyAcceptsCandidatePath(t *testing.T) {
+	baseDir := t.TempDir()
+	candidateFile := filepath.Join(baseDir, "candidates", "seed.jsonl")
+	uploadedFile := filepath.Join(baseDir, "uploaded", "seed.jsonl")
+	mustWriteFile(t, candidateFile, []byte("{}\n"))
+	mustWriteFile(t, uploadedFile, []byte("{}\n"))
+
+	svc := &datasetService{storageCfg: &config.StorageConfig{DatasetsBasePath: baseDir}}
+	if err := svc.ensureDatasetFilePath(candidateFile); err != nil {
+		t.Fatalf("ensureDatasetFilePath(candidate) error = %v", err)
+	}
+	if err := svc.ensureDatasetFilePath(uploadedFile); err == nil {
+		t.Fatal("ensureDatasetFilePath(uploaded) error = nil, want candidate-path error")
+	}
+}
+
+func TestGetDatasetPathUsesUploadsPath(t *testing.T) {
+	baseDir := t.TempDir()
+	svc := &datasetService{storageCfg: &config.StorageConfig{DatasetsBasePath: baseDir}}
+
+	want := filepath.Join(baseDir, "uploaded", "dataset-1")
+	if got := svc.GetDatasetPath("project-1", "dataset-1"); got != want {
+		t.Fatalf("GetDatasetPath() = %q, want %q", got, want)
 	}
 }
 

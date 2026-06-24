@@ -28,7 +28,7 @@ Health: http://<distill.host>:8080/health
 flowchart LR
     FE["Frontend"] --> DS["gcs-distill REST API"]
     DS --> DB[(MySQL distill_*)]
-    DS --> FS["/storage-root-jfs/distill"]
+    DS --> FS["/storage-root-jfs/user-xxx/train-center/model-distill"]
     DS -->|"container job"| GCS["gcs-v2"]
     GCS -->|"gRPC"| Worker["gcs-info-catch-v2"]
     Worker --> Runtime["EasyDistill runtime container"]
@@ -301,7 +301,7 @@ Content-Type: application/json
   "student_model_config": {
     "provider_type": "local",
     "model_name": "Qwen2.5-7B",
-    "model_path": "/storage-root-jfs/distill/models/Qwen2.5-7B"
+    "model_path": "/storage-root-jfs/train-base-models/Qwen2.5-7B"
   },
   "evaluation_config": {
     "metrics": ["accuracy", "rouge"],
@@ -328,7 +328,7 @@ Content-Type: application/json
 数据集输入目录和 model-center 使用同一个共享存储根，但 distill 不放在 model-center 目录下。默认目录是：
 
 ```text
-/storage-root-jfs/infer-center/model-distill/datasets/
+/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/
 ```
 
 前端需要先拉取可选数据集，再让用户选择：
@@ -363,7 +363,7 @@ Content-Type: multipart/form-data
 | `name` | 否 | 不填时使用文件名 |
 | `description` | 否 | 数据集说明 |
 
-上传后后端会把文件保存到 `storage.datasets_base_path/{dataset_id}/`，并统计非空行数作为 `record_count`。
+上传后后端会把文件保存到 `storage.dataset_uploads_path/{dataset_id}/`，并统计非空行数作为 `record_count`。
 
 如果数据已经在共享存储候选列表中，登记路径：
 
@@ -378,12 +378,12 @@ Content-Type: application/json
   "name": "种子数据",
   "description": "共享存储中的 JSONL",
   "source_type": "import",
-  "file_path": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed/train.jsonl",
+  "file_path": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
   "record_count": 1000
 }
 ```
 
-`source_type` 只能是 `upload`、`import`、`generated`。`source_type=import` 时，`file_path` 必须位于 `storage.datasets_base_path` 下；删除 import 数据集只删除数据库记录，不删除共享源文件。
+`source_type` 只能是 `upload`、`import`、`generated`。`source_type=import` 时，`file_path` 必须位于 `storage.dataset_candidates_path` 下；删除 import 数据集只删除数据库记录，不删除共享源文件。
 
 ### 6.3 创建流水线
 

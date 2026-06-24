@@ -46,7 +46,7 @@ flowchart LR
 | 能力 | 说明 |
 | --- | --- |
 | 项目管理 | 保存教师模型、学生模型、目标任务、蒸馏参数和项目元数据 |
-| 数据集管理 | 从 `/storage-root-jfs/infer-center/model-distill/datasets` 扫描可选数据集，支持上传、登记、记录数统计、更新和删除 |
+| 数据集管理 | 从 `/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates` 扫描可选数据集，支持上传、登记、记录数统计、更新和删除 |
 | 流水线编排 | 维护蒸馏流水线运行、阶段状态、取消、日志 tail 和 WebSocket 实时日志 |
 | 配置生成 | 为 EasyDistill 阶段生成 `teacher_infer.json`、`student_train.json`、`evaluate.json` |
 | 共享存储 | 统一管理 configs、data、eval、logs、models/checkpoints 等运行目录 |
@@ -81,13 +81,13 @@ flowchart LR
 
 共享存储必须在所有 `gcs-v2` 执行节点上以同一路径可访问，否则容器内配置路径会失效。
 
-前端可选择的数据集统一放在 `storage.datasets_base_path`，默认路径为：
+前端可选择的数据集统一放在 `storage.dataset_candidates_path`，默认路径为：
 
 ```text
-/storage-root-jfs/infer-center/model-distill/datasets/
+/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/
 ```
 
-`POST /projects/{id}/datasets` 上传的文件会保存到该目录下；`POST /datasets` 登记已有数据集时，`source_type=import` 的 `file_path` 也必须来自这个目录。
+`POST /projects/{id}/datasets` 上传的文件会保存到 `storage.dataset_uploads_path/{dataset_id}/`；`POST /datasets` 登记已有数据集时，`source_type=import` 的 `file_path` 必须来自候选目录。
 
 ## API 速览
 
@@ -150,7 +150,7 @@ swagger -> server build -> install systemd unit -> enable service -> restart ser
 /root/go/src/gcs-distill/bin/gcs-distill-server --config /root/go/src/gcs-distill/config.toml
 ```
 
-默认配置会尽量复用 `gcs-model-center-v2` 的统一服务：MySQL 使用同一个 `ai_market`，GCS 地址指向同一个 `gcs-v2`，运行工作区位于 `/storage-root-jfs/distill`，前端可选数据集位于 `/storage-root-jfs/infer-center/model-distill/datasets`。如果生产环境不希望在 `config.toml` 直接写数据库密码，可以清空 `database.password`，设置 `database.password_env = "AI_MARKET_DB_PASSWORD"`，并创建 `/etc/gcs-distill/gcs-distill.env`：
+默认配置会尽量复用 GCS 系列统一服务：MySQL 使用同一个 `ai_market`，GCS 地址指向同一个 `gcs-v2`，学生基模从全域只读目录 `/storage-root-jfs/train-base-models` 选择。用户级稳定目录由 `gcs-s3` 在注册时创建，`gcs-distill` 运行工作区位于 `/storage-root-jfs/user-xxx/train-center/model-distill`，前端可选数据集位于 `datasets/candidates`，上传数据集位于 `datasets/uploaded`。如果生产环境不希望在 `config.toml` 直接写数据库密码，可以清空 `database.password`，设置 `database.password_env = "AI_MARKET_DB_PASSWORD"`，并创建 `/etc/gcs-distill/gcs-distill.env`：
 
 ```bash
 AI_MARKET_DB_PASSWORD=your-password

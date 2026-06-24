@@ -168,8 +168,8 @@
             "type": "string"
           },
           "file_path": {
-            "description": "Dataset file path. Import paths must come from storage.datasets_base_path (/storage-root-jfs/infer-center/model-distill/datasets by default). Uploaded/imported files may be JSONL or JSON array; dataset_build writes EasyDistill runtime files as JSON arrays.",
-            "example": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed/train.jsonl",
+            "description": "Dataset file path. Import paths must come from storage.dataset_candidates_path (/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates by default). Uploaded/imported files may be JSONL or JSON array; dataset_build writes EasyDistill runtime files as JSON arrays.",
+            "example": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
             "type": "string"
           },
           "id": {
@@ -198,7 +198,7 @@
       "DatasetCandidate": {
         "properties": {
           "file_path": {
-            "example": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed/train.jsonl",
+            "example": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
             "type": "string"
           },
           "is_directory": {
@@ -219,7 +219,7 @@
             "type": "integer"
           },
           "source_dir": {
-            "example": "/storage-root-jfs/infer-center/model-distill/datasets/customer-seed",
+            "example": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed",
             "type": "string"
           },
           "updated_at": {
@@ -862,7 +862,7 @@
           },
           "path": {
             "description": "Full path to model directory",
-            "example": "/storage-root-jfs/distill/models/Qwen2.5-0.5B-Instruct",
+            "example": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
           "size": {
@@ -891,7 +891,7 @@
           },
           "model_path": {
             "description": "Required - local model file path",
-            "example": "/storage-root-jfs/distill/models/Qwen2.5-0.5B-Instruct",
+            "example": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
           "provider_type": {
@@ -979,7 +979,7 @@
           },
           "model_path": {
             "description": "Required for local teacher provider; used as models.teacher in EasyDistill local inference.",
-            "example": "/storage-root-jfs/distill/models/Qwen2.5-7B-Instruct",
+            "example": "/storage-root-jfs/train-base-models/Qwen2.5-7B-Instruct",
             "type": "string"
           },
           "provider_type": {
@@ -1087,7 +1087,7 @@
         ]
       },
       "post": {
-        "description": "Create a dataset record. For source_type=import, file_path must be selected from storage.datasets_base_path.",
+        "description": "Create a dataset record. For source_type=import, file_path must be selected from storage.dataset_candidates_path.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1118,7 +1118,7 @@
     },
     "/api/v1/datasets/candidates": {
       "get": {
-        "description": "Scan storage.datasets_base_path and return JSON/JSONL/NDJSON/TXT files that the frontend can select. The default base path is /storage-root-jfs/infer-center/model-distill/datasets.",
+        "description": "Scan storage.dataset_candidates_path and return JSON/JSONL/NDJSON/TXT files that the frontend can select. The default base path is /storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates.",
         "responses": {
           "200": {
             "content": {

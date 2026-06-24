@@ -32,9 +32,12 @@ conn_max_lifetime_seconds = 600
 [storage]
 type = "nfs"
 root_path = "/mnt/shared"
-base_path = "/mnt/shared/distill"
-models_base_path = "/mnt/shared/distill/models"
-datasets_base_path = "/mnt/shared/infer-center/model-distill/datasets"
+base_path = "/mnt/shared/user-001/train-center/model-distill"
+models_base_path = "/mnt/shared/train-base-models"
+datasets_base_path = "/mnt/shared/user-001/train-center/model-distill/datasets"
+dataset_candidates_path = "/mnt/shared/user-001/train-center/model-distill/datasets/candidates"
+dataset_uploads_path = "/mnt/shared/user-001/train-center/model-distill/datasets/uploaded"
+dataset_generated_path = "/mnt/shared/user-001/train-center/model-distill/datasets/generated"
 
 [gcs]
 base_url = "http://gcs-v2:8072/api/v1/"
@@ -49,7 +52,7 @@ max_age = 2
 compress = false
 
 [executor]
-workspace_root = "/mnt/shared/distill"
+workspace_root = "/mnt/shared/user-001/train-center/model-distill"
 max_concurrent = 3
 runtime_image = "easy-distill/easydistill:test"
 `
@@ -74,8 +77,17 @@ runtime_image = "easy-distill/easydistill:test"
 	if cfg.GCS.BaseURL != "http://gcs-v2:8072/api/v1" {
 		t.Fatalf("gcs base url = %q", cfg.GCS.BaseURL)
 	}
-	if cfg.Storage.DatasetsBasePath != "/mnt/shared/infer-center/model-distill/datasets" {
+	if cfg.Storage.DatasetsBasePath != "/mnt/shared/user-001/train-center/model-distill/datasets" {
 		t.Fatalf("datasets base path = %q", cfg.Storage.DatasetsBasePath)
+	}
+	if cfg.Storage.DatasetCandidatesPath != "/mnt/shared/user-001/train-center/model-distill/datasets/candidates" {
+		t.Fatalf("dataset candidates path = %q", cfg.Storage.DatasetCandidatesPath)
+	}
+	if cfg.Storage.DatasetUploadsPath != "/mnt/shared/user-001/train-center/model-distill/datasets/uploaded" {
+		t.Fatalf("dataset uploads path = %q", cfg.Storage.DatasetUploadsPath)
+	}
+	if cfg.Storage.DatasetGeneratedPath != "/mnt/shared/user-001/train-center/model-distill/datasets/generated" {
+		t.Fatalf("dataset generated path = %q", cfg.Storage.DatasetGeneratedPath)
 	}
 	if cfg.Executor.RuntimeImage != "easy-distill/easydistill:test" {
 		t.Fatalf("runtime image = %q", cfg.Executor.RuntimeImage)
@@ -114,11 +126,23 @@ func TestDefaultUsesSharedGCSServiceConfig(t *testing.T) {
 	if cfg.GCS.BaseURL != "http://172.18.29.80:8072/api/v1" {
 		t.Fatalf("gcs base url = %q", cfg.GCS.BaseURL)
 	}
-	if cfg.Storage.BasePath != "/storage-root-jfs/distill" {
+	if cfg.Storage.BasePath != "/storage-root-jfs/user-xxx/train-center/model-distill" {
 		t.Fatalf("storage base path = %q", cfg.Storage.BasePath)
 	}
-	if cfg.Storage.DatasetsBasePath != "/storage-root-jfs/infer-center/model-distill/datasets" {
+	if cfg.Storage.ModelsBasePath != "/storage-root-jfs/train-base-models" {
+		t.Fatalf("models base path = %q", cfg.Storage.ModelsBasePath)
+	}
+	if cfg.Storage.DatasetsBasePath != "/storage-root-jfs/user-xxx/train-center/model-distill/datasets" {
 		t.Fatalf("datasets base path = %q", cfg.Storage.DatasetsBasePath)
+	}
+	if cfg.Storage.DatasetCandidatesPath != "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates" {
+		t.Fatalf("dataset candidates path = %q", cfg.Storage.DatasetCandidatesPath)
+	}
+	if cfg.Storage.DatasetUploadsPath != "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/uploaded" {
+		t.Fatalf("dataset uploads path = %q", cfg.Storage.DatasetUploadsPath)
+	}
+	if cfg.Storage.DatasetGeneratedPath != "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/generated" {
+		t.Fatalf("dataset generated path = %q", cfg.Storage.DatasetGeneratedPath)
 	}
 	if cfg.Executor.WorkspaceRoot != cfg.Storage.BasePath {
 		t.Fatalf("executor workspace root = %q, want storage base path %q", cfg.Executor.WorkspaceRoot, cfg.Storage.BasePath)
