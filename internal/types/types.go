@@ -51,6 +51,7 @@ type Project struct {
 // ModelConfig describes a teacher or student model.
 type ModelConfig struct {
 	ProviderType   ProviderType           `json:"provider_type"`
+	ModelID        string                 `json:"model_id,omitempty"`
 	ModelName      string                 `json:"model_name"`
 	ModelPath      string                 `json:"model_path,omitempty"`
 	Endpoint       string                 `json:"endpoint,omitempty"`

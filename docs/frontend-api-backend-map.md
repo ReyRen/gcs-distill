@@ -88,7 +88,8 @@ interface Project {
 
 interface ModelConfig {
   provider_type: "api" | "local";
-  model_name: string;
+  model_id?: string;
+  model_name?: string;
   model_path?: string;
   endpoint?: string;
   api_secret_ref?: string;
@@ -112,15 +113,17 @@ interface EvaluationConfig {
 | --- | --- | --- |
 | `teacher_model_config.provider_type="api"` | `runtime.GenerateTeacherInferConfig` | `job_type=kd_black_box_api` |
 | `teacher_model_config.provider_type="local"` | `runtime.GenerateTeacherInferConfig` | `job_type=kd_black_box_local` |
-| `teacher_model_config.model_name/model_path` | 教师推理配置 `models.teacher` | 教师模型名或本地路径 |
+| `teacher_model_config.model_id` | `ProjectService.resolveLocalModel` | 本地教师模型选择 ID，来自 `GET /models/teacher` |
+| `teacher_model_config.model_name/model_path` | 教师推理配置 `models.teacher` | API 模式使用模型名，本地模式由后端解析成本地路径 |
 | `teacher_model_config.endpoint` | 教师推理配置 `inference.base_url` | OpenAI-compatible 教师 API 地址 |
 | `teacher_model_config.api_secret_ref` 或 `extra_params.api_key` | 教师推理配置 `inference.api_key` | 当前直接作为 EasyDistill 可用 key 写入配置 |
 | `teacher_model_config.max_tokens` | 教师推理配置 `inference.max_new_tokens` | 教师生成最大 token |
 | `teacher_model_config.extra_params.inference` | 教师推理配置 `inference.*` | 透传更多 EasyDistill 推理参数 |
-| `student_model_config.model_path` | 学生训练配置 `models.student` | 本地学生模型路径，必填 |
+| `student_model_config.model_id` | `ProjectService.resolveLocalModel` | 本地学生模型选择 ID，来自 `GET /models/student` |
+| `student_model_config.model_path` | 学生训练配置 `models.student` | 后端根据 `model_id` 解析出的本地学生模型路径 |
 | `evaluation_config.extra_params.base_url/api_key/max_new_tokens` | 评估配置 `inference.*` | 评估 judge API |
 
-注意：后端要求学生模型必须是 `provider_type=local`，并且必须有 `model_path`。教师模型可以是 `api` 或 `local`。
+注意：后端要求学生模型必须是 `provider_type=local`。前端本地模型选择时提交 `model_id` 即可，后端会补齐 `model_name` 和 `model_path`；`model_path` 仅作为兼容旧客户端和运行配置字段保留，不建议前端手填。
 
 ### 3.2 数据集字段
 
@@ -242,8 +245,7 @@ interface SelectedResource {
   },
   "student_model_config": {
     "provider_type": "local",
-    "model_name": "Qwen2.5-0.5B-Instruct",
-    "model_path": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct"
+    "model_id": "Qwen2.5-0.5B-Instruct"
   },
   "evaluation_config": {
     "metrics": ["accuracy"],
@@ -262,6 +264,7 @@ interface SelectedResource {
 ```text
 ProjectHandler.CreateProject
   -> ProjectService.CreateProject
+  -> ProjectService.resolveLocalModel
   -> validateProject
   -> ProjectRepository.Create
   -> MySQL distill_projects
@@ -398,7 +401,7 @@ EasyDistill 关系：不启动容器，只给前端选数据。真正进入 Easy
 }
 ```
 
-方式二：multipart 上传，等价于 `POST /projects/{id}/datasets`，但需要在 form 里带 `project_id`。
+方式二：multipart 上传，等价于 `POST /projects/{id}/datasets`，但需要在 form 里带 `project_id`。注意：JSON 请求里的 `source_type=upload` 不会携带文件，后端会直接拒绝；真正上传必须使用 `multipart/form-data`。
 
 ```text
 Content-Type: multipart/form-data
@@ -416,6 +419,7 @@ DatasetHandler.CreateDataset
   JSON -> DatasetService.CreateDataset
        -> prepareDataset
        -> 校验项目存在、source_type、file_path
+       -> source_type=upload 时返回错误，避免只建记录不落文件
        -> DatasetRepository.Create
 
   multipart -> DatasetService.CreateUploadedDataset
@@ -572,7 +576,7 @@ interface TeacherModel {
 }
 ```
 
-EasyDistill 关系：不启动容器。前端选择的 `path` 应写入 `project.teacher_model_config.model_path`，后续进入 EasyDistill 配置里的 teacher 模型字段。
+EasyDistill 关系：不启动容器。前端选择本地教师模型后应提交 `id` 到 `project.teacher_model_config.model_id`；后端会解析出 `model_path`，后续进入 EasyDistill 配置里的 teacher 模型字段。
 
 #### `GET /api/v1/models/teacher/{id}`
 
@@ -621,7 +625,7 @@ interface StudentModel {
 }
 ```
 
-EasyDistill 关系：不启动容器。前端选择的 `path` 应写入 `project.student_model_config.model_path`，后续进入 EasyDistill 配置里的 student 模型字段。
+EasyDistill 关系：不启动容器。前端选择学生模型后应提交 `id` 到 `project.student_model_config.model_id`；后端会解析出 `model_path`，后续进入 EasyDistill 配置里的 student 模型字段。
 
 #### `GET /api/v1/models/student/{id}`
 

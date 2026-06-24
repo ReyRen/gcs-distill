@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ReyRen/gcs-distill/internal/config"
+	"github.com/ReyRen/gcs-distill/internal/types"
 )
 
 func TestDatasetBasePathDefaultsToUserModelDistillDatasets(t *testing.T) {
@@ -83,6 +84,19 @@ func TestGetDatasetPathUsesUploadsPath(t *testing.T) {
 	want := filepath.Join(baseDir, "uploaded", "dataset-1")
 	if got := svc.GetDatasetPath("project-1", "dataset-1"); got != want {
 		t.Fatalf("GetDatasetPath() = %q, want %q", got, want)
+	}
+}
+
+func TestCreateDatasetRejectsJSONUploadSourceType(t *testing.T) {
+	svc := &datasetService{}
+
+	err := svc.CreateDataset(context.Background(), &types.Dataset{
+		ProjectID:  "project-1",
+		Name:       "upload.jsonl",
+		SourceType: "upload",
+	})
+	if err == nil {
+		t.Fatal("CreateDataset() error = nil, want multipart upload guidance")
 	}
 }
 

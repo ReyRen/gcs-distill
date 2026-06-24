@@ -34,6 +34,8 @@ type ModelService interface {
 	ListStudentModels(ctx context.Context) ([]*StudentModel, error)
 	// GetStudentModel 获取指定学生模型信息
 	GetStudentModel(ctx context.Context, modelID string) (*StudentModel, error)
+	// ValidateLocalModel 验证本地模型是否存在且可用
+	ValidateLocalModel(ctx context.Context, modelPath string) error
 	// ValidateStudentModel 验证学生模型是否存在且可用
 	ValidateStudentModel(ctx context.Context, modelPath string) error
 }
@@ -169,8 +171,8 @@ func (s *modelService) getLocalModel(modelID string) (*LocalModel, error) {
 	}, nil
 }
 
-// ValidateStudentModel 验证学生模型是否存在且可用
-func (s *modelService) ValidateStudentModel(ctx context.Context, modelPath string) error {
+// ValidateLocalModel 验证本地模型是否存在且可用
+func (s *modelService) ValidateLocalModel(ctx context.Context, modelPath string) error {
 	_ = ctx
 	// 检查路径是否在允许的目录下
 	if !isSubPath(s.modelsBasePath, modelPath) {
@@ -189,6 +191,11 @@ func (s *modelService) ValidateStudentModel(ctx context.Context, modelPath strin
 	}
 
 	return nil
+}
+
+// ValidateStudentModel 验证学生模型是否存在且可用
+func (s *modelService) ValidateStudentModel(ctx context.Context, modelPath string) error {
+	return s.ValidateLocalModel(ctx, modelPath)
 }
 
 func isSubPath(basePath, targetPath string) bool {

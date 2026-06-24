@@ -884,13 +884,18 @@
             "example": 2048,
             "type": "integer"
           },
+          "model_id": {
+            "description": "Preferred for local student models. Use the id returned by GET /api/v1/models/student; the backend resolves and stores model_path.",
+            "example": "Qwen2.5-0.5B-Instruct",
+            "type": "string"
+          },
           "model_name": {
-            "description": "Student model name",
+            "description": "Student model name. Optional when model_id is provided; backend fills it from the selected local model.",
             "example": "Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
           "model_path": {
-            "description": "Required - local model file path",
+            "description": "Resolved local model path. Frontend should not hand-type it; backend fills it from model_id. Kept for backward compatibility.",
             "example": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
@@ -906,9 +911,7 @@
           }
         },
         "required": [
-          "provider_type",
-          "model_name",
-          "model_path"
+          "provider_type"
         ],
         "type": "object"
       },
@@ -1002,13 +1005,18 @@
             "example": 2048,
             "type": "integer"
           },
+          "model_id": {
+            "description": "Preferred for local teacher models. Use the id returned by GET /api/v1/models/teacher; the backend resolves and stores model_path.",
+            "example": "Qwen2.5-7B-Instruct",
+            "type": "string"
+          },
           "model_name": {
-            "description": "Model name",
+            "description": "Model name. Required for api provider; optional for local provider when model_id is provided.",
             "example": "gpt-4",
             "type": "string"
           },
           "model_path": {
-            "description": "Required for local teacher provider; used as models.teacher in EasyDistill local inference.",
+            "description": "Resolved local teacher model path. Frontend should not hand-type it; backend fills it from model_id. Kept for backward compatibility.",
             "example": "/storage-root-jfs/train-base-models/Qwen2.5-7B-Instruct",
             "type": "string"
           },
@@ -1152,7 +1160,7 @@
         ]
       },
       "post": {
-        "description": "Create a dataset record. For source_type=import, file_path must be selected from storage.dataset_candidates_path.",
+        "description": "Create a dataset record. JSON requests register existing candidate files only; upload datasets must use multipart/form-data so the backend can persist the file under storage.dataset_uploads_path/{dataset_id}/.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1955,6 +1963,7 @@
         }
       ],
       "post": {
+        "description": "Upload a dataset file for a project. The backend stores the file under storage.dataset_uploads_path/{dataset_id}/{filename} and returns data.file_path.",
         "requestBody": {
           "content": {
             "multipart/form-data": {

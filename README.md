@@ -87,7 +87,7 @@ flowchart LR
 /storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/
 ```
 
-`POST /projects/{id}/datasets` 上传的文件会保存到 `storage.dataset_uploads_path/{dataset_id}/`；`POST /datasets` 登记已有数据集时，`source_type=import` 的 `file_path` 必须来自候选目录。
+`POST /projects/{id}/datasets` 或 multipart `POST /datasets` 上传的文件会保存到 `storage.dataset_uploads_path/{dataset_id}/`；JSON `POST /datasets` 只用于登记已有候选数据集，`source_type=import` 的 `file_path` 必须来自候选目录，`source_type=upload` 会被拒绝。
 
 ## API 速览
 

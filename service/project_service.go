@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
@@ -27,19 +28,24 @@ type ProjectService interface {
 // projectService 项目服务实现
 type projectService struct {
 	projectRepo mysqlrepo.ProjectRepository
+	modelSvc    ModelService
 }
 
 // NewProjectService 创建项目服务
-func NewProjectService(projectRepo mysqlrepo.ProjectRepository) ProjectService {
+func NewProjectService(projectRepo mysqlrepo.ProjectRepository, modelSvc ...ModelService) ProjectService {
+	var svc ModelService
+	if len(modelSvc) > 0 {
+		svc = modelSvc[0]
+	}
 	return &projectService{
 		projectRepo: projectRepo,
+		modelSvc:    svc,
 	}
 }
 
 // CreateProject 创建项目
 func (s *projectService) CreateProject(ctx context.Context, project *types.Project) error {
-	// 验证项目信息
-	if err := s.validateProject(project); err != nil {
+	if err := s.prepareProject(ctx, project); err != nil {
 		return err
 	}
 
@@ -105,8 +111,7 @@ func (s *projectService) ListProjects(ctx context.Context, page, pageSize int) (
 
 // UpdateProject 更新项目
 func (s *projectService) UpdateProject(ctx context.Context, project *types.Project) error {
-	// 验证项目信息
-	if err := s.validateProject(project); err != nil {
+	if err := s.prepareProject(ctx, project); err != nil {
 		return err
 	}
 
@@ -155,6 +160,65 @@ func (s *projectService) DeleteProject(ctx context.Context, id string) error {
 	return nil
 }
 
+func (s *projectService) prepareProject(ctx context.Context, project *types.Project) error {
+	if err := s.resolveLocalModel(ctx, "教师", &project.TeacherModelConfig, func(ctx context.Context, modelID string) (*LocalModel, error) {
+		return s.modelSvc.GetTeacherModel(ctx, modelID)
+	}); err != nil {
+		return err
+	}
+	if err := s.resolveLocalModel(ctx, "学生", &project.StudentModelConfig, func(ctx context.Context, modelID string) (*LocalModel, error) {
+		return s.modelSvc.GetStudentModel(ctx, modelID)
+	}); err != nil {
+		return err
+	}
+	return s.validateProject(project)
+}
+
+func (s *projectService) resolveLocalModel(
+	ctx context.Context,
+	label string,
+	cfg *types.ModelConfig,
+	getModel func(context.Context, string) (*LocalModel, error),
+) error {
+	if cfg.ProviderType != types.ProviderLocal {
+		return nil
+	}
+
+	if cfg.ModelID != "" {
+		if s.modelSvc == nil {
+			return fmt.Errorf("%s本地模型无法通过 model_id 解析，请配置模型服务", label)
+		}
+
+		model, err := getModel(ctx, cfg.ModelID)
+		if err != nil {
+			return fmt.Errorf("%s本地模型不存在或不可用: %w", label, err)
+		}
+		if model == nil {
+			return fmt.Errorf("%s本地模型不存在或不可用", label)
+		}
+
+		cfg.ModelPath = model.Path
+		if cfg.ModelName == "" {
+			cfg.ModelName = model.Name
+		}
+		return nil
+	}
+
+	if cfg.ModelPath == "" {
+		return fmt.Errorf("%s本地模型必须提供 model_id", label)
+	}
+
+	if s.modelSvc != nil {
+		if err := s.modelSvc.ValidateLocalModel(ctx, cfg.ModelPath); err != nil {
+			return fmt.Errorf("%s本地模型路径不可用: %w", label, err)
+		}
+	}
+	if cfg.ModelName == "" {
+		cfg.ModelName = filepath.Base(cfg.ModelPath)
+	}
+	return nil
+}
+
 // validateProject 验证项目信息
 func (s *projectService) validateProject(project *types.Project) error {
 	if project.Name == "" {
@@ -165,19 +229,17 @@ func (s *projectService) validateProject(project *types.Project) error {
 		return fmt.Errorf("项目名称长度不能超过255个字符")
 	}
 
-	// 验证教师模型配置
-	if project.TeacherModelConfig.ModelName == "" {
-		return fmt.Errorf("教师模型名称不能为空")
-	}
-
 	if project.TeacherModelConfig.ProviderType != types.ProviderAPI &&
 		project.TeacherModelConfig.ProviderType != types.ProviderLocal {
 		return fmt.Errorf("无效的教师模型提供者类型: %s", project.TeacherModelConfig.ProviderType)
 	}
 
-	// 验证学生模型配置
-	if project.StudentModelConfig.ModelName == "" {
-		return fmt.Errorf("学生模型名称不能为空")
+	if project.TeacherModelConfig.ModelName == "" {
+		return fmt.Errorf("教师模型名称不能为空")
+	}
+	if project.TeacherModelConfig.ProviderType == types.ProviderLocal &&
+		project.TeacherModelConfig.ModelPath == "" {
+		return fmt.Errorf("教师本地模型路径不能为空")
 	}
 
 	// 学生模型必须是本地模型（离线环境）
@@ -185,9 +247,11 @@ func (s *projectService) validateProject(project *types.Project) error {
 		return fmt.Errorf("学生模型必须使用本地模型 (provider_type=local)，当前环境不支持在线模型")
 	}
 
-	// 学生模型必须提供模型路径
+	if project.StudentModelConfig.ModelName == "" {
+		return fmt.Errorf("学生模型名称不能为空")
+	}
 	if project.StudentModelConfig.ModelPath == "" {
-		return fmt.Errorf("学生模型路径 (model_path) 不能为空")
+		return fmt.Errorf("学生本地模型路径不能为空")
 	}
 
 	return nil

@@ -43,10 +43,10 @@ flowchart LR
 | 前端字段 | 写入 EasyDistill 配置 | 说明 |
 | --- | --- | --- |
 | `teacher_model_config.provider_type=api` | `job_type=kd_black_box_api` | 教师推理走 OpenAI-compatible API |
-| `teacher_model_config.provider_type=local` | `job_type=kd_black_box_local` | 教师推理走本地模型，必须提供 `model_path` |
+| `teacher_model_config.provider_type=local` | `job_type=kd_black_box_local` | 教师推理走本地模型，前端传 `model_id`，后端解析 `model_path` |
 | `teacher_model_config.endpoint` | `inference.base_url` | API 教师模型地址 |
 | `teacher_model_config.api_secret_ref` 或 `extra_params.api_key` | `inference.api_key` | 当前 EasyDistill 需要可直接使用的 key 字符串 |
-| `student_model_config.model_path` | `models.student` | 学生模型本地路径 |
+| `student_model_config.model_id` | `models.student` | 学生模型选择 ID，后端解析成本地路径 |
 | `training_config.*` | `training.*` | 只映射 EasyDistill SFTConfig 可识别字段，不再提交 `lora_config` |
 | `evaluation_config.extra_params.base_url/api_key/max_new_tokens` | `evaluate.inference.*` | 评估阶段 judge API；缺省时 API 教师模型配置可作为回退 |
 
@@ -127,7 +127,8 @@ export type StageType =
 
 export interface ModelConfig {
   provider_type: ProviderType;
-  model_name: string;
+  model_id?: string;
+  model_name?: string;
   model_path?: string;
   endpoint?: string;
   api_secret_ref?: string;
@@ -281,7 +282,7 @@ export type StudentModel = LocalModel;
 
 后端会自动生成 `id`，前端创建时不需要传。
 
-教师模型有两种来源：`provider_type=api` 时由前端填写 API 端点、密钥引用和模型名；`provider_type=local` 时前端应调用 `GET /api/v1/models/teacher` 选择本地模型，并把返回的 `path` 写入 `teacher_model_config.model_path`。学生模型当前固定为本地模型，调用 `GET /api/v1/models/student` 选择。
+教师模型有两种来源：`provider_type=api` 时由前端填写 API 端点、密钥引用和模型名；`provider_type=local` 时前端应调用 `GET /api/v1/models/teacher` 选择本地模型，并把返回的 `id` 写入 `teacher_model_config.model_id`。学生模型当前固定为本地模型，调用 `GET /api/v1/models/student` 选择后提交 `student_model_config.model_id`。
 
 ```http
 POST /api/v1/projects
@@ -305,8 +306,7 @@ Content-Type: application/json
   },
   "student_model_config": {
     "provider_type": "local",
-    "model_name": "Qwen2.5-7B",
-    "model_path": "/storage-root-jfs/train-base-models/Qwen2.5-7B"
+    "model_id": "Qwen2.5-7B"
   },
   "evaluation_config": {
     "metrics": ["accuracy", "rouge"],
@@ -323,11 +323,11 @@ Content-Type: application/json
 校验规则：
 
 - `name` 必填，最大 255 字符。
-- `teacher_model_config.model_name` 必填。
 - `teacher_model_config.provider_type` 只能是 `api` 或 `local`。
-- `teacher_model_config.provider_type=local` 时，`model_path` 应来自 `GET /models/teacher` 返回的 `path`。
+- `teacher_model_config.provider_type=api` 时，`model_name` 必填。
+- `teacher_model_config.provider_type=local` 时，`model_id` 应来自 `GET /models/teacher` 返回的 `id`；`model_path` 由后端解析。
 - `student_model_config.provider_type` 必须是 `local`。
-- `student_model_config.model_path` 必填。
+- `student_model_config.model_id` 应来自 `GET /models/student` 返回的 `id`；`model_path` 由后端解析。
 
 ### 6.2 数据集上传或登记
 
@@ -369,7 +369,7 @@ Content-Type: multipart/form-data
 | `name` | 否 | 不填时使用文件名 |
 | `description` | 否 | 数据集说明 |
 
-上传后后端会把文件保存到 `storage.dataset_uploads_path/{dataset_id}/`，并统计非空行数作为 `record_count`。
+上传后后端会把文件保存到 `storage.dataset_uploads_path/{dataset_id}/`，并统计非空行数作为 `record_count`。前端判断真实落盘路径时以响应里的 `data.file_path` 为准。
 
 如果数据已经在共享存储候选列表中，登记路径：
 
@@ -389,7 +389,7 @@ Content-Type: application/json
 }
 ```
 
-`source_type` 只能是 `upload`、`import`、`generated`。`source_type=import` 时，`file_path` 必须位于 `storage.dataset_candidates_path` 下；删除 import 数据集只删除数据库记录，不删除共享源文件。
+JSON 的 `POST /api/v1/datasets` 用于登记已有候选文件，不能用来上传新文件；如果 JSON 里传 `source_type=upload`，后端会拒绝，避免只创建数据库记录但没有文件落到 `uploaded`。`source_type=import` 时，`file_path` 必须位于 `storage.dataset_candidates_path` 下；删除 import 数据集只删除数据库记录，不删除共享源文件。
 
 ### 6.3 创建流水线
 

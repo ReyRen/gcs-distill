@@ -59,9 +59,9 @@ func main() {
 	pipelineRepo := mysqlrepo.NewPipelineRepository(db)
 	stageRepo := mysqlrepo.NewStageRepository(db)
 
-	projectSvc := service.NewProjectService(projectRepo)
-	datasetSvc := service.NewDatasetService(datasetRepo, projectRepo, &cfg.Storage)
 	modelSvc := service.NewModelService(&cfg.Storage)
+	projectSvc := service.NewProjectService(projectRepo, modelSvc)
+	datasetSvc := service.NewDatasetService(datasetRepo, projectRepo, &cfg.Storage)
 	gcsClient := gcsclient.NewClient(cfg.GCS.BaseURL, time.Duration(cfg.GCS.TimeoutSeconds)*time.Second)
 
 	executorSvc := service.NewExecutorService(

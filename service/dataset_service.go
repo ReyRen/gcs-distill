@@ -61,6 +61,10 @@ func NewDatasetService(
 }
 
 func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Dataset) error {
+	if dataset.SourceType == "upload" {
+		return fmt.Errorf("上传数据集必须使用 multipart/form-data，请调用 POST /api/v1/projects/{id}/datasets 或 multipart POST /api/v1/datasets")
+	}
+
 	if err := s.prepareDataset(ctx, dataset); err != nil {
 		return err
 	}
