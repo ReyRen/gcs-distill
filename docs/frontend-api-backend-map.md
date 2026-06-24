@@ -545,6 +545,55 @@ EasyDistill 关系：无。不会主动删除历史运行目录里的 `data/seed
 
 ### 4.4 模型接口
 
+#### `GET /api/v1/models/teacher`
+
+用途：列出可作为本地教师模型的模型目录。只有当创建项目时 `teacher_model_config.provider_type=local`，前端才需要调用它；如果教师模型使用 API 模式，则不需要调用。
+
+参数：无。
+
+后端链路：
+
+```text
+ModelHandler.ListTeacherModels
+  -> ModelService.ListTeacherModels
+  -> 扫描 storage.models_base_path
+  -> 只返回包含 config.json 的目录
+```
+
+返回：
+
+```ts
+interface TeacherModel {
+  id: string;
+  name: string;
+  path: string;
+  description: string;
+  size: number;
+}
+```
+
+EasyDistill 关系：不启动容器。前端选择的 `path` 应写入 `project.teacher_model_config.model_path`，后续进入 EasyDistill 配置里的 teacher 模型字段。
+
+#### `GET /api/v1/models/teacher/{id}`
+
+用途：获取单个本地教师模型详情。
+
+Path 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `id` | 模型目录名，不能包含 `..`、`/`、`\` |
+
+后端链路：
+
+```text
+ModelHandler.GetTeacherModel
+  -> ModelService.GetTeacherModel
+  -> 校验目录存在且包含 config.json
+```
+
+EasyDistill 关系：无，只读本地共享模型目录。
+
 #### `GET /api/v1/models/student`
 
 用途：列出可作为学生模型的本地模型目录。
@@ -572,7 +621,7 @@ interface StudentModel {
 }
 ```
 
-EasyDistill 关系：不启动容器。前端选择的 `path` 应写入 `project.student_model_config.model_path`，后续进入 `student_train.json`。
+EasyDistill 关系：不启动容器。前端选择的 `path` 应写入 `project.student_model_config.model_path`，后续进入 EasyDistill 配置里的 student 模型字段。
 
 #### `GET /api/v1/models/student/{id}`
 
@@ -1105,16 +1154,17 @@ python -m easydistill.eval.data_eval --config {workspace}/configs/evaluate.json
 
 创建并启动一次流水线的推荐顺序：
 
-1. `GET /api/v1/models/student`：选择学生模型。
-2. `GET /api/v1/resources/available`：选择节点和卡。
-3. `POST /api/v1/projects`：创建项目，保存教师/学生/评估配置。
-4. `GET /api/v1/datasets/candidates`：从共享目录选择已有数据，或用 `POST /api/v1/projects/{id}/datasets` 上传新数据。
-5. `POST /api/v1/datasets`：登记 import 数据集。如果是上传接口，上传成功后已经创建数据集记录。
-6. `POST /api/v1/pipelines`：创建流水线和 6 个阶段。
-7. `POST /api/v1/pipelines/{id}/start`：启动后台执行。
-8. 轮询 `GET /api/v1/pipelines/{id}` 和 `GET /api/v1/pipelines/{id}/stages`：刷新总状态和阶段状态。
-9. 对有 `container_id` 的阶段调用 `/logs` 或 `/logs/ws`：查看容器日志。
-10. 结束后从 `evaluate` 阶段的 `metrics/output_manifest` 查看评估结果路径和指标。
+1. 如果教师模型选择本地，调用 `GET /api/v1/models/teacher`：选择教师模型；如果选择 API 模式，则跳过这一步。
+2. `GET /api/v1/models/student`：选择学生模型。
+3. `GET /api/v1/resources/available`：选择节点和卡。
+4. `POST /api/v1/projects`：创建项目，保存教师/学生/评估配置。
+5. `GET /api/v1/datasets/candidates`：从共享目录选择已有数据，或用 `POST /api/v1/projects/{id}/datasets` 上传新数据。
+6. `POST /api/v1/datasets`：登记 import 数据集。如果是上传接口，上传成功后已经创建数据集记录。
+7. `POST /api/v1/pipelines`：创建流水线和 6 个阶段。
+8. `POST /api/v1/pipelines/{id}/start`：启动后台执行。
+9. 轮询 `GET /api/v1/pipelines/{id}` 和 `GET /api/v1/pipelines/{id}/stages`：刷新总状态和阶段状态。
+10. 对有 `container_id` 的阶段调用 `/logs` 或 `/logs/ws`：查看容器日志。
+11. 结束后从 `evaluate` 阶段的 `metrics/output_manifest` 查看评估结果路径和指标。
 
 ## 7. 当前实现边界
 

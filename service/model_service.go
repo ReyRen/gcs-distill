@@ -12,17 +12,24 @@ import (
 	"go.uber.org/zap"
 )
 
-// StudentModel 学生模型信息
-type StudentModel struct {
-	ID          string `json:"id"`           // 模型ID（目录名）
-	Name        string `json:"name"`         // 模型名称
-	Path        string `json:"path"`         // 模型路径
-	Description string `json:"description"`  // 模型描述
-	Size        int64  `json:"size"`         // 模型大小（字节）
+// LocalModel 本地模型信息
+type LocalModel struct {
+	ID          string `json:"id"`          // 模型ID（目录名）
+	Name        string `json:"name"`        // 模型名称
+	Path        string `json:"path"`        // 模型路径
+	Description string `json:"description"` // 模型描述
+	Size        int64  `json:"size"`        // 模型大小（字节）
 }
+
+type TeacherModel = LocalModel
+type StudentModel = LocalModel
 
 // ModelService 模型服务接口
 type ModelService interface {
+	// ListTeacherModels 列出所有可用的本地教师模型
+	ListTeacherModels(ctx context.Context) ([]*TeacherModel, error)
+	// GetTeacherModel 获取指定本地教师模型信息
+	GetTeacherModel(ctx context.Context, modelID string) (*TeacherModel, error)
 	// ListStudentModels 列出所有可用的学生模型
 	ListStudentModels(ctx context.Context) ([]*StudentModel, error)
 	// GetStudentModel 获取指定学生模型信息
@@ -48,12 +55,37 @@ func NewModelService(storageCfg *config.StorageConfig) ModelService {
 	}
 }
 
+// ListTeacherModels 列出所有可用的本地教师模型
+func (s *modelService) ListTeacherModels(ctx context.Context) ([]*TeacherModel, error) {
+	_ = ctx
+	return s.listLocalModels("teacher")
+}
+
+// GetTeacherModel 获取指定本地教师模型信息
+func (s *modelService) GetTeacherModel(ctx context.Context, modelID string) (*TeacherModel, error) {
+	_ = ctx
+	return s.getLocalModel(modelID)
+}
+
 // ListStudentModels 列出所有可用的学生模型
 func (s *modelService) ListStudentModels(ctx context.Context) ([]*StudentModel, error) {
+	_ = ctx
+	return s.listLocalModels("student")
+}
+
+// GetStudentModel 获取指定学生模型信息
+func (s *modelService) GetStudentModel(ctx context.Context, modelID string) (*StudentModel, error) {
+	_ = ctx
+	return s.getLocalModel(modelID)
+}
+
+func (s *modelService) listLocalModels(role string) ([]*LocalModel, error) {
 	// 检查模型目录是否存在
 	if _, err := os.Stat(s.modelsBasePath); os.IsNotExist(err) {
-		logger.Warn("学生模型目录不存在，返回空列表", zap.String("path", s.modelsBasePath))
-		return []*StudentModel{}, nil
+		logger.Warn("本地模型目录不存在，返回空列表",
+			zap.String("role", role),
+			zap.String("path", s.modelsBasePath))
+		return []*LocalModel{}, nil
 	}
 
 	// 读取目录
@@ -63,7 +95,7 @@ func (s *modelService) ListStudentModels(ctx context.Context) ([]*StudentModel, 
 		return nil, fmt.Errorf("读取模型目录失败: %w", err)
 	}
 
-	models := make([]*StudentModel, 0)
+	models := make([]*LocalModel, 0)
 	for _, entry := range entries {
 		// 只处理目录
 		if !entry.IsDir() {
@@ -89,7 +121,7 @@ func (s *modelService) ListStudentModels(ctx context.Context) ([]*StudentModel, 
 		description := ""
 		// TODO: 可以从 config.json 或 README.md 读取描述信息
 
-		models = append(models, &StudentModel{
+		models = append(models, &LocalModel{
 			ID:          modelID,
 			Name:        modelID, // 默认使用目录名作为名称
 			Path:        modelPath,
@@ -98,15 +130,15 @@ func (s *modelService) ListStudentModels(ctx context.Context) ([]*StudentModel, 
 		})
 	}
 
-	logger.Info("获取学生模型列表成功",
+	logger.Info("获取本地模型列表成功",
+		zap.String("role", role),
 		zap.Int("count", len(models)),
 		zap.String("base_path", s.modelsBasePath))
 
 	return models, nil
 }
 
-// GetStudentModel 获取指定学生模型信息
-func (s *modelService) GetStudentModel(ctx context.Context, modelID string) (*StudentModel, error) {
+func (s *modelService) getLocalModel(modelID string) (*LocalModel, error) {
 	// 安全检查：防止路径遍历攻击
 	if strings.Contains(modelID, "..") || strings.Contains(modelID, "/") || strings.Contains(modelID, "\\") {
 		return nil, fmt.Errorf("无效的模型ID: %s", modelID)
@@ -128,7 +160,7 @@ func (s *modelService) GetStudentModel(ctx context.Context, modelID string) (*St
 	// 计算模型大小
 	size := calculateDirSize(modelPath)
 
-	return &StudentModel{
+	return &LocalModel{
 		ID:          modelID,
 		Name:        modelID,
 		Path:        modelPath,
@@ -139,8 +171,9 @@ func (s *modelService) GetStudentModel(ctx context.Context, modelID string) (*St
 
 // ValidateStudentModel 验证学生模型是否存在且可用
 func (s *modelService) ValidateStudentModel(ctx context.Context, modelPath string) error {
+	_ = ctx
 	// 检查路径是否在允许的目录下
-	if !strings.HasPrefix(modelPath, s.modelsBasePath) {
+	if !isSubPath(s.modelsBasePath, modelPath) {
 		return fmt.Errorf("模型路径必须在 %s 目录下", s.modelsBasePath)
 	}
 
@@ -156,6 +189,22 @@ func (s *modelService) ValidateStudentModel(ctx context.Context, modelPath strin
 	}
 
 	return nil
+}
+
+func isSubPath(basePath, targetPath string) bool {
+	baseAbs, err := filepath.Abs(basePath)
+	if err != nil {
+		return false
+	}
+	targetAbs, err := filepath.Abs(targetPath)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(baseAbs, targetAbs)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && !filepath.IsAbs(rel))
 }
 
 // calculateDirSize 计算目录大小

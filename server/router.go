@@ -128,6 +128,8 @@ func (r *Router) setupRoutes() {
 		// 模型管理
 		models := v1.Group("/models")
 		{
+			models.GET("/teacher", r.modelHandler.ListTeacherModels)
+			models.GET("/teacher/:id", r.modelHandler.GetTeacherModel)
 			models.GET("/student", r.modelHandler.ListStudentModels)
 			models.GET("/student/:id", r.modelHandler.GetStudentModel)
 		}

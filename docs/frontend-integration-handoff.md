@@ -69,7 +69,7 @@ flowchart LR
 | 流水线列表 | 查看项目下所有运行记录 | `GET /pipelines?project_id=` |
 | 创建流水线 | 选择项目、数据集、训练参数、资源 | `POST /pipelines` |
 | 流水线详情 | 状态轮询、阶段进度、日志查看、取消 | `GET /pipelines/{id}`, `GET /pipelines/{id}/stages`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
-| 学生模型选择 | 从共享模型目录选择本地学生模型 | `GET /models/student` |
+| 教师/学生本地模型选择 | 从共享模型目录选择本地教师模型或学生模型 | `GET /models/teacher`, `GET /models/student` |
 | 资源选择 | 查看可用节点，选择 GPU/NPU 节点和卡号 | `GET /resources/available`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
 
 ## 4. 通用响应和错误处理
@@ -263,13 +263,16 @@ export interface StageRun {
   updated_at: string;
 }
 
-export interface StudentModel {
+export interface LocalModel {
   id: string;
   name: string;
   path: string;
   description: string;
   size: number;
 }
+
+export type TeacherModel = LocalModel;
+export type StudentModel = LocalModel;
 ```
 
 ## 6. 核心业务流程
@@ -277,6 +280,8 @@ export interface StudentModel {
 ### 6.1 创建项目
 
 后端会自动生成 `id`，前端创建时不需要传。
+
+教师模型有两种来源：`provider_type=api` 时由前端填写 API 端点、密钥引用和模型名；`provider_type=local` 时前端应调用 `GET /api/v1/models/teacher` 选择本地模型，并把返回的 `path` 写入 `teacher_model_config.model_path`。学生模型当前固定为本地模型，调用 `GET /api/v1/models/student` 选择。
 
 ```http
 POST /api/v1/projects
@@ -320,6 +325,7 @@ Content-Type: application/json
 - `name` 必填，最大 255 字符。
 - `teacher_model_config.model_name` 必填。
 - `teacher_model_config.provider_type` 只能是 `api` 或 `local`。
+- `teacher_model_config.provider_type=local` 时，`model_path` 应来自 `GET /models/teacher` 返回的 `path`。
 - `student_model_config.provider_type` 必须是 `local`。
 - `student_model_config.model_path` 必填。
 
@@ -667,7 +673,7 @@ export const distillApi = {
 - `GET /logs/download` 返回二进制文件，不走通用 JSON wrapper。
 - `GET /logs/ws` 是实时日志首选入口，消息是纯文本片段。
 - 时间字段是 ISO/RFC3339 字符串，前端展示时统一转换为本地时间。
-- `models/student` 只扫描 `models_base_path` 下包含 `config.json` 的目录。
+- `models/teacher` 和 `models/student` 都只扫描 `models_base_path` 下包含 `config.json` 的目录。
 - 后端当前没有乐观锁和批量接口，编辑表单提交后建议刷新详情。
 - 删除项目会级联删除相关数据集和流水线，前端必须二次确认。
 
@@ -676,9 +682,9 @@ export const distillApi = {
 1. 打开 `GET /health`，确认服务可达。
 2. 打开 Swagger UI，确认版本和路径：`/swagger/index.html`。
 3. 调 `GET /datasets/candidates`，确认共享数据集目录可扫描，空目录时返回空数组。
-4. 调 `GET /models/student`，确认学生模型目录可被扫描。
+4. 调 `GET /models/teacher` 和 `GET /models/student`，确认本地教师/学生模型目录可被扫描。
 5. 调 `GET /resources/available`，确认 `gcs-v2` 资源聚合可用。
-6. 创建项目，确保学生模型选择的是本地模型。
+6. 创建项目，确保本地教师/学生模型使用接口返回的 `path`。
 7. 上传或导入数据集，确认 `record_count` 和 `file_path` 返回。
 8. 创建流水线，确认阶段列表自动生成六条。
 9. 启动流水线，轮询 pipeline 和 stages。

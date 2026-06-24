@@ -947,6 +947,36 @@
         },
         "type": "object"
       },
+      "TeacherModel": {
+        "properties": {
+          "description": {
+            "description": "Model description",
+            "example": "",
+            "type": "string"
+          },
+          "id": {
+            "description": "Model ID (directory name)",
+            "example": "Qwen2.5-7B-Instruct",
+            "type": "string"
+          },
+          "name": {
+            "description": "Model name",
+            "example": "Qwen2.5-7B-Instruct",
+            "type": "string"
+          },
+          "path": {
+            "description": "Full path to model directory",
+            "example": "/storage-root-jfs/train-base-models/Qwen2.5-7B-Instruct",
+            "type": "string"
+          },
+          "size": {
+            "description": "Model size in bytes",
+            "example": 7516192768,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "TeacherModelConfig": {
         "properties": {
           "api_secret_ref": {
@@ -995,6 +1025,41 @@
           "timeout_seconds": {
             "example": 60,
             "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "TeacherModelListResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/TeacherModel"
+            },
+            "type": "array"
+          },
+          "message": {
+            "example": "获取教师模型列表成功",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "TeacherModelResponse": {
+        "properties": {
+          "code": {
+            "example": 200,
+            "type": "integer"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TeacherModel"
+          },
+          "message": {
+            "example": "获取模型信息成功",
+            "type": "string"
           }
         },
         "type": "object"
@@ -1232,6 +1297,18 @@
     "/api/v1/models/student/{id}": {
       "get": {
         "description": "Get details of a specific student model by ID",
+        "parameters": [
+          {
+            "description": "Model directory name under storage.models_base_path",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "example": "Qwen2.5-0.5B-Instruct",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1270,6 +1347,70 @@
           }
         }
       ]
+    },
+    "/api/v1/models/teacher": {
+      "get": {
+        "description": "Get all local teacher model candidates from storage.models_base_path. Use this endpoint only when teacher_model_config.provider_type is local.",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherModelListResponse"
+                }
+              }
+            },
+            "description": "Teacher model list"
+          }
+        },
+        "summary": "List local teacher models",
+        "tags": [
+          "models"
+        ]
+      }
+    },
+    "/api/v1/models/teacher/{id}": {
+      "get": {
+        "description": "Get details of a specific local teacher model by directory ID",
+        "parameters": [
+          {
+            "description": "Model directory name under storage.models_base_path",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "example": "Qwen2.5-7B-Instruct",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeacherModelResponse"
+                }
+              }
+            },
+            "description": "Teacher model details"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Model not found"
+          }
+        },
+        "summary": "Get local teacher model",
+        "tags": [
+          "models"
+        ]
+      }
     },
     "/api/v1/pipelines": {
       "get": {

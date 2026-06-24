@@ -100,7 +100,7 @@ flowchart LR
 | 数据集 | `GET /datasets/candidates`, `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets`, `GET /datasets/{id}`, `PUT /datasets/{id}`, `DELETE /datasets/{id}` |
 | 流水线 | `POST /pipelines`, `GET /pipelines`, `GET /pipelines/{id}`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
 | 阶段与日志 | `GET /pipelines/{id}/stages`, `GET /pipelines/{id}/stages/{stage_id}/logs`, `GET /pipelines/{id}/stages/{stage_id}/logs/ws`, `GET /pipelines/{id}/stages/{stage_id}/logs/stream`, `GET /pipelines/{id}/stages/{stage_id}/logs/download` |
-| 模型与资源 | `GET /models/student`, `GET /models/student/{id}`, `GET /resources/available`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
+| 模型与资源 | `GET /models/teacher`, `GET /models/teacher/{id}`, `GET /models/student`, `GET /models/student/{id}`, `GET /resources/available`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |
 
 API 文档入口：
 
