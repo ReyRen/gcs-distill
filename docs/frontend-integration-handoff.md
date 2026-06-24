@@ -65,7 +65,7 @@ flowchart LR
 | --- | --- | --- |
 | 项目列表 | 分页查看、创建、删除项目 | `GET /projects`, `POST /projects`, `DELETE /projects/{id}` |
 | 项目详情 | 项目信息、教师/学生模型配置、评估配置 | `GET /projects/{id}`, `PUT /projects/{id}` |
-| 数据集管理 | 获取共享目录候选、上传文件、登记已有路径、查看记录数 | `GET /datasets/candidates`, `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets?project_id=` |
+| 数据集管理 | 查看已登记数据集、获取共享目录候选、上传文件、登记已有路径 | `GET /datasets`, `GET /datasets/candidates`, `POST /datasets`, `POST /datasets/upload` |
 | 流水线列表 | 查看项目下所有运行记录 | `GET /pipelines?project_id=` |
 | 创建流水线 | 选择项目、数据集、训练参数、资源 | `POST /pipelines` |
 | 流水线详情 | 状态轮询、阶段进度、日志查看、取消 | `GET /pipelines/{id}`, `GET /pipelines/{id}/stages`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
@@ -159,10 +159,9 @@ export interface Project {
 
 export interface Dataset {
   id?: string;
-  project_id: string;
   name: string;
   description?: string;
-  source_type: "upload" | "import" | "generated";
+  source_type: "upload" | "import";
   file_path?: string;
   record_count?: number;
   created_at?: string;
@@ -331,7 +330,15 @@ Content-Type: application/json
 
 ### 6.2 数据集上传或登记
 
-数据集输入目录和 model-center 使用同一个共享存储根，但 distill 不放在 model-center 目录下。默认目录是：
+数据集是独立资源，不属于项目。数据集管理页先用下面接口展示所有已登记数据集：
+
+```http
+GET /api/v1/datasets?page=1&page_size=20
+```
+
+已登记列表来自数据库 `distill_datasets`。`candidates` 只是待登记的共享目录文件，不等于数据集列表。
+
+数据集输入目录和 model-center 使用同一个共享存储根，但 distill 不放在 model-center 目录下。默认候选目录是：
 
 ```text
 /storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/
@@ -357,7 +364,7 @@ interface DatasetCandidateList {
 如果用户上传新数据集，使用：
 
 ```http
-POST /api/v1/projects/{project_id}/datasets
+POST /api/v1/datasets/upload
 Content-Type: multipart/form-data
 ```
 
@@ -380,7 +387,6 @@ Content-Type: application/json
 
 ```json
 {
-  "project_id": "project-id",
   "name": "种子数据",
   "description": "共享存储中的 JSONL",
   "source_type": "import",
@@ -621,13 +627,13 @@ export const distillApi = {
   importDataset: (payload: Dataset) =>
     request<Dataset>("/datasets", { method: "POST", body: JSON.stringify(payload) }),
 
-  uploadDataset: async (projectId: string, file: File, name?: string, description?: string) => {
+  uploadDataset: async (file: File, name?: string, description?: string) => {
     const form = new FormData();
     form.append("file", file);
     if (name) form.append("name", name);
     if (description) form.append("description", description);
 
-    const res = await fetch(`${API_BASE}/projects/${projectId}/datasets`, {
+    const res = await fetch(`${API_BASE}/datasets/upload`, {
       method: "POST",
       body: form,
     });
@@ -664,9 +670,9 @@ export const distillApi = {
 ## 11. 实现注意事项
 
 - 创建项目和更新项目使用同一个 `Project` 结构；更新时路径参数 `id` 会覆盖 body 内的 `id`。
-- 创建数据集有三种入口：候选目录登记、multipart 上传、系统生成。普通用户建议暴露候选选择和上传，不允许手填任意服务器路径。
+- 创建数据集有两种入口：候选目录登记、multipart 上传。普通用户建议暴露候选选择和上传，不允许手填任意服务器路径。
 - `source_type=import` 的 `file_path` 必须来自 `GET /datasets/candidates` 返回的 `file_path`。
-- `GET /datasets` 和 `GET /pipelines` 都必须带 `project_id`。
+- `GET /datasets` 不带 `project_id`，返回所有已登记数据集；`GET /pipelines` 仍按项目查询，需要带 `project_id`。
 - 流水线创建后不会自动启动，需要再调用 `POST /pipelines/{id}/start`。
 - `POST /pipelines/{id}/start` 只允许 `pending` 状态调用，重复点击会失败；前端按钮需要防抖和状态禁用。
 - `GET /logs` 和 `GET /logs/stream` 成功时返回纯文本，不走通用 JSON wrapper。
@@ -675,7 +681,7 @@ export const distillApi = {
 - 时间字段是 ISO/RFC3339 字符串，前端展示时统一转换为本地时间。
 - `models/teacher` 和 `models/student` 都只扫描 `models_base_path` 下包含 `config.json` 的目录。
 - 后端当前没有乐观锁和批量接口，编辑表单提交后建议刷新详情。
-- 删除项目会级联删除相关数据集和流水线，前端必须二次确认。
+- 删除项目会级联删除相关流水线，不会删除独立数据集；前端必须二次确认。
 
 ## 12. 最小联调清单
 

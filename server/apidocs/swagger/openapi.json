@@ -180,16 +180,17 @@
             "example": "训练数据集",
             "type": "string"
           },
-          "project_id": {
-            "example": "uuid-project",
-            "type": "string"
-          },
           "record_count": {
             "example": 1000,
             "type": "integer"
           },
           "source_type": {
-            "example": "upload",
+            "description": "Dataset source type: import for registered candidate files, upload for frontend uploaded files.",
+            "enum": [
+              "import",
+              "upload"
+            ],
+            "example": "import",
             "type": "string"
           }
         },
@@ -1131,15 +1132,27 @@
   "paths": {
     "/api/v1/datasets": {
       "get": {
+        "description": "List all registered datasets. Datasets are independent resources; pipelines bind project_id and dataset_id when they run.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/ProjectIdQuery"
+            "description": "Page number",
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "example": 1,
+              "type": "integer"
+            }
           },
           {
-            "$ref": "#/components/parameters/Page"
-          },
-          {
-            "$ref": "#/components/parameters/PageSize"
+            "description": "Page size",
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "example": 20,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -1160,7 +1173,7 @@
         ]
       },
       "post": {
-        "description": "Create a dataset record. JSON requests register existing candidate files only; upload datasets must use multipart/form-data so the backend can persist the file under storage.dataset_uploads_path/{dataset_id}/.",
+        "description": "Register an existing candidate dataset file. This JSON endpoint only accepts source_type=import and file_path from GET /api/v1/datasets/candidates. Upload new files with POST /api/v1/datasets/upload.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1183,7 +1196,7 @@
             "description": "Dataset created"
           }
         },
-        "summary": "Create dataset",
+        "summary": "Register dataset candidate",
         "tags": [
           "datasets"
         ]
@@ -1205,6 +1218,48 @@
           }
         },
         "summary": "List dataset candidates",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
+    "/api/v1/datasets/upload": {
+      "post": {
+        "description": "Upload a new dataset file. The backend stores it under storage.dataset_uploads_path/{dataset_id}/{filename}, creates a dataset record with source_type=upload, and returns data.file_path.",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetUploadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetResponse"
+                }
+              }
+            },
+            "description": "Dataset uploaded successfully"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid upload request"
+          }
+        },
+        "summary": "Upload dataset",
         "tags": [
           "datasets"
         ]
@@ -1953,52 +2008,6 @@
         "summary": "Update project",
         "tags": [
           "projects"
-        ]
-      }
-    },
-    "/api/v1/projects/{id}/datasets": {
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/ProjectId"
-        }
-      ],
-      "post": {
-        "description": "Upload a dataset file for a project. The backend stores the file under storage.dataset_uploads_path/{dataset_id}/{filename} and returns data.file_path.",
-        "requestBody": {
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/DatasetUploadRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DatasetResponse"
-                }
-              }
-            },
-            "description": "Dataset uploaded successfully"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Invalid upload request"
-          }
-        },
-        "summary": "Upload dataset file",
-        "tags": [
-          "datasets"
         ]
       }
     },

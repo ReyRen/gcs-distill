@@ -22,16 +22,13 @@ CREATE TABLE IF NOT EXISTS distill_projects (
 
 CREATE TABLE IF NOT EXISTS distill_datasets (
   id VARCHAR(64) PRIMARY KEY,
-  project_id VARCHAR(64) NOT NULL,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   source_type VARCHAR(50) NOT NULL,
   file_path TEXT NOT NULL,
   record_count INT DEFAULT 0,
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  INDEX idx_distill_datasets_project_id (project_id),
-  INDEX idx_distill_datasets_created_at (created_at),
-  CONSTRAINT fk_distill_datasets_project FOREIGN KEY (project_id) REFERENCES distill_projects(id) ON DELETE CASCADE
+  INDEX idx_distill_datasets_created_at (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS distill_pipeline_runs (

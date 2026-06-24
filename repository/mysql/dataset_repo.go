@@ -13,10 +13,10 @@ import (
 type DatasetRepository interface {
 	Create(ctx context.Context, dataset *types.Dataset) error
 	GetByID(ctx context.Context, id string) (*types.Dataset, error)
-	ListByProject(ctx context.Context, projectID string, limit, offset int) ([]*types.Dataset, error)
+	List(ctx context.Context, limit, offset int) ([]*types.Dataset, error)
 	Update(ctx context.Context, dataset *types.Dataset) error
 	Delete(ctx context.Context, id string) error
-	CountByProject(ctx context.Context, projectID string) (int, error)
+	Count(ctx context.Context) (int, error)
 }
 
 type datasetRepo struct {
@@ -35,12 +35,11 @@ func (r *datasetRepo) Create(ctx context.Context, dataset *types.Dataset) error 
 
 	query := `
 		INSERT INTO distill_datasets (
-			id, project_id, name, description, source_type, file_path, record_count, created_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			id, name, description, source_type, file_path, record_count, created_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 	if _, err := r.db.sql.ExecContext(ctx, query,
 		dataset.ID,
-		dataset.ProjectID,
 		dataset.Name,
 		dataset.Description,
 		dataset.SourceType,
@@ -55,7 +54,7 @@ func (r *datasetRepo) Create(ctx context.Context, dataset *types.Dataset) error 
 
 func (r *datasetRepo) GetByID(ctx context.Context, id string) (*types.Dataset, error) {
 	query := `
-		SELECT id, project_id, name, description, source_type, file_path, record_count, created_at
+		SELECT id, name, description, source_type, file_path, record_count, created_at
 		FROM distill_datasets
 		WHERE id = ?
 	`
@@ -64,7 +63,6 @@ func (r *datasetRepo) GetByID(ctx context.Context, id string) (*types.Dataset, e
 	var description sql.NullString
 	err := r.db.sql.QueryRowContext(ctx, query, id).Scan(
 		&dataset.ID,
-		&dataset.ProjectID,
 		&dataset.Name,
 		&description,
 		&dataset.SourceType,
@@ -82,16 +80,15 @@ func (r *datasetRepo) GetByID(ctx context.Context, id string) (*types.Dataset, e
 	return &dataset, nil
 }
 
-func (r *datasetRepo) ListByProject(ctx context.Context, projectID string, limit, offset int) ([]*types.Dataset, error) {
+func (r *datasetRepo) List(ctx context.Context, limit, offset int) ([]*types.Dataset, error) {
 	query := `
-		SELECT id, project_id, name, description, source_type, file_path, record_count, created_at
+		SELECT id, name, description, source_type, file_path, record_count, created_at
 		FROM distill_datasets
-		WHERE project_id = ?
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`
 
-	rows, err := r.db.sql.QueryContext(ctx, query, projectID, limit, offset)
+	rows, err := r.db.sql.QueryContext(ctx, query, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("query dataset list failed: %w", err)
 	}
@@ -103,7 +100,6 @@ func (r *datasetRepo) ListByProject(ctx context.Context, projectID string, limit
 		var description sql.NullString
 		if err := rows.Scan(
 			&dataset.ID,
-			&dataset.ProjectID,
 			&dataset.Name,
 			&description,
 			&dataset.SourceType,
@@ -156,9 +152,9 @@ func (r *datasetRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *datasetRepo) CountByProject(ctx context.Context, projectID string) (int, error) {
+func (r *datasetRepo) Count(ctx context.Context) (int, error) {
 	var count int
-	err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_datasets WHERE project_id = ?`, projectID).Scan(&count)
+	err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_datasets`).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count datasets failed: %w", err)
 	}

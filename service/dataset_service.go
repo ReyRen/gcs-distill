@@ -35,43 +35,39 @@ type DatasetService interface {
 	CreateDataset(ctx context.Context, dataset *types.Dataset) error
 	CreateUploadedDataset(ctx context.Context, dataset *types.Dataset, file multipart.File, originalFilename string) error
 	GetDataset(ctx context.Context, id string) (*types.Dataset, error)
-	ListDatasets(ctx context.Context, projectID string, page, pageSize int) ([]*types.Dataset, int, error)
+	ListDatasets(ctx context.Context, page, pageSize int) ([]*types.Dataset, int, error)
 	ListDatasetCandidates(ctx context.Context) ([]DatasetCandidate, error)
 	UpdateDataset(ctx context.Context, dataset *types.Dataset) error
 	DeleteDataset(ctx context.Context, id string) error
-	GetDatasetPath(projectID, datasetID string) string
+	GetDatasetPath(datasetID string) string
 }
 
 type datasetService struct {
 	datasetRepo mysqlrepo.DatasetRepository
-	projectRepo mysqlrepo.ProjectRepository
 	storageCfg  *config.StorageConfig
 }
 
 func NewDatasetService(
 	datasetRepo mysqlrepo.DatasetRepository,
-	projectRepo mysqlrepo.ProjectRepository,
 	storageCfg *config.StorageConfig,
 ) DatasetService {
 	return &datasetService{
 		datasetRepo: datasetRepo,
-		projectRepo: projectRepo,
 		storageCfg:  storageCfg,
 	}
 }
 
 func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Dataset) error {
-	if dataset.SourceType == "upload" {
-		return fmt.Errorf("上传数据集必须使用 multipart/form-data，请调用 POST /api/v1/projects/{id}/datasets 或 multipart POST /api/v1/datasets")
+	if dataset.SourceType != "import" {
+		return fmt.Errorf("POST /api/v1/datasets 只用于登记候选数据集，上传文件请调用 POST /api/v1/datasets/upload")
 	}
 
-	if err := s.prepareDataset(ctx, dataset); err != nil {
+	if err := s.prepareDataset(dataset); err != nil {
 		return err
 	}
 
 	if err := s.datasetRepo.Create(ctx, dataset); err != nil {
 		logger.Error("创建数据集失败",
-			zap.String("project_id", dataset.ProjectID),
 			zap.String("name", dataset.Name),
 			zap.Error(err),
 		)
@@ -80,7 +76,6 @@ func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Datas
 
 	logger.Info("数据集创建成功",
 		zap.String("dataset_id", dataset.ID),
-		zap.String("project_id", dataset.ProjectID),
 		zap.String("name", dataset.Name),
 	)
 
@@ -88,7 +83,8 @@ func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Datas
 }
 
 func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *types.Dataset, file multipart.File, originalFilename string) error {
-	if err := s.prepareDataset(ctx, dataset); err != nil {
+	dataset.SourceType = "upload"
+	if err := s.prepareDataset(dataset); err != nil {
 		return err
 	}
 
@@ -97,7 +93,7 @@ func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *typ
 		return fmt.Errorf("上传文件名不能为空")
 	}
 
-	datasetDir := s.GetDatasetPath(dataset.ProjectID, dataset.ID)
+	datasetDir := s.GetDatasetPath(dataset.ID)
 	if err := os.MkdirAll(datasetDir, 0o755); err != nil {
 		return fmt.Errorf("创建数据集目录失败: %w", err)
 	}
@@ -128,7 +124,6 @@ func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *typ
 	if err := s.datasetRepo.Create(ctx, dataset); err != nil {
 		_ = os.RemoveAll(datasetDir)
 		logger.Error("创建上传数据集失败",
-			zap.String("project_id", dataset.ProjectID),
 			zap.String("file_path", dataset.FilePath),
 			zap.Error(err),
 		)
@@ -137,7 +132,6 @@ func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *typ
 
 	logger.Info("上传数据集创建成功",
 		zap.String("dataset_id", dataset.ID),
-		zap.String("project_id", dataset.ProjectID),
 		zap.String("file_path", dataset.FilePath),
 		zap.Int("record_count", dataset.RecordCount),
 	)
@@ -158,7 +152,7 @@ func (s *datasetService) GetDataset(ctx context.Context, id string) (*types.Data
 	return dataset, nil
 }
 
-func (s *datasetService) ListDatasets(ctx context.Context, projectID string, page, pageSize int) ([]*types.Dataset, int, error) {
+func (s *datasetService) ListDatasets(ctx context.Context, page, pageSize int) ([]*types.Dataset, int, error) {
 	if page < 1 {
 		page = 1
 	}
@@ -167,19 +161,17 @@ func (s *datasetService) ListDatasets(ctx context.Context, projectID string, pag
 	}
 
 	offset := (page - 1) * pageSize
-	datasets, err := s.datasetRepo.ListByProject(ctx, projectID, pageSize, offset)
+	datasets, err := s.datasetRepo.List(ctx, pageSize, offset)
 	if err != nil {
 		logger.Error("获取数据集列表失败",
-			zap.String("project_id", projectID),
 			zap.Error(err),
 		)
 		return nil, 0, fmt.Errorf("获取数据集列表失败: %w", err)
 	}
 
-	total, err := s.datasetRepo.CountByProject(ctx, projectID)
+	total, err := s.datasetRepo.Count(ctx)
 	if err != nil {
 		logger.Error("获取数据集总数失败",
-			zap.String("project_id", projectID),
 			zap.Error(err),
 		)
 		return nil, 0, fmt.Errorf("获取数据集总数失败: %w", err)
@@ -354,25 +346,23 @@ func (s *datasetService) DeleteDataset(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *datasetService) GetDatasetPath(_ string, datasetID string) string {
+func (s *datasetService) GetDatasetPath(datasetID string) string {
 	return filepath.Join(s.datasetUploadsPath(), datasetID)
 }
 
-func (s *datasetService) prepareDataset(ctx context.Context, dataset *types.Dataset) error {
+func (s *datasetService) prepareDataset(dataset *types.Dataset) error {
 	if dataset.ID == "" {
 		dataset.ID = uuid.New().String()
 	}
 
+	dataset.Name = strings.TrimSpace(dataset.Name)
+	dataset.Description = strings.TrimSpace(dataset.Description)
 	if dataset.Name == "" && dataset.FilePath != "" {
 		dataset.Name = filepath.Base(dataset.FilePath)
 	}
 
 	if err := s.validateDataset(dataset); err != nil {
 		return err
-	}
-
-	if _, err := s.projectRepo.GetByID(ctx, dataset.ProjectID); err != nil {
-		return fmt.Errorf("项目不存在: %s", dataset.ProjectID)
 	}
 
 	if dataset.SourceType == "import" {
@@ -398,17 +388,13 @@ func (s *datasetService) validateDataset(dataset *types.Dataset) error {
 	if len(dataset.Name) > 255 {
 		return fmt.Errorf("数据集名称长度不能超过255个字符")
 	}
-	if dataset.ProjectID == "" {
-		return fmt.Errorf("项目ID不能为空")
-	}
 	if dataset.SourceType == "" {
 		return fmt.Errorf("数据来源类型不能为空")
 	}
 
 	validSourceTypes := map[string]bool{
-		"upload":    true,
-		"import":    true,
-		"generated": true,
+		"upload": true,
+		"import": true,
 	}
 	if !validSourceTypes[dataset.SourceType] {
 		return fmt.Errorf("无效的数据来源类型: %s", dataset.SourceType)

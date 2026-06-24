@@ -94,7 +94,6 @@ func (r *Router) setupRoutes() {
 			projects.POST("", r.projectHandler.CreateProject)
 			projects.GET("", r.projectHandler.ListProjects)
 			projects.GET("/:id", r.projectHandler.GetProject)
-			projects.POST("/:id/datasets", r.datasetHandler.CreateDataset)
 			projects.PUT("/:id", r.projectHandler.UpdateProject)
 			projects.DELETE("/:id", r.projectHandler.DeleteProject)
 		}
@@ -103,6 +102,7 @@ func (r *Router) setupRoutes() {
 		datasets := v1.Group("/datasets")
 		{
 			datasets.POST("", r.datasetHandler.CreateDataset)
+			datasets.POST("/upload", r.datasetHandler.UploadDataset)
 			datasets.GET("", r.datasetHandler.ListDatasets)
 			datasets.GET("/candidates", r.datasetHandler.ListDatasetCandidates)
 			datasets.GET("/:id", r.datasetHandler.GetDataset)

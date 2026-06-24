@@ -130,16 +130,15 @@ interface EvaluationConfig {
 ```ts
 interface Dataset {
   id?: string;
-  project_id: string;
   name: string;
   description?: string;
-  source_type: "upload" | "import" | "generated";
+  source_type: "upload" | "import";
   file_path?: string;
   record_count?: number;
 }
 ```
 
-数据集文件最终在 `dataset_build` 阶段被读取，支持 JSON 数组或 JSONL/NDJSON。只要记录里有非空 `instruction` 字段，就会被写入运行目录：
+数据集是独立资源，不属于项目。创建流水线时再通过 `project_id + dataset_id` 把项目配置和数据集组合起来执行。数据集文件最终在 `dataset_build` 阶段被读取，支持 JSON 数组或 JSONL/NDJSON。只要记录里有非空 `instruction` 字段，就会被写入运行目录：
 
 ```text
 {executor.workspace_root}/projects/{project_id}/runs/{pipeline_id}/data/seed/instructions.json
@@ -387,13 +386,10 @@ EasyDistill 关系：不启动容器，只给前端选数据。真正进入 Easy
 
 #### `POST /api/v1/datasets`
 
-用途：创建数据集记录。支持两种调用方式。
-
-方式一：登记已有共享文件，推荐用于前端从 candidates 中选择数据集。
+用途：登记已有共享候选文件。推荐用于前端从 candidates 中选择数据集。
 
 ```json
 {
-  "project_id": "uuid-project",
   "name": "customer-seed/train.jsonl",
   "description": "客服种子问题",
   "source_type": "import",
@@ -401,12 +397,27 @@ EasyDistill 关系：不启动容器，只给前端选数据。真正进入 Easy
 }
 ```
 
-方式二：multipart 上传，等价于 `POST /projects/{id}/datasets`，但需要在 form 里带 `project_id`。注意：JSON 请求里的 `source_type=upload` 不会携带文件，后端会直接拒绝；真正上传必须使用 `multipart/form-data`。
+注意：这个 JSON 接口只接受 `source_type=import`。上传新文件请调用 `POST /api/v1/datasets/upload`。
+
+后端链路：
+
+```text
+DatasetHandler.CreateDataset
+  -> DatasetService.CreateDataset
+  -> prepareDataset
+  -> 校验 source_type=import，file_path 位于 storage.dataset_candidates_path
+  -> DatasetRepository.Create
+```
+
+EasyDistill 关系：本接口不启动容器。数据集路径会在 `dataset_build` 阶段被读取。
+
+#### `POST /api/v1/datasets/upload`
+
+用途：上传新数据集文件。上传成功后，后端自动创建 `source_type=upload` 的数据集记录。
 
 ```text
 Content-Type: multipart/form-data
 fields:
-  project_id: uuid-project
   name: 可选
   description: 可选
   file: 文件
@@ -415,46 +426,10 @@ fields:
 后端链路：
 
 ```text
-DatasetHandler.CreateDataset
-  JSON -> DatasetService.CreateDataset
-       -> prepareDataset
-       -> 校验项目存在、source_type、file_path
-       -> source_type=upload 时返回错误，避免只建记录不落文件
-       -> DatasetRepository.Create
-
-  multipart -> DatasetService.CreateUploadedDataset
-            -> 保存文件到 storage.dataset_uploads_path/{dataset_id}/{filename}
-            -> 统计记录数
-            -> DatasetRepository.Create
-```
-
-EasyDistill 关系：本接口不启动容器。数据集路径会在 `dataset_build` 阶段被读取。
-
-#### `POST /api/v1/projects/{id}/datasets`
-
-用途：在项目详情页上传数据集文件。推荐前端上传时使用这个接口，因为项目 ID 已在 path 中。
-
-Path 参数：
-
-| 参数 | 说明 |
-| --- | --- |
-| `id` | 项目 ID |
-
-Form 参数：
-
-| 参数 | 必填 | 说明 |
-| --- | --- | --- |
-| `file` | 是 | JSON/JSONL/NDJSON/TXT 数据文件 |
-| `name` | 否 | 不传则使用原始文件名 |
-| `description` | 否 | 数据集说明 |
-
-后端链路：
-
-```text
-DatasetHandler.CreateDataset
-  -> createUploadedDataset
+DatasetHandler.UploadDataset
   -> DatasetService.CreateUploadedDataset
   -> 保存到 storage.dataset_uploads_path/{dataset_id}/{filename}
+  -> 统计记录数
   -> DatasetRepository.Create
 ```
 
@@ -462,13 +437,12 @@ EasyDistill 关系：本接口不启动容器。后续流水线 `dataset_build` 
 
 #### `GET /api/v1/datasets`
 
-用途：分页获取某个项目下的数据集。
+用途：分页获取所有已登记数据集。数据集是独立资源，不按项目过滤。
 
 Query 参数：
 
 | 参数 | 必填 | 默认 | 说明 |
 | --- | --- | --- | --- |
-| `project_id` | 是 | 无 | 项目 ID |
 | `page` | 否 | `1` | 页码 |
 | `page_size` | 否 | `20` | 每页数量 |
 
@@ -477,7 +451,7 @@ Query 参数：
 ```text
 DatasetHandler.ListDatasets
   -> DatasetService.ListDatasets
-  -> DatasetRepository.ListByProject / CountByProject
+  -> DatasetRepository.List / Count
 ```
 
 EasyDistill 关系：无，只读数据库。
@@ -508,7 +482,6 @@ Path 参数：`id`。
 
 ```json
 {
-  "project_id": "uuid-project",
   "name": "customer-seed/train-v2.jsonl",
   "description": "更新后的数据集",
   "source_type": "import",
@@ -1162,13 +1135,12 @@ python -m easydistill.eval.data_eval --config {workspace}/configs/evaluate.json
 2. `GET /api/v1/models/student`：选择学生模型。
 3. `GET /api/v1/resources/available`：选择节点和卡。
 4. `POST /api/v1/projects`：创建项目，保存教师/学生/评估配置。
-5. `GET /api/v1/datasets/candidates`：从共享目录选择已有数据，或用 `POST /api/v1/projects/{id}/datasets` 上传新数据。
-6. `POST /api/v1/datasets`：登记 import 数据集。如果是上传接口，上传成功后已经创建数据集记录。
-7. `POST /api/v1/pipelines`：创建流水线和 6 个阶段。
-8. `POST /api/v1/pipelines/{id}/start`：启动后台执行。
-9. 轮询 `GET /api/v1/pipelines/{id}` 和 `GET /api/v1/pipelines/{id}/stages`：刷新总状态和阶段状态。
-10. 对有 `container_id` 的阶段调用 `/logs` 或 `/logs/ws`：查看容器日志。
-11. 结束后从 `evaluate` 阶段的 `metrics/output_manifest` 查看评估结果路径和指标。
+5. `GET /api/v1/datasets`：选择已登记数据集；如需新增，先从 `GET /api/v1/datasets/candidates` 选择并 `POST /api/v1/datasets` 登记，或用 `POST /api/v1/datasets/upload` 上传新数据。
+6. `POST /api/v1/pipelines`：创建流水线和 6 个阶段，提交 `project_id + dataset_id`。
+7. `POST /api/v1/pipelines/{id}/start`：启动后台执行。
+8. 轮询 `GET /api/v1/pipelines/{id}` 和 `GET /api/v1/pipelines/{id}/stages`：刷新总状态和阶段状态。
+9. 对有 `container_id` 的阶段调用 `/logs` 或 `/logs/ws`：查看容器日志。
+10. 结束后从 `evaluate` 阶段的 `metrics/output_manifest` 查看评估结果路径和指标。
 
 ## 7. 当前实现边界
 

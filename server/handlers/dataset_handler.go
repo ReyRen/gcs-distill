@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/ReyRen/gcs-distill/internal/types"
 	"github.com/ReyRen/gcs-distill/service"
@@ -25,11 +24,6 @@ func NewDatasetHandler(datasetSvc service.DatasetService) *DatasetHandler {
 
 // CreateDataset 创建数据集
 func (h *DatasetHandler) CreateDataset(c *gin.Context) {
-	if strings.HasPrefix(c.ContentType(), "multipart/form-data") {
-		h.createUploadedDataset(c)
-		return
-	}
-
 	var req types.Dataset
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -58,19 +52,8 @@ func (h *DatasetHandler) CreateDataset(c *gin.Context) {
 	})
 }
 
-func (h *DatasetHandler) createUploadedDataset(c *gin.Context) {
-	projectID := c.Param("id")
-	if projectID == "" {
-		projectID = c.PostForm("project_id")
-	}
-	if projectID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    http.StatusBadRequest,
-			"message": "项目ID不能为空",
-		})
-		return
-	}
-
+// UploadDataset 上传新数据集文件
+func (h *DatasetHandler) UploadDataset(c *gin.Context) {
 	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -92,9 +75,8 @@ func (h *DatasetHandler) createUploadedDataset(c *gin.Context) {
 
 	req := types.Dataset{
 		ID:          uuid.New().String(),
-		ProjectID:   projectID,
-		Name:        strings.TrimSpace(c.PostForm("name")),
-		Description: strings.TrimSpace(c.PostForm("description")),
+		Name:        c.PostForm("name"),
+		Description: c.PostForm("description"),
 		SourceType:  "upload",
 	}
 	if req.Name == "" {
@@ -146,19 +128,10 @@ func (h *DatasetHandler) GetDataset(c *gin.Context) {
 // ListDatasets 列出数据集
 func (h *DatasetHandler) ListDatasets(c *gin.Context) {
 	// 解析查询参数
-	projectID := c.Query("project_id")
-	if projectID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    http.StatusBadRequest,
-			"message": "项目ID不能为空",
-		})
-		return
-	}
-
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	datasets, total, err := h.datasetSvc.ListDatasets(c.Request.Context(), projectID, page, pageSize)
+	datasets, total, err := h.datasetSvc.ListDatasets(c.Request.Context(), page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    http.StatusInternalServerError,
@@ -179,8 +152,7 @@ func (h *DatasetHandler) ListDatasets(c *gin.Context) {
 	})
 }
 
-// UpdateDataset 更新数据集
-// ListDatasetCandidates lists filesystem datasets available for frontend selection.
+// ListDatasetCandidates 列出可登记的候选数据集文件
 func (h *DatasetHandler) ListDatasetCandidates(c *gin.Context) {
 	candidates, err := h.datasetSvc.ListDatasetCandidates(c.Request.Context())
 	if err != nil {
@@ -201,6 +173,7 @@ func (h *DatasetHandler) ListDatasetCandidates(c *gin.Context) {
 	})
 }
 
+// UpdateDataset 更新数据集
 func (h *DatasetHandler) UpdateDataset(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {

@@ -82,7 +82,7 @@ func TestGetDatasetPathUsesUploadsPath(t *testing.T) {
 	svc := &datasetService{storageCfg: &config.StorageConfig{DatasetsBasePath: baseDir}}
 
 	want := filepath.Join(baseDir, "uploaded", "dataset-1")
-	if got := svc.GetDatasetPath("project-1", "dataset-1"); got != want {
+	if got := svc.GetDatasetPath("dataset-1"); got != want {
 		t.Fatalf("GetDatasetPath() = %q, want %q", got, want)
 	}
 }
@@ -91,7 +91,6 @@ func TestCreateDatasetRejectsJSONUploadSourceType(t *testing.T) {
 	svc := &datasetService{}
 
 	err := svc.CreateDataset(context.Background(), &types.Dataset{
-		ProjectID:  "project-1",
 		Name:       "upload.jsonl",
 		SourceType: "upload",
 	})

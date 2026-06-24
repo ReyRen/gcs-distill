@@ -87,7 +87,7 @@ flowchart LR
 /storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/
 ```
 
-`POST /projects/{id}/datasets` 或 multipart `POST /datasets` 上传的文件会保存到 `storage.dataset_uploads_path/{dataset_id}/`；JSON `POST /datasets` 只用于登记已有候选数据集，`source_type=import` 的 `file_path` 必须来自候选目录，`source_type=upload` 会被拒绝。
+数据集是独立资源，不属于项目。`GET /datasets` 返回所有已登记数据集；`POST /datasets` 只用于登记已有候选数据集，`source_type=import` 的 `file_path` 必须来自候选目录；`POST /datasets/upload` 上传新文件并保存到 `storage.dataset_uploads_path/{dataset_id}/`。流水线创建时再通过 `project_id + dataset_id` 组合执行。
 
 ## API 速览
 
@@ -97,7 +97,7 @@ flowchart LR
 | --- | --- |
 | 健康与文档 | `GET /health`, `GET /swagger/index.html`, `GET /swagger/openapi.json` |
 | 项目 | `POST /projects`, `GET /projects`, `GET /projects/{id}`, `PUT /projects/{id}`, `DELETE /projects/{id}` |
-| 数据集 | `GET /datasets/candidates`, `POST /projects/{id}/datasets`, `POST /datasets`, `GET /datasets`, `GET /datasets/{id}`, `PUT /datasets/{id}`, `DELETE /datasets/{id}` |
+| 数据集 | `GET /datasets`, `GET /datasets/candidates`, `POST /datasets`, `POST /datasets/upload`, `GET /datasets/{id}`, `PUT /datasets/{id}`, `DELETE /datasets/{id}` |
 | 流水线 | `POST /pipelines`, `GET /pipelines`, `GET /pipelines/{id}`, `POST /pipelines/{id}/start`, `POST /pipelines/{id}/cancel` |
 | 阶段与日志 | `GET /pipelines/{id}/stages`, `GET /pipelines/{id}/stages/{stage_id}/logs`, `GET /pipelines/{id}/stages/{stage_id}/logs/ws`, `GET /pipelines/{id}/stages/{stage_id}/logs/stream`, `GET /pipelines/{id}/stages/{stage_id}/logs/download` |
 | 模型与资源 | `GET /models/teacher`, `GET /models/teacher/{id}`, `GET /models/student`, `GET /models/student/{id}`, `GET /resources/available`, `GET /resources/nodes`, `GET /resources/nodes/{name}` |

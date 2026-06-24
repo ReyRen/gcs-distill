@@ -61,7 +61,7 @@ func main() {
 
 	modelSvc := service.NewModelService(&cfg.Storage)
 	projectSvc := service.NewProjectService(projectRepo, modelSvc)
-	datasetSvc := service.NewDatasetService(datasetRepo, projectRepo, &cfg.Storage)
+	datasetSvc := service.NewDatasetService(datasetRepo, &cfg.Storage)
 	gcsClient := gcsclient.NewClient(cfg.GCS.BaseURL, time.Duration(cfg.GCS.TimeoutSeconds)*time.Second)
 
 	executorSvc := service.NewExecutorService(

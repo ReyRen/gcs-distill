@@ -70,10 +70,9 @@ type EvaluationConfig struct {
 	ExtraParams  map[string]interface{} `json:"extra_params,omitempty"`
 }
 
-// Dataset is a project dataset.
+// Dataset is a reusable distillation dataset.
 type Dataset struct {
 	ID          string    `json:"id" db:"id"`
-	ProjectID   string    `json:"project_id" db:"project_id"`
 	Name        string    `json:"name" db:"name"`
 	Description string    `json:"description" db:"description"`
 	SourceType  string    `json:"source_type" db:"source_type"`
