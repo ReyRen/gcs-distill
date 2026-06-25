@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/ReyRen/gcs-distill/internal/types"
 )
@@ -14,11 +16,15 @@ const (
 )
 
 type ConfigGenerator struct {
-	workspaceRoot string
+	storageRoot string
 }
 
-func NewConfigGenerator(workspaceRoot string) *ConfigGenerator {
-	return &ConfigGenerator{workspaceRoot: workspaceRoot}
+func NewConfigGenerator(storageRoot string) *ConfigGenerator {
+	storageRoot = strings.TrimRight(strings.TrimSpace(storageRoot), "/")
+	if storageRoot == "" {
+		storageRoot = "/storage-root-jfs"
+	}
+	return &ConfigGenerator{storageRoot: storageRoot}
 }
 
 type TeacherInferConfig struct {
@@ -80,13 +86,13 @@ func (g *ConfigGenerator) GenerateTeacherInferConfig(project *types.Project, run
 		return nil, err
 	}
 
-	workspace := g.GetRunWorkspace(project.ID, runID)
+	workspace := g.GetRunWorkspace(project.UID, project.ID, runID)
 	config := TeacherInferConfig{
 		JobType: jobType,
 		Dataset: EasyDistillDataset{
 			InstructionPath: filepath.Join(workspace, "data", "seed", "instructions.json"),
 			LabeledPath:     filepath.Join(workspace, "data", "generated", "labeled.json"),
-			Template:        g.GetTemplatePath(project.ID, runID),
+			Template:        g.GetTemplatePath(project.UID, project.ID, runID),
 			Seed:            defaultDatasetSeed,
 		},
 		Inference: buildTeacherInference(teacher),
@@ -113,12 +119,16 @@ func (g *ConfigGenerator) GenerateStudentTrainConfig(
 	}
 
 	train := withTrainingDefaults(pipeline.TrainingConfig)
-	workspace := g.GetRunWorkspace(project.ID, runID)
+	uid := pipeline.UID
+	if uid <= 0 {
+		uid = project.UID
+	}
+	workspace := g.GetRunWorkspace(uid, project.ID, runID)
 	config := StudentTrainConfig{
 		JobType: "kd_black_box_train_only",
 		Dataset: EasyDistillDataset{
 			LabeledPath: filepath.Join(workspace, "data", "filtered", "train.json"),
-			Template:    g.GetTemplatePath(project.ID, runID),
+			Template:    g.GetTemplatePath(uid, project.ID, runID),
 			Seed:        defaultDatasetSeed,
 		},
 		Models: EasyDistillModels{
@@ -149,7 +159,7 @@ func (g *ConfigGenerator) GenerateEvaluateConfig(project *types.Project, runID s
 		return nil, err
 	}
 
-	workspace := g.GetRunWorkspace(project.ID, runID)
+	workspace := g.GetRunWorkspace(project.UID, project.ID, runID)
 	config := EvaluateConfig{
 		JobType: "cot_eval_api",
 		Dataset: EasyDistillDataset{
@@ -373,22 +383,22 @@ func firstString(values ...string) string {
 	return ""
 }
 
-func (g *ConfigGenerator) GetRunWorkspace(projectID, runID string) string {
-	return filepath.Join(g.workspaceRoot, "projects", projectID, "runs", runID)
+func (g *ConfigGenerator) GetRunWorkspace(uid int, projectID, runID string) string {
+	return filepath.Join(g.storageRoot, "user-"+strconv.Itoa(uid), "train-center", "model-distill", "projects", projectID, "runs", runID)
 }
 
-func (g *ConfigGenerator) GetConfigPath(projectID, runID, stageName string) string {
-	return filepath.Join(g.GetRunWorkspace(projectID, runID), "configs", fmt.Sprintf("%s.json", stageName))
+func (g *ConfigGenerator) GetConfigPath(uid int, projectID, runID, stageName string) string {
+	return filepath.Join(g.GetRunWorkspace(uid, projectID, runID), "configs", fmt.Sprintf("%s.json", stageName))
 }
 
-func (g *ConfigGenerator) GetDataPath(projectID, runID, subPath string) string {
-	return filepath.Join(g.GetRunWorkspace(projectID, runID), "data", subPath)
+func (g *ConfigGenerator) GetDataPath(uid int, projectID, runID, subPath string) string {
+	return filepath.Join(g.GetRunWorkspace(uid, projectID, runID), "data", subPath)
 }
 
-func (g *ConfigGenerator) GetLogPath(projectID, runID, stageName string) string {
-	return filepath.Join(g.GetRunWorkspace(projectID, runID), "logs", stageName)
+func (g *ConfigGenerator) GetLogPath(uid int, projectID, runID, stageName string) string {
+	return filepath.Join(g.GetRunWorkspace(uid, projectID, runID), "logs", stageName)
 }
 
-func (g *ConfigGenerator) GetTemplatePath(projectID, runID string) string {
-	return filepath.Join(g.GetRunWorkspace(projectID, runID), defaultTemplateRelPath)
+func (g *ConfigGenerator) GetTemplatePath(uid int, projectID, runID string) string {
+	return filepath.Join(g.GetRunWorkspace(uid, projectID, runID), defaultTemplateRelPath)
 }

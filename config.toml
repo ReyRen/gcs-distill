@@ -21,15 +21,11 @@ conn_max_lifetime_seconds = 300
 
 [storage]
 type = "nfs"
-# Replace user-xxx with the bucket/user prefix created by gcs-s3.
-root_path = "/storage-root-jfs/user-xxx"
-base_path = "/storage-root-jfs/user-xxx/train-center/model-distill"
+# Shared JFS root. Per-user paths are derived as:
+#   {root_path}/user-{uid}/train-center/model-distill
+root_path = "/storage-root-jfs"
 # Global read-only base model pool shared with SFT.
 models_base_path = "/storage-root-jfs/train-base-models"
-datasets_base_path = "/storage-root-jfs/user-xxx/train-center/model-distill/datasets"
-dataset_candidates_path = "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates"
-dataset_uploads_path = "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/uploaded"
-dataset_generated_path = "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/generated"
 
 [gcs]
 base_url = "http://172.18.29.80:8072/api/v1"
@@ -44,7 +40,6 @@ max_age = 7
 compress = true
 
 [executor]
-workspace_root = "/storage-root-jfs/user-xxx/train-center/model-distill"
 max_concurrent = 5
 # External EasyDistill runtime image. gcs-distill only passes this reference to gcs-v2.
 runtime_image = "easy-distill/easydistill:latest"

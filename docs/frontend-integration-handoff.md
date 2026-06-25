@@ -16,6 +16,23 @@ OpenAPI JSON: http://<distill.host>:8080/swagger/openapi.json
 Health: http://<distill.host>:8080/health
 ```
 
+### 全局 uid 约定
+
+`uid` 是 GCS 用户 ID，后端用它生成 `/storage-root-jfs/user-{uid}/train-center/model-distill`。所有用户级资源都要带 `uid`：
+
+| 场景 | 传参位置 | 示例 |
+| --- | --- | --- |
+| 项目列表/详情/删除 | query | `GET /api/v1/projects?uid=380` |
+| 创建/更新项目 | JSON body | `{ "uid": 380, ... }` |
+| 数据集列表/候选/详情/删除 | query | `GET /api/v1/datasets?uid=380` |
+| 登记候选数据集 | JSON body | `{ "uid": 380, "source_type": "import", ... }` |
+| 上传数据集 | multipart form | `uid=380`, `file=@train.jsonl` |
+| 流水线列表 | query | `GET /api/v1/pipelines?uid=380&project_id=...` |
+| 创建流水线 | JSON body | `{ "uid": 380, "project_id": "...", "dataset_id": "..." }` |
+
+创建流水线时后端会校验 `pipeline.uid == project.uid == dataset.uid`，避免跨用户目录组合。
+
+
 接口当前无登录鉴权中间件，已启用 CORS。生产环境如果需要鉴权，建议在网关或上层平台统一补齐，不要在前端假设接口永远裸露。
 
 ## 2. 产品边界
@@ -28,7 +45,7 @@ Health: http://<distill.host>:8080/health
 flowchart LR
     FE["Frontend"] --> DS["gcs-distill REST API"]
     DS --> DB[(MySQL distill_*)]
-    DS --> FS["/storage-root-jfs/user-xxx/train-center/model-distill"]
+    DS --> FS["/storage-root-jfs/user-{uid}/train-center/model-distill"]
     DS -->|"container job"| GCS["gcs-v2"]
     GCS -->|"gRPC"| Worker["gcs-info-catch-v2"]
     Worker --> Runtime["EasyDistill runtime container"]
@@ -147,6 +164,7 @@ export interface EvaluationConfig {
 
 export interface Project {
   id?: string;
+  uid: number;
   name: string;
   description?: string;
   business_scenario?: string;
@@ -159,6 +177,7 @@ export interface Project {
 
 export interface Dataset {
   id?: string;
+  uid: number;
   name: string;
   description?: string;
   source_type: "upload" | "import";
@@ -228,6 +247,7 @@ export interface ResourceRequest {
 
 export interface PipelineRun {
   id?: string;
+  uid: number;
   project_id: string;
   dataset_id: string;
   status?: PipelineStatus;
@@ -290,6 +310,7 @@ Content-Type: application/json
 
 ```json
 {
+  "uid": 380,
   "name": "Qwen 蒸馏实验",
   "description": "客服场景蒸馏",
   "business_scenario": "customer_service",
@@ -333,7 +354,7 @@ Content-Type: application/json
 数据集是独立资源，不属于项目。数据集管理页先用下面接口展示所有已登记数据集：
 
 ```http
-GET /api/v1/datasets?page=1&page_size=20
+GET /api/v1/datasets?uid=380&page=1&page_size=20
 ```
 
 已登记列表来自数据库 `distill_datasets`。`candidates` 只是待登记的共享目录文件，不等于数据集列表。
@@ -341,13 +362,13 @@ GET /api/v1/datasets?page=1&page_size=20
 数据集输入目录和 model-center 使用同一个共享存储根，但 distill 不放在 model-center 目录下。默认候选目录是：
 
 ```text
-/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/
+/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates/
 ```
 
 前端需要先拉取可选数据集，再让用户选择：
 
 ```http
-GET /api/v1/datasets/candidates
+GET /api/v1/datasets/candidates?uid=380
 ```
 
 返回结构：
@@ -366,6 +387,7 @@ interface DatasetCandidateList {
 ```http
 POST /api/v1/datasets/upload
 Content-Type: multipart/form-data
+uid=380
 ```
 
 表单字段：
@@ -376,7 +398,7 @@ Content-Type: multipart/form-data
 | `name` | 否 | 不填时使用文件名 |
 | `description` | 否 | 数据集说明 |
 
-上传后后端会把文件保存到 `storage.dataset_uploads_path/{dataset_id}/`，并统计非空行数作为 `record_count`。前端判断真实落盘路径时以响应里的 `data.file_path` 为准。
+上传后后端会把文件保存到 `/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/uploaded/{dataset_id}/`，并统计非空行数作为 `record_count`。前端判断真实落盘路径时以响应里的 `data.file_path` 为准。
 
 如果数据已经在共享存储候选列表中，登记路径：
 
@@ -387,15 +409,16 @@ Content-Type: application/json
 
 ```json
 {
+  "uid": 380,
   "name": "种子数据",
   "description": "共享存储中的 JSONL",
   "source_type": "import",
-  "file_path": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
+  "file_path": "/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
   "record_count": 1000
 }
 ```
 
-JSON 的 `POST /api/v1/datasets` 用于登记已有候选文件，不能用来上传新文件；如果 JSON 里传 `source_type=upload`，后端会拒绝，避免只创建数据库记录但没有文件落到 `uploaded`。`source_type=import` 时，`file_path` 必须位于 `storage.dataset_candidates_path` 下；删除 import 数据集只删除数据库记录，不删除共享源文件。
+JSON 的 `POST /api/v1/datasets` 用于登记已有候选文件，不能用来上传新文件；如果 JSON 里传 `source_type=upload`，后端会拒绝，避免只创建数据库记录但没有文件落到 `uploaded`。`source_type=import` 时，`file_path` 必须位于 `/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates` 下；删除 import 数据集只删除数据库记录，不删除共享源文件。
 
 ### 6.3 创建流水线
 
@@ -408,6 +431,7 @@ Content-Type: application/json
 
 ```json
 {
+  "uid": 380,
   "project_id": "project-id",
   "dataset_id": "dataset-id",
   "trigger_mode": "manual",
@@ -615,20 +639,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const distillApi = {
-  listProjects: (page = 1, pageSize = 20) =>
-    request<PageResult<Project>>(`/projects?page=${page}&page_size=${pageSize}`),
+  listProjects: (uid: number, page = 1, pageSize = 20) =>
+    request<PageResult<Project>>(`/projects?uid=${uid}&page=${page}&page_size=${pageSize}`),
 
   createProject: (payload: Project) =>
     request<Project>("/projects", { method: "POST", body: JSON.stringify(payload) }),
 
-  listDatasetCandidates: () =>
-    request<{ items: DatasetCandidate[]; total: number }>("/datasets/candidates"),
+  listDatasetCandidates: (uid: number) =>
+    request<{ items: DatasetCandidate[]; total: number }>(`/datasets/candidates?uid=${uid}`),
 
   importDataset: (payload: Dataset) =>
     request<Dataset>("/datasets", { method: "POST", body: JSON.stringify(payload) }),
 
-  uploadDataset: async (file: File, name?: string, description?: string) => {
+  uploadDataset: async (uid: number, file: File, name?: string, description?: string) => {
     const form = new FormData();
+    form.append("uid", String(uid));
     form.append("file", file);
     if (name) form.append("name", name);
     if (description) form.append("description", description);
@@ -672,7 +697,7 @@ export const distillApi = {
 - 创建项目和更新项目使用同一个 `Project` 结构；更新时路径参数 `id` 会覆盖 body 内的 `id`。
 - 创建数据集有两种入口：候选目录登记、multipart 上传。普通用户建议暴露候选选择和上传，不允许手填任意服务器路径。
 - `source_type=import` 的 `file_path` 必须来自 `GET /datasets/candidates` 返回的 `file_path`。
-- `GET /datasets` 不带 `project_id`，返回所有已登记数据集；`GET /pipelines` 仍按项目查询，需要带 `project_id`。
+- `GET /datasets` 不带 `project_id`，但必须带 `uid`，返回该用户已登记数据集；`GET /pipelines` 仍按项目查询，需要带 `uid + project_id`。
 - 流水线创建后不会自动启动，需要再调用 `POST /pipelines/{id}/start`。
 - `POST /pipelines/{id}/start` 只允许 `pending` 状态调用，重复点击会失败；前端按钮需要防抖和状态禁用。
 - `GET /logs` 和 `GET /logs/stream` 成功时返回纯文本，不走通用 JSON wrapper。
@@ -687,7 +712,7 @@ export const distillApi = {
 
 1. 打开 `GET /health`，确认服务可达。
 2. 打开 Swagger UI，确认版本和路径：`/swagger/index.html`。
-3. 调 `GET /datasets/candidates`，确认共享数据集目录可扫描，空目录时返回空数组。
+3. 调 `GET /datasets/candidates?uid=<uid>`，确认共享数据集目录可扫描，空目录时返回空数组。
 4. 调 `GET /models/teacher` 和 `GET /models/student`，确认本地教师/学生模型目录可被扫描。
 5. 调 `GET /resources/available`，确认 `gcs-v2` 资源聚合可用。
 6. 创建项目，确保本地教师/学生模型使用接口返回的 `path`。

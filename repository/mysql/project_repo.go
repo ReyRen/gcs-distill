@@ -13,10 +13,10 @@ import (
 type ProjectRepository interface {
 	Create(ctx context.Context, project *types.Project) error
 	GetByID(ctx context.Context, id string) (*types.Project, error)
-	List(ctx context.Context, limit, offset int) ([]*types.Project, error)
+	List(ctx context.Context, uid, limit, offset int) ([]*types.Project, error)
 	Update(ctx context.Context, project *types.Project) error
 	Delete(ctx context.Context, id string) error
-	Count(ctx context.Context) (int, error)
+	Count(ctx context.Context, uid int) (int, error)
 }
 
 type projectRepo struct {
@@ -50,13 +50,14 @@ func (r *projectRepo) Create(ctx context.Context, project *types.Project) error 
 
 	query := `
 		INSERT INTO distill_projects (
-			id, name, description, business_scenario,
+			id, uid, name, description, business_scenario,
 			teacher_model_config, student_model_config, evaluation_config,
 			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	if _, err := r.db.sql.ExecContext(ctx, query,
 		project.ID,
+		project.UID,
 		project.Name,
 		project.Description,
 		project.BusinessScenario,
@@ -73,7 +74,7 @@ func (r *projectRepo) Create(ctx context.Context, project *types.Project) error 
 
 func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, error) {
 	query := `
-		SELECT id, name, description, business_scenario,
+		SELECT id, uid, name, description, business_scenario,
 			teacher_model_config, student_model_config, evaluation_config,
 			created_at, updated_at
 		FROM distill_projects
@@ -85,6 +86,7 @@ func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, e
 	var description, businessScenario sql.NullString
 	err := r.db.sql.QueryRowContext(ctx, query, id).Scan(
 		&project.ID,
+		&project.UID,
 		&project.Name,
 		&description,
 		&businessScenario,
@@ -108,17 +110,18 @@ func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, e
 	return &project, nil
 }
 
-func (r *projectRepo) List(ctx context.Context, limit, offset int) ([]*types.Project, error) {
+func (r *projectRepo) List(ctx context.Context, uid, limit, offset int) ([]*types.Project, error) {
 	query := `
-		SELECT id, name, description, business_scenario,
+		SELECT id, uid, name, description, business_scenario,
 			teacher_model_config, student_model_config, evaluation_config,
 			created_at, updated_at
 		FROM distill_projects
+		WHERE uid = ?
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`
 
-	rows, err := r.db.sql.QueryContext(ctx, query, limit, offset)
+	rows, err := r.db.sql.QueryContext(ctx, query, uid, limit, offset)
 	if err != nil {
 		return nil, fmt.Errorf("query project list failed: %w", err)
 	}
@@ -131,6 +134,7 @@ func (r *projectRepo) List(ctx context.Context, limit, offset int) ([]*types.Pro
 		var description, businessScenario sql.NullString
 		if err := rows.Scan(
 			&project.ID,
+			&project.UID,
 			&project.Name,
 			&description,
 			&businessScenario,
@@ -171,7 +175,8 @@ func (r *projectRepo) Update(ctx context.Context, project *types.Project) error 
 
 	query := `
 		UPDATE distill_projects
-		SET name = ?,
+		SET uid = ?,
+			name = ?,
 			description = ?,
 			business_scenario = ?,
 			teacher_model_config = ?,
@@ -180,6 +185,7 @@ func (r *projectRepo) Update(ctx context.Context, project *types.Project) error 
 		WHERE id = ?
 	`
 	result, err := r.db.sql.ExecContext(ctx, query,
+		project.UID,
 		project.Name,
 		project.Description,
 		project.BusinessScenario,
@@ -208,9 +214,9 @@ func (r *projectRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *projectRepo) Count(ctx context.Context) (int, error) {
+func (r *projectRepo) Count(ctx context.Context, uid int) (int, error) {
 	var count int
-	if err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_projects`).Scan(&count); err != nil {
+	if err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_projects WHERE uid = ?`, uid).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count projects failed: %w", err)
 	}
 	return count, nil

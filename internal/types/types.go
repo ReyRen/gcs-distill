@@ -38,6 +38,7 @@ const (
 // Project is a distillation project.
 type Project struct {
 	ID                 string            `json:"id" db:"id"`
+	UID                int               `json:"uid" db:"uid"`
 	Name               string            `json:"name" db:"name"`
 	Description        string            `json:"description" db:"description"`
 	BusinessScenario   string            `json:"business_scenario" db:"business_scenario"`
@@ -73,6 +74,7 @@ type EvaluationConfig struct {
 // Dataset is a reusable distillation dataset.
 type Dataset struct {
 	ID          string    `json:"id" db:"id"`
+	UID         int       `json:"uid" db:"uid"`
 	Name        string    `json:"name" db:"name"`
 	Description string    `json:"description" db:"description"`
 	SourceType  string    `json:"source_type" db:"source_type"`
@@ -84,6 +86,7 @@ type Dataset struct {
 // PipelineRun is one distillation pipeline execution.
 type PipelineRun struct {
 	ID              string          `json:"id" db:"id"`
+	UID             int             `json:"uid" db:"uid"`
 	ProjectID       string          `json:"project_id" db:"project_id"`
 	DatasetID       string          `json:"dataset_id" db:"dataset_id"`
 	Status          PipelineStatus  `json:"status" db:"status"`

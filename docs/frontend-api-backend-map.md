@@ -11,6 +11,30 @@ Swagger UI: /swagger/index.html
 OpenAPI JSON: /swagger/openapi.json
 ```
 
+## 0. uid 与用户目录
+
+`uid` 是前端必须传给 `gcs-distill` 的 GCS 用户 ID。后端不会再从 `config.toml` 固定某个用户目录，而是统一按下面规则派生目录：
+
+```text
+storage.root_path=/storage-root-jfs
+uid=380
+=> /storage-root-jfs/user-380/train-center/model-distill
+```
+
+传参规则：
+
+| 接口类别 | uid 位置 |
+| --- | --- |
+| `GET /projects`, `GET /projects/{id}`, `DELETE /projects/{id}` | query: `uid=380` |
+| `POST /projects`, `PUT /projects/{id}` | JSON body: `uid` |
+| `GET /datasets`, `GET /datasets/candidates`, `GET /datasets/{id}`, `DELETE /datasets/{id}` | query: `uid=380` |
+| `POST /datasets`, `PUT /datasets/{id}` | JSON body: `uid` |
+| `POST /datasets/upload` | multipart form: `uid` |
+| `GET /pipelines` | query: `uid=380&project_id=...` |
+| `POST /pipelines` | JSON body: `uid` |
+
+创建流水线时后端会校验 `pipeline.uid == project.uid == dataset.uid`。提交到 `gcs-v2` 的容器任务会带 `task_uid=uid`，与 `gcs-v2` SFT 的目录组织一致。
+
 ## 1. 一句话理解链路
 
 前端只调用 `gcs-distill`。`gcs-distill` 负责项目、数据集、流水线、阶段状态、EasyDistill 配置文件和共享存储目录；真正的容器创建、资源调度、镜像拉起、日志采集由 `gcs-v2` 和 `gcs-info-catch-v2` 完成。
@@ -78,6 +102,7 @@ interface PageResult<T> {
 ```ts
 interface Project {
   id?: string;
+  uid: number;
   name: string;
   description?: string;
   business_scenario?: string;
@@ -130,6 +155,7 @@ interface EvaluationConfig {
 ```ts
 interface Dataset {
   id?: string;
+  uid: number;
   name: string;
   description?: string;
   source_type: "upload" | "import";
@@ -138,17 +164,17 @@ interface Dataset {
 }
 ```
 
-数据集是独立资源，不属于项目。创建流水线时再通过 `project_id + dataset_id` 把项目配置和数据集组合起来执行。数据集文件最终在 `dataset_build` 阶段被读取，支持 JSON 数组或 JSONL/NDJSON。只要记录里有非空 `instruction` 字段，就会被写入运行目录：
+数据集是独立资源，不属于项目。创建流水线时再通过 `uid + project_id + dataset_id` 把项目配置和数据集组合起来执行。数据集文件最终在 `dataset_build` 阶段被读取，支持 JSON 数组或 JSONL/NDJSON。只要记录里有非空 `instruction` 字段，就会被写入运行目录：
 
 ```text
-{executor.workspace_root}/projects/{project_id}/runs/{pipeline_id}/data/seed/instructions.json
+/storage-root-jfs/user-{uid}/train-center/model-distill/projects/{project_id}/runs/{pipeline_id}/data/seed/instructions.json
 ```
 
 数据集根目录来自配置：
 
 ```text
-storage.dataset_candidates_path
-默认: /storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates
+/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates
+默认: /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates
 ```
 
 ### 3.3 流水线字段
@@ -156,6 +182,7 @@ storage.dataset_candidates_path
 ```ts
 interface PipelineRun {
   id?: string;
+  uid: number;
   project_id: string;
   dataset_id: string;
   trigger_mode?: "manual" | string;
@@ -228,6 +255,7 @@ interface SelectedResource {
 
 ```json
 {
+  "uid": 380,
   "name": "客服问答蒸馏",
   "description": "把大模型客服能力蒸馏到小模型",
   "business_scenario": "智能客服",
@@ -352,7 +380,7 @@ EasyDistill 关系：无。数据库层会按仓储实现处理关联数据；�
 
 ### 4.3 数据集接口
 
-#### `GET /api/v1/datasets/candidates`
+#### `GET /api/v1/datasets/candidates?uid=380`
 
 用途：扫描共享目录，给前端数据集选择器展示可导入的数据文件。
 
@@ -363,7 +391,7 @@ EasyDistill 关系：无。数据库层会按仓储实现处理关联数据；�
 ```text
 DatasetHandler.ListDatasetCandidates
   -> DatasetService.ListDatasetCandidates
-  -> 扫描 storage.dataset_candidates_path
+  -> 扫描 /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates
 ```
 
 返回数据：
@@ -390,10 +418,11 @@ EasyDistill 关系：不启动容器，只给前端选数据。真正进入 Easy
 
 ```json
 {
+  "uid": 380,
   "name": "customer-seed/train.jsonl",
   "description": "客服种子问题",
   "source_type": "import",
-  "file_path": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl"
+  "file_path": "/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl"
 }
 ```
 
@@ -405,7 +434,7 @@ EasyDistill 关系：不启动容器，只给前端选数据。真正进入 Easy
 DatasetHandler.CreateDataset
   -> DatasetService.CreateDataset
   -> prepareDataset
-  -> 校验 source_type=import，file_path 位于 storage.dataset_candidates_path
+  -> 校验 source_type=import，file_path 位于 /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates
   -> DatasetRepository.Create
 ```
 
@@ -418,6 +447,7 @@ EasyDistill 关系：本接口不启动容器。数据集路径会在 `dataset_b
 ```text
 Content-Type: multipart/form-data
 fields:
+  uid: required, GCS user id
   name: 可选
   description: 可选
   file: 文件
@@ -428,7 +458,7 @@ fields:
 ```text
 DatasetHandler.UploadDataset
   -> DatasetService.CreateUploadedDataset
-  -> 保存到 storage.dataset_uploads_path/{dataset_id}/{filename}
+  -> 保存到 /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/uploaded/{dataset_id}/{filename}
   -> 统计记录数
   -> DatasetRepository.Create
 ```
@@ -474,7 +504,7 @@ EasyDistill 关系：无，只读数据库。
 
 #### `PUT /api/v1/datasets/{id}`
 
-用途：更新数据集记录。
+用途：更新数据集展示信息。数据集的 `source_type`、`file_path` 和 `record_count` 是后端创建时确定的，不通过更新接口改动。
 
 Path 参数：`id`。
 
@@ -482,11 +512,9 @@ Path 参数：`id`。
 
 ```json
 {
+  "uid": 380,
   "name": "customer-seed/train-v2.jsonl",
-  "description": "更新后的数据集",
-  "source_type": "import",
-  "file_path": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train-v2.jsonl",
-  "record_count": 2000
+  "description": "更新后的数据集说明"
 }
 ```
 
@@ -496,11 +524,12 @@ Path 参数：`id`。
 DatasetHandler.UpdateDataset
   -> DatasetService.UpdateDataset
   -> DatasetRepository.GetByID
-  -> source_type=import 时校验 file_path 在 datasets_base_path 下
+  -> 校验 uid 属于当前数据集
+  -> 保留已有 source_type/file_path/record_count
   -> DatasetRepository.Update
 ```
 
-EasyDistill 关系：不会改变已经启动过的流水线；后续新流水线会读取更新后的数据集路径。
+EasyDistill 关系：不会改变数据文件位置，也不会影响已经启动过的流水线；后续新流水线仍读取原来的数据集文件路径。
 
 #### `DELETE /api/v1/datasets/{id}`
 
@@ -725,6 +754,7 @@ EasyDistill 关系：无。
 
 ```json
 {
+  "uid": 380,
   "project_id": "uuid-project",
   "dataset_id": "uuid-dataset",
   "trigger_mode": "manual",
@@ -759,8 +789,10 @@ EasyDistill 关系：无。
 PipelineHandler.CreatePipeline
   -> PipelineService.CreatePipeline
   -> validatePipeline
+     - uid 必须大于 0
      - project_id 必须存在
      - dataset_id 必须存在
+     - project.uid == dataset.uid == pipeline.uid
      - num_train_epochs > 0
      - learning_rate > 0
      - gpu_count >= 0
@@ -778,6 +810,7 @@ Query 参数：
 
 | 参数 | 必填 | 默认 | 说明 |
 | --- | --- | --- | --- |
+| `uid` | 是 | 无 | 当前用户 ID，只返回该用户的流水线 |
 | `project_id` | 是 | 无 | 项目 ID |
 | `page` | 否 | `1` | 页码 |
 | `page_size` | 否 | `20` | 每页数量 |
@@ -842,12 +875,13 @@ PipelineHandler.StartPipeline
 
 ```json
 {
+  "task_uid": 380,
   "container_name": "distill-<pipeline_id>-<stage_type>",
   "image": "easy-distill/easydistill:latest",
   "command": "python 或 accelerate",
   "args": ["..."],
-  "working_dir": "/storage-root-jfs/user-xxx/train-center/model-distill/projects/<project_id>/runs/<pipeline_id>",
-  "log_path": "/storage-root-jfs/user-xxx/train-center/model-distill/projects/<project_id>/runs/<pipeline_id>/logs/<stage>",
+  "working_dir": "/storage-root-jfs/user-{uid}/train-center/model-distill/projects/<project_id>/runs/<pipeline_id>",
+  "log_path": "/storage-root-jfs/user-{uid}/train-center/model-distill/projects/<project_id>/runs/<pipeline_id>/logs/<stage>",
   "envs": "GCS_DISTILL_STAGE=<stage>;GCS_DISTILL_PIPELINE_ID=<pipeline_id>",
   "worker_nums": 1,
   "xpu_nums": 2,
@@ -1135,8 +1169,8 @@ python -m easydistill.eval.data_eval --config {workspace}/configs/evaluate.json
 2. `GET /api/v1/models/student`：选择学生模型。
 3. `GET /api/v1/resources/available`：选择节点和卡。
 4. `POST /api/v1/projects`：创建项目，保存教师/学生/评估配置。
-5. `GET /api/v1/datasets`：选择已登记数据集；如需新增，先从 `GET /api/v1/datasets/candidates` 选择并 `POST /api/v1/datasets` 登记，或用 `POST /api/v1/datasets/upload` 上传新数据。
-6. `POST /api/v1/pipelines`：创建流水线和 6 个阶段，提交 `project_id + dataset_id`。
+5. `GET /api/v1/datasets`：选择已登记数据集；如需新增，先从 `GET /api/v1/datasets/candidates?uid=380` 选择并 `POST /api/v1/datasets` 登记，或用 `POST /api/v1/datasets/upload` 上传新数据。
+6. `POST /api/v1/pipelines`：创建流水线和 6 个阶段，提交 `uid + project_id + dataset_id`。
 7. `POST /api/v1/pipelines/{id}/start`：启动后台执行。
 8. 轮询 `GET /api/v1/pipelines/{id}` 和 `GET /api/v1/pipelines/{id}/stages`：刷新总状态和阶段状态。
 9. 对有 `container_id` 的阶段调用 `/logs` 或 `/logs/ws`：查看容器日志。

@@ -11,33 +11,20 @@ import (
 	"go.uber.org/zap"
 )
 
-// PipelineService 流水线服务接口
 type PipelineService interface {
-	// CreatePipeline 创建流水线运行
 	CreatePipeline(ctx context.Context, pipeline *types.PipelineRun) error
-	// GetPipeline 获取流水线运行
 	GetPipeline(ctx context.Context, id string) (*types.PipelineRun, error)
-	// ListPipelines 列出项目的流水线运行
-	ListPipelines(ctx context.Context, projectID string, page, pageSize int) ([]*types.PipelineRun, int, error)
-	// StartPipeline 启动流水线
+	ListPipelines(ctx context.Context, uid int, projectID string, page, pageSize int) ([]*types.PipelineRun, int, error)
 	StartPipeline(ctx context.Context, id string) error
-	// CancelPipeline 取消流水线
 	CancelPipeline(ctx context.Context, id string) error
-	// AdvanceStage 推进到下一阶段
 	AdvanceStage(ctx context.Context, pipelineID string) error
-	// UpdatePipelineStatus 更新流水线状态
 	UpdatePipelineStatus(ctx context.Context, id string, status types.PipelineStatus, errorMsg string) error
-	// ListStages 列出流水线的所有阶段
 	ListStages(ctx context.Context, pipelineID string) ([]*types.StageRun, error)
-	// CreateStage 创建阶段运行
 	CreateStage(ctx context.Context, stage *types.StageRun) error
-	// UpdateStage 更新阶段运行
 	UpdateStage(ctx context.Context, stage *types.StageRun) error
-	// GetStage 获取阶段运行
 	GetStage(ctx context.Context, stageID string) (*types.StageRun, error)
 }
 
-// pipelineService 流水线服务实现
 type pipelineService struct {
 	pipelineRepo mysqlrepo.PipelineRepository
 	stageRepo    mysqlrepo.StageRepository
@@ -46,7 +33,6 @@ type pipelineService struct {
 	executorSvc  ExecutorService
 }
 
-// NewPipelineService 创建流水线服务
 func NewPipelineService(
 	pipelineRepo mysqlrepo.PipelineRepository,
 	stageRepo mysqlrepo.StageRepository,
@@ -63,27 +49,25 @@ func NewPipelineService(
 	}
 }
 
-// CreatePipeline 创建流水线运行
 func (s *pipelineService) CreatePipeline(ctx context.Context, pipeline *types.PipelineRun) error {
-	// 验证流水线信息
 	if err := s.validatePipeline(ctx, pipeline); err != nil {
 		return err
 	}
-
-	// 设置初始状态
+	if pipeline.TriggerMode == "" {
+		pipeline.TriggerMode = "manual"
+	}
 	pipeline.Status = types.StatusPending
 	pipeline.CurrentStage = 0
 
-	// 创建流水线
 	if err := s.pipelineRepo.Create(ctx, pipeline); err != nil {
-		logger.Error("创建流水线失败",
+		logger.Error("create pipeline failed",
 			zap.String("project_id", pipeline.ProjectID),
+			zap.Int("uid", pipeline.UID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("创建流水线失败: %w", err)
 	}
 
-	// 创建六个阶段
 	stages := []types.StageType{
 		types.StageTeacherConfig,
 		types.StageDatasetBuild,
@@ -92,7 +76,6 @@ func (s *pipelineService) CreatePipeline(ctx context.Context, pipeline *types.Pi
 		types.StageStudentTrain,
 		types.StageEvaluate,
 	}
-
 	for i, stageType := range stages {
 		stage := &types.StageRun{
 			PipelineRunID: pipeline.ID,
@@ -101,42 +84,31 @@ func (s *pipelineService) CreatePipeline(ctx context.Context, pipeline *types.Pi
 			Status:        types.StatusPending,
 			RetryCount:    0,
 		}
-
 		if err := s.stageRepo.Create(ctx, stage); err != nil {
-			logger.Error("创建阶段失败",
-				zap.String("pipeline_id", pipeline.ID),
-				zap.String("stage_type", string(stageType)),
-				zap.Error(err),
-			)
 			return fmt.Errorf("创建阶段失败: %w", err)
 		}
 	}
 
-	logger.Info("流水线创建成功",
+	logger.Info("pipeline created",
 		zap.String("pipeline_id", pipeline.ID),
+		zap.Int("uid", pipeline.UID),
 		zap.String("project_id", pipeline.ProjectID),
 	)
-
 	return nil
 }
 
-// GetPipeline 获取流水线运行
 func (s *pipelineService) GetPipeline(ctx context.Context, id string) (*types.PipelineRun, error) {
 	pipeline, err := s.pipelineRepo.GetByID(ctx, id)
 	if err != nil {
-		logger.Error("获取流水线失败",
-			zap.String("pipeline_id", id),
-			zap.Error(err),
-		)
 		return nil, fmt.Errorf("获取流水线失败: %w", err)
 	}
-
 	return pipeline, nil
 }
 
-// ListPipelines 列出项目的流水线运行
-func (s *pipelineService) ListPipelines(ctx context.Context, projectID string, page, pageSize int) ([]*types.PipelineRun, int, error) {
-	// 验证分页参数
+func (s *pipelineService) ListPipelines(ctx context.Context, uid int, projectID string, page, pageSize int) ([]*types.PipelineRun, int, error) {
+	if uid <= 0 {
+		return nil, 0, fmt.Errorf("uid 必须大于0")
+	}
 	if page < 1 {
 		page = 1
 	}
@@ -145,44 +117,26 @@ func (s *pipelineService) ListPipelines(ctx context.Context, projectID string, p
 	}
 
 	offset := (page - 1) * pageSize
-
-	// 获取流水线列表
-	pipelines, err := s.pipelineRepo.List(ctx, projectID, pageSize, offset)
+	pipelines, err := s.pipelineRepo.List(ctx, uid, projectID, pageSize, offset)
 	if err != nil {
-		logger.Error("获取流水线列表失败",
-			zap.String("project_id", projectID),
-			zap.Error(err),
-		)
 		return nil, 0, fmt.Errorf("获取流水线列表失败: %w", err)
 	}
-
-	// 获取总数
-	total, err := s.pipelineRepo.CountByProject(ctx, projectID)
+	total, err := s.pipelineRepo.CountByProject(ctx, uid, projectID)
 	if err != nil {
-		logger.Error("获取流水线总数失败",
-			zap.String("project_id", projectID),
-			zap.Error(err),
-		)
 		return nil, 0, fmt.Errorf("获取流水线总数失败: %w", err)
 	}
-
 	return pipelines, total, nil
 }
 
-// StartPipeline 启动流水线
 func (s *pipelineService) StartPipeline(ctx context.Context, id string) error {
-	// 获取流水线
 	pipeline, err := s.pipelineRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("流水线不存在: %s", id)
 	}
-
-	// 检查状态
 	if pipeline.Status != types.StatusPending {
 		return fmt.Errorf("流水线状态不允许启动: %s", pipeline.Status)
 	}
 
-	// 更新状态为运行中
 	now := time.Now()
 	pipeline.Status = types.StatusRunning
 	pipeline.StartedAt = &now
@@ -191,36 +145,23 @@ func (s *pipelineService) StartPipeline(ctx context.Context, id string) error {
 	if err := s.activateStageByOrder(ctx, id, 1, now); err != nil {
 		return err
 	}
-
 	if err := s.pipelineRepo.Update(ctx, pipeline); err != nil {
 		return fmt.Errorf("启动流水线失败: %w", err)
 	}
-
-	// 提交到执行队列
 	if err := s.executorSvc.SubmitPipeline(ctx, id); err != nil {
-		// 如果提交失败，回滚状态
 		pipeline.Status = types.StatusFailed
 		pipeline.ErrorMessage = fmt.Sprintf("提交执行队列失败: %v", err)
 		_ = s.pipelineRepo.Update(ctx, pipeline)
 		return fmt.Errorf("提交执行队列失败: %w", err)
 	}
-
-	logger.Info("流水线已启动并提交到执行队列",
-		zap.String("pipeline_id", id),
-	)
-
 	return nil
 }
 
-// CancelPipeline 取消流水线
 func (s *pipelineService) CancelPipeline(ctx context.Context, id string) error {
-	// 获取流水线
 	pipeline, err := s.pipelineRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("流水线不存在: %s", id)
 	}
-
-	// 检查状态
 	if pipeline.Status != types.StatusRunning && pipeline.Status != types.StatusPending {
 		return fmt.Errorf("流水线状态不允许取消: %s", pipeline.Status)
 	}
@@ -231,22 +172,13 @@ func (s *pipelineService) CancelPipeline(ctx context.Context, id string) error {
 			return err
 		}
 	}
-
-	// 更新状态为已取消
 	if err := s.pipelineRepo.UpdateStatus(ctx, id, types.StatusCanceled, "用户取消"); err != nil {
 		return fmt.Errorf("取消流水线失败: %w", err)
 	}
-
-	logger.Info("流水线已取消",
-		zap.String("pipeline_id", id),
-	)
-
 	return nil
 }
 
-// AdvanceStage 推进到下一阶段
 func (s *pipelineService) AdvanceStage(ctx context.Context, pipelineID string) error {
-	// 获取流水线
 	pipeline, err := s.pipelineRepo.GetByID(ctx, pipelineID)
 	if err != nil {
 		return fmt.Errorf("流水线不存在: %s", pipelineID)
@@ -259,107 +191,59 @@ func (s *pipelineService) AdvanceStage(ctx context.Context, pipelineID string) e
 		}
 	}
 
-	// 检查是否还有下一阶段
 	if pipeline.CurrentStage >= 6 {
-		// 所有阶段完成，更新流水线状态为成功
 		pipeline.Status = types.StatusSucceeded
 		pipeline.FinishedAt = &now
-
 		if err := s.pipelineRepo.Update(ctx, pipeline); err != nil {
 			return fmt.Errorf("更新流水线状态失败: %w", err)
 		}
-
-		logger.Info("流水线所有阶段完成",
-			zap.String("pipeline_id", pipelineID),
-		)
-
 		return nil
 	}
 
-	// 推进到下一阶段
 	pipeline.CurrentStage++
 	if err := s.activateStageByOrder(ctx, pipelineID, pipeline.CurrentStage, now); err != nil {
 		return err
 	}
-
 	if err := s.pipelineRepo.Update(ctx, pipeline); err != nil {
 		return fmt.Errorf("推进阶段失败: %w", err)
 	}
-
-	logger.Info("流水线推进到下一阶段",
-		zap.String("pipeline_id", pipelineID),
-		zap.Int("current_stage", pipeline.CurrentStage),
-	)
-
 	return nil
 }
 
-// UpdatePipelineStatus 更新流水线状态
 func (s *pipelineService) UpdatePipelineStatus(ctx context.Context, id string, status types.PipelineStatus, errorMsg string) error {
 	if err := s.pipelineRepo.UpdateStatus(ctx, id, status, errorMsg); err != nil {
 		return fmt.Errorf("更新流水线状态失败: %w", err)
 	}
-
-	logger.Info("流水线状态已更新",
-		zap.String("pipeline_id", id),
-		zap.String("status", string(status)),
-	)
-
 	return nil
 }
 
-// ListStages 列出流水线的所有阶段
 func (s *pipelineService) ListStages(ctx context.Context, pipelineID string) ([]*types.StageRun, error) {
 	stages, err := s.stageRepo.ListByPipeline(ctx, pipelineID)
 	if err != nil {
-		logger.Error("获取阶段列表失败",
-			zap.String("pipeline_id", pipelineID),
-			zap.Error(err),
-		)
 		return nil, fmt.Errorf("获取阶段列表失败: %w", err)
 	}
-
 	return stages, nil
 }
 
-// CreateStage 创建阶段运行
 func (s *pipelineService) CreateStage(ctx context.Context, stage *types.StageRun) error {
 	if err := s.stageRepo.Create(ctx, stage); err != nil {
-		logger.Error("创建阶段失败",
-			zap.String("pipeline_id", stage.PipelineRunID),
-			zap.String("stage_type", string(stage.StageType)),
-			zap.Error(err),
-		)
 		return fmt.Errorf("创建阶段失败: %w", err)
 	}
-
 	return nil
 }
 
-// UpdateStage 更新阶段运行
 func (s *pipelineService) UpdateStage(ctx context.Context, stage *types.StageRun) error {
 	if err := s.stageRepo.Update(ctx, stage); err != nil {
-		logger.Error("更新阶段失败",
-			zap.String("stage_id", stage.ID),
-			zap.Error(err),
-		)
 		return fmt.Errorf("更新阶段失败: %w", err)
 	}
-
 	return nil
 }
 
-// GetStage 获取阶段运行
 func (s *pipelineService) GetStage(ctx context.Context, stageID string) (*types.StageRun, error) {
 	stage, err := s.stageRepo.GetByID(ctx, stageID)
 	if err != nil {
-		logger.Error("获取阶段失败",
-			zap.String("stage_id", stageID),
-			zap.Error(err),
-		)
 		return nil, fmt.Errorf("获取阶段失败: %w", err)
 	}
-
 	return stage, nil
 }
 
@@ -368,16 +252,13 @@ func (s *pipelineService) activateStageByOrder(ctx context.Context, pipelineID s
 	if err != nil {
 		return err
 	}
-
 	stage.Status = types.StatusRunning
 	stage.StartedAt = &startedAt
 	stage.FinishedAt = nil
 	stage.ErrorMessage = ""
-
 	if err := s.stageRepo.Update(ctx, stage); err != nil {
 		return fmt.Errorf("更新阶段失败: %w", err)
 	}
-
 	return nil
 }
 
@@ -386,18 +267,15 @@ func (s *pipelineService) finishStageByOrder(ctx context.Context, pipelineID str
 	if err != nil {
 		return err
 	}
-
 	stage.Status = status
 	stage.FinishedAt = &finishedAt
 	if stage.StartedAt == nil {
 		stage.StartedAt = &finishedAt
 	}
 	stage.ErrorMessage = errorMsg
-
 	if err := s.stageRepo.Update(ctx, stage); err != nil {
 		return fmt.Errorf("更新阶段失败: %w", err)
 	}
-
 	return nil
 }
 
@@ -406,51 +284,49 @@ func (s *pipelineService) getStageByOrder(ctx context.Context, pipelineID string
 	if err != nil {
 		return nil, fmt.Errorf("获取阶段列表失败: %w", err)
 	}
-
 	for _, stage := range stages {
 		if stage.StageOrder == stageOrder {
 			return stage, nil
 		}
 	}
-
 	return nil, fmt.Errorf("流水线缺少阶段 %d: %s", stageOrder, pipelineID)
 }
 
-// validatePipeline 验证流水线信息
 func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.PipelineRun) error {
+	if pipeline.UID <= 0 {
+		return newValidationError("uid 必须大于0")
+	}
 	if pipeline.ProjectID == "" {
 		return newValidationError("项目ID不能为空")
 	}
-
 	if pipeline.DatasetID == "" {
 		return newValidationError("数据集ID不能为空")
 	}
 
-	// 检查项目是否存在
-	_, err := s.projectRepo.GetByID(ctx, pipeline.ProjectID)
+	project, err := s.projectRepo.GetByID(ctx, pipeline.ProjectID)
 	if err != nil {
 		return newValidationError(fmt.Sprintf("项目不存在: %s", pipeline.ProjectID))
 	}
+	if project.UID != pipeline.UID {
+		return newValidationError("流水线 uid 必须与项目 uid 一致")
+	}
 
-	// 检查数据集是否存在
-	_, err = s.datasetRepo.GetByID(ctx, pipeline.DatasetID)
+	dataset, err := s.datasetRepo.GetByID(ctx, pipeline.DatasetID)
 	if err != nil {
 		return newValidationError(fmt.Sprintf("数据集不存在: %s", pipeline.DatasetID))
 	}
+	if dataset.UID != pipeline.UID {
+		return newValidationError("流水线 uid 必须与数据集 uid 一致")
+	}
 
-	// 验证训练配置
 	if pipeline.TrainingConfig.NumTrainEpochs <= 0 {
 		return newValidationError("训练轮数必须大于0")
 	}
-
 	if pipeline.TrainingConfig.LearningRate <= 0 {
 		return newValidationError("学习率必须大于0")
 	}
-
-	// 验证资源请求
 	if pipeline.ResourceRequest.GPUCount < 0 {
 		return newValidationError("GPU数量不能为负数")
 	}
-
 	return nil
 }

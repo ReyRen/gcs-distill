@@ -58,6 +58,17 @@
         "schema": {
           "type": "string"
         }
+      },
+      "UIDQuery": {
+        "description": "GCS user id. gcs-distill maps it to storage.root_path/user-{uid}.",
+        "in": "query",
+        "name": "uid",
+        "required": true,
+        "schema": {
+          "example": 380,
+          "minimum": 1,
+          "type": "integer"
+        }
       }
     },
     "schemas": {
@@ -168,8 +179,8 @@
             "type": "string"
           },
           "file_path": {
-            "description": "Dataset file path. Import paths must come from storage.dataset_candidates_path (/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates by default). Uploaded/imported files may be JSONL or JSON array; dataset_build writes EasyDistill runtime files as JSON arrays.",
-            "example": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
+            "description": "Dataset file path. Import paths must come from /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates. Uploaded files are stored under /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/uploaded/{dataset_id}/{filename}.",
+            "example": "/storage-root-jfs/user-380/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
             "type": "string"
           },
           "id": {
@@ -192,6 +203,12 @@
             ],
             "example": "import",
             "type": "string"
+          },
+          "uid": {
+            "description": "GCS user id. User storage is derived as /storage-root-jfs/user-{uid}/train-center/model-distill.",
+            "example": 380,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "type": "object"
@@ -199,7 +216,7 @@
       "DatasetCandidate": {
         "properties": {
           "file_path": {
-            "example": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
+            "example": "/storage-root-jfs/user-380/train-center/model-distill/datasets/candidates/customer-seed/train.jsonl",
             "type": "string"
           },
           "is_directory": {
@@ -220,7 +237,7 @@
             "type": "integer"
           },
           "source_dir": {
-            "example": "/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/customer-seed",
+            "example": "/storage-root-jfs/user-380/train-center/model-distill/datasets/candidates/customer-seed",
             "type": "string"
           },
           "updated_at": {
@@ -310,6 +327,31 @@
         },
         "type": "object"
       },
+      "DatasetUpdateRequest": {
+        "properties": {
+          "description": {
+            "description": "Dataset display description. Updating it does not move or rewrite the stored dataset file.",
+            "example": "更新后的数据集说明",
+            "type": "string"
+          },
+          "name": {
+            "description": "Dataset display name.",
+            "example": "customer-seed/train-v2.jsonl",
+            "type": "string"
+          },
+          "uid": {
+            "description": "GCS user id. Must match the existing dataset uid.",
+            "example": 380,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "uid",
+          "name"
+        ],
+        "type": "object"
+      },
       "DatasetUploadRequest": {
         "properties": {
           "description": {
@@ -323,9 +365,16 @@
           "name": {
             "example": "real-upload-dataset",
             "type": "string"
+          },
+          "uid": {
+            "description": "GCS user id used to derive /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/uploaded.",
+            "example": 380,
+            "minimum": 1,
+            "type": "integer"
           }
         },
         "required": [
+          "uid",
           "file"
         ],
         "type": "object"
@@ -591,6 +640,12 @@
             "example": "manual",
             "type": "string"
           },
+          "uid": {
+            "description": "GCS user id. User storage is derived as /storage-root-jfs/user-{uid}/train-center/model-distill.",
+            "example": 380,
+            "minimum": 1,
+            "type": "integer"
+          },
           "updated_at": {
             "format": "date-time",
             "type": "string"
@@ -628,6 +683,12 @@
           },
           "teacher_model_config": {
             "$ref": "#/components/schemas/TeacherModelConfig"
+          },
+          "uid": {
+            "description": "GCS user id. User storage is derived as /storage-root-jfs/user-{uid}/train-center/model-distill.",
+            "example": 380,
+            "minimum": 1,
+            "type": "integer"
           },
           "updated_at": {
             "format": "date-time",
@@ -1132,8 +1193,11 @@
   "paths": {
     "/api/v1/datasets": {
       "get": {
-        "description": "List all registered datasets. Datasets are independent resources; pipelines bind project_id and dataset_id when they run.",
+        "description": "List registered datasets for one uid. Datasets are independent resources; pipelines bind project_id and dataset_id when they run.",
         "parameters": [
+          {
+            "$ref": "#/components/parameters/UIDQuery"
+          },
           {
             "description": "Page number",
             "in": "query",
@@ -1204,7 +1268,12 @@
     },
     "/api/v1/datasets/candidates": {
       "get": {
-        "description": "Scan storage.dataset_candidates_path and return JSON/JSONL/NDJSON/TXT files that the frontend can select. The default base path is /storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates.",
+        "description": "Scan /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates and return JSON/JSONL/NDJSON/TXT files that the frontend can select.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UIDQuery"
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1225,7 +1294,7 @@
     },
     "/api/v1/datasets/upload": {
       "post": {
-        "description": "Upload a new dataset file. The backend stores it under storage.dataset_uploads_path/{dataset_id}/{filename}, creates a dataset record with source_type=upload, and returns data.file_path.",
+        "description": "Upload a new dataset file for one uid. The backend stores it under /storage-root-jfs/user-{uid}/train-center/model-distill/datasets/uploaded/{dataset_id}/{filename}, creates a dataset record with source_type=upload, and returns data.file_path.",
         "parameters": [],
         "requestBody": {
           "content": {
@@ -1267,6 +1336,11 @@
     },
     "/api/v1/datasets/{id}": {
       "delete": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UIDQuery"
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1285,6 +1359,11 @@
         ]
       },
       "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UIDQuery"
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1308,11 +1387,12 @@
         }
       ],
       "put": {
+        "description": "Update dataset display name and description only. The backend keeps the existing source_type, file_path and record_count.",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/Dataset"
+                "$ref": "#/components/schemas/DatasetUpdateRequest"
               }
             }
           },
@@ -1477,7 +1557,11 @@
     },
     "/api/v1/pipelines": {
       "get": {
+        "description": "List pipeline runs for one uid and project_id.",
         "parameters": [
+          {
+            "$ref": "#/components/parameters/UIDQuery"
+          },
           {
             "$ref": "#/components/parameters/ProjectIdQuery"
           },
@@ -1506,6 +1590,7 @@
         ]
       },
       "post": {
+        "description": "Create a pipeline run. Request body must include uid; backend verifies project.uid and dataset.uid match pipeline.uid.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1866,7 +1951,11 @@
     },
     "/api/v1/projects": {
       "get": {
+        "description": "List distillation projects for one uid.",
         "parameters": [
+          {
+            "$ref": "#/components/parameters/UIDQuery"
+          },
           {
             "$ref": "#/components/parameters/Page"
           },
@@ -1892,6 +1981,7 @@
         ]
       },
       "post": {
+        "description": "Create a distillation project. Request body must include uid; local model_id values are resolved from storage.models_base_path.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -1932,6 +2022,11 @@
     },
     "/api/v1/projects/{id}": {
       "delete": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UIDQuery"
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1950,6 +2045,11 @@
         ]
       },
       "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/UIDQuery"
+          }
+        ],
         "responses": {
           "200": {
             "content": {

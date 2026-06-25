@@ -46,7 +46,7 @@ flowchart LR
 | 能力 | 说明 |
 | --- | --- |
 | 项目管理 | 保存教师模型、学生模型、目标任务、蒸馏参数和项目元数据 |
-| 数据集管理 | 从 `/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates` 扫描可选数据集，支持上传、登记、记录数统计、更新和删除 |
+| 数据集管理 | 从 `/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates` 扫描可选数据集，支持上传、登记、记录数统计、更新和删除 |
 | 流水线编排 | 维护蒸馏流水线运行、阶段状态、取消、日志 tail 和 WebSocket 实时日志 |
 | 配置生成 | 为 EasyDistill 阶段生成 `teacher_infer.json`、`student_train.json`、`evaluate.json` |
 | 共享存储 | 统一管理 configs、data、eval、logs、models/checkpoints 等运行目录 |
@@ -67,7 +67,7 @@ flowchart LR
 运行目录约定：
 
 ```text
-{executor.workspace_root}/projects/{project_id}/runs/{pipeline_id}/
+/storage-root-jfs/user-{uid}/train-center/model-distill/projects/{project_id}/runs/{pipeline_id}/
 ├── configs/
 ├── data/
 │   ├── seed/
@@ -81,13 +81,13 @@ flowchart LR
 
 共享存储必须在所有 `gcs-v2` 执行节点上以同一路径可访问，否则容器内配置路径会失效。
 
-前端可选择的数据集统一放在 `storage.dataset_candidates_path`，默认路径为：
+前端可选择的数据集统一放在 `/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates`，默认路径为：
 
 ```text
-/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates/
+/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates/
 ```
 
-数据集是独立资源，不属于项目。`GET /datasets` 返回所有已登记数据集；`POST /datasets` 只用于登记已有候选数据集，`source_type=import` 的 `file_path` 必须来自候选目录；`POST /datasets/upload` 上传新文件并保存到 `storage.dataset_uploads_path/{dataset_id}/`。流水线创建时再通过 `project_id + dataset_id` 组合执行。
+数据集是独立资源，不属于项目。`GET /datasets?uid=380` 返回该用户已登记数据集；`POST /datasets` 只用于登记已有候选数据集，`source_type=import` 的 `file_path` 必须来自候选目录；`POST /datasets/upload` 上传新文件并保存到 `/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/uploaded/{dataset_id}/`。流水线创建时再通过 `uid + project_id + dataset_id` 组合执行。
 
 ## API 速览
 
@@ -150,7 +150,7 @@ swagger -> server build -> install systemd unit -> enable service -> restart ser
 /root/go/src/gcs-distill/bin/gcs-distill-server --config /root/go/src/gcs-distill/config.toml
 ```
 
-默认配置会尽量复用 GCS 系列统一服务：MySQL 使用同一个 `ai_market`，GCS 地址指向同一个 `gcs-v2`，学生基模从全域只读目录 `/storage-root-jfs/train-base-models` 选择。用户级稳定目录由 `gcs-s3` 在注册时创建，`gcs-distill` 运行工作区位于 `/storage-root-jfs/user-xxx/train-center/model-distill`，前端可选数据集位于 `datasets/candidates`，上传数据集位于 `datasets/uploaded`。如果生产环境不希望在 `config.toml` 直接写数据库密码，可以清空 `database.password`，设置 `database.password_env = "AI_MARKET_DB_PASSWORD"`，并创建 `/etc/gcs-distill/gcs-distill.env`：
+默认配置会尽量复用 GCS 系列统一服务：MySQL 使用同一个 `ai_market`，GCS 地址指向同一个 `gcs-v2`，学生基模从全域只读目录 `/storage-root-jfs/train-base-models` 选择。用户级稳定目录由 `gcs-s3` 在注册时创建，`gcs-distill` 运行工作区位于 `/storage-root-jfs/user-{uid}/train-center/model-distill`，前端可选数据集位于 `datasets/candidates`，上传数据集位于 `datasets/uploaded`。如果生产环境不希望在 `config.toml` 直接写数据库密码，可以清空 `database.password`，设置 `database.password_env = "AI_MARKET_DB_PASSWORD"`，并创建 `/etc/gcs-distill/gcs-distill.env`：
 
 ```bash
 AI_MARKET_DB_PASSWORD=your-password
@@ -161,6 +161,26 @@ EasyDistill runtime 镜像不在本仓库构建，Dockerfile 应放在 EasyDisti
 ```text
 gcs-distill config/runtime_image -> gcs-v2 container job -> gcs-info-catch-v2 docker pull/run
 ```
+
+## UID 目录约定
+
+`storage.root_path` 只配置共享存储全局根，默认是 `/storage-root-jfs`。前端创建或查询用户级资源时必须传 `uid`，后端统一派生用户目录。
+
+```text
+/storage-root-jfs/user-{uid}/train-center/model-distill
+|-- datasets/
+|   |-- candidates/
+|   |-- uploaded/{dataset_id}/
+|   `-- generated/
+`-- projects/{project_id}/runs/{pipeline_id}/
+    |-- configs/
+    |-- data/
+    |-- eval/
+    |-- logs/
+    `-- models/checkpoints/
+```
+
+`gcs-distill` 提交到 `gcs-v2` 的容器任务会带 `task_uid={uid}`，这和 `gcs-v2` SFT 的 `user-{uid}/train-center/...` 目录组织保持一致。数据集、项目和流水线记录都会保存 `uid`，创建流水线时后端会校验 `pipeline.uid == project.uid == dataset.uid`。
 
 ## EasyDistill 执行合同
 
@@ -191,10 +211,10 @@ gcs-distill config/runtime_image -> gcs-v2 container job -> gcs-info-catch-v2 do
 | --- | --- |
 | `[server]` | HTTP 服务监听和运行模式 |
 | `[database]` | MySQL 连接、连接池和密码注入；默认复用 model-center 的 `ai_market` |
-| `[storage]` | distill 运行工作区、共享根、模型目录和前端可选数据集目录 |
+| `[storage]` | 共享根 `storage.root_path` 和全域基模目录；用户工作区由 `uid` 动态派生 |
 | `[gcs]` | `gcs-v2` REST API 地址和超时；默认与 model-center 指向同一套 GCS |
 | `[logging]` | 日志级别、输出和轮转 |
-| `[executor]` | 工作目录、并发度和 EasyDistill runtime 镜像 |
+| `[executor]` | 并发度和 EasyDistill runtime 镜像；不再配置用户级工作目录 |
 
 除 distill 自己的工作目录、日志和 EasyDistill runtime 镜像外，数据库、GCS 等统一服务配置应优先参考 `gcs-model-center-v2`，避免同一套 GCS 系统出现多份互相漂移的服务地址。
 

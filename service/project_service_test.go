@@ -24,6 +24,7 @@ func TestProjectServiceResolvesLocalModelsByID(t *testing.T) {
 	svc := NewProjectService(repo, models)
 
 	project := &types.Project{
+		UID:  380,
 		Name: "distill-test",
 		TeacherModelConfig: types.ModelConfig{
 			ProviderType: types.ProviderLocal,
@@ -56,6 +57,7 @@ func TestProjectServiceRequiresLocalModelIDOrPath(t *testing.T) {
 	svc := NewProjectService(&fakeProjectRepo{}, &fakeModelService{})
 
 	err := svc.CreateProject(context.Background(), &types.Project{
+		UID:  380,
 		Name: "distill-test",
 		TeacherModelConfig: types.ModelConfig{
 			ProviderType: types.ProviderAPI,
@@ -83,10 +85,10 @@ func (r *fakeProjectRepo) GetByID(_ context.Context, _ string) (*types.Project, 
 	if r.project != nil {
 		return r.project, nil
 	}
-	return &types.Project{ID: "project-1", Name: "distill-test"}, nil
+	return &types.Project{ID: "project-1", UID: 380, Name: "distill-test"}, nil
 }
 
-func (r *fakeProjectRepo) List(_ context.Context, _, _ int) ([]*types.Project, error) {
+func (r *fakeProjectRepo) List(_ context.Context, _, _, _ int) ([]*types.Project, error) {
 	return nil, nil
 }
 
@@ -100,7 +102,7 @@ func (r *fakeProjectRepo) Delete(_ context.Context, _ string) error {
 	return nil
 }
 
-func (r *fakeProjectRepo) Count(_ context.Context) (int, error) {
+func (r *fakeProjectRepo) Count(_ context.Context, _ int) (int, error) {
 	return 0, nil
 }
 

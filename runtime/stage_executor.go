@@ -29,13 +29,13 @@ type StageExecutor struct {
 	runtimeImage string
 }
 
-func NewStageExecutor(workspaceRoot string, datasetRepo mysqlrepo.DatasetRepository, gcsClient *gcsclient.Client, runtimeImage string) *StageExecutor {
+func NewStageExecutor(storageRoot string, datasetRepo mysqlrepo.DatasetRepository, gcsClient *gcsclient.Client, runtimeImage string) *StageExecutor {
 	if strings.TrimSpace(runtimeImage) == "" {
 		runtimeImage = "easy-distill/easydistill:latest"
 	}
 	return &StageExecutor{
-		configGen:    NewConfigGenerator(workspaceRoot),
-		manifestMgr:  NewManifestManager(workspaceRoot),
+		configGen:    NewConfigGenerator(storageRoot),
+		manifestMgr:  NewManifestManager(storageRoot),
 		dataGovernor: NewDataGovernor(),
 		datasetRepo:  datasetRepo,
 		gcsClient:    gcsClient,
@@ -100,7 +100,8 @@ func (e *StageExecutor) executeTeacherConfig(stage *types.StageRun, project *typ
 func (e *StageExecutor) executeDatasetBuild(ctx context.Context, stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
-	workspace := e.configGen.GetRunWorkspace(projectID, runID)
+	uid := pipeline.UID
+	workspace := e.configGen.GetRunWorkspace(uid, projectID, runID)
 
 	dirs := []string{
 		filepath.Join(workspace, "configs"),
@@ -123,10 +124,10 @@ func (e *StageExecutor) executeDatasetBuild(ctx context.Context, stage *types.St
 	if err != nil {
 		return err
 	}
-	if err := e.manifestMgr.CreateSeedManifest(projectID, runID, instructions); err != nil {
+	if err := e.manifestMgr.CreateSeedManifest(uid, projectID, runID, instructions); err != nil {
 		return fmt.Errorf("create seed manifest: %w", err)
 	}
-	templatePath, err := e.manifestMgr.CreateDefaultChatTemplate(projectID, runID)
+	templatePath, err := e.manifestMgr.CreateDefaultChatTemplate(uid, projectID, runID)
 	if err != nil {
 		return err
 	}
@@ -143,12 +144,13 @@ func (e *StageExecutor) executeDatasetBuild(ctx context.Context, stage *types.St
 func (e *StageExecutor) executeTeacherInfer(ctx context.Context, stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
+	uid := pipeline.UID
 
 	configData, err := e.configGen.GenerateTeacherInferConfig(project, runID)
 	if err != nil {
 		return fmt.Errorf("generate teacher infer config: %w", err)
 	}
-	configPath := e.configGen.GetConfigPath(projectID, runID, "teacher_infer")
+	configPath := e.configGen.GetConfigPath(uid, projectID, runID, "teacher_infer")
 	if err := writeConfig(configPath, configData); err != nil {
 		return err
 	}
@@ -156,12 +158,13 @@ func (e *StageExecutor) executeTeacherInfer(ctx context.Context, stage *types.St
 
 	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
 		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
+		TaskUID:           uid,
 		Image:             e.runtimeImage,
 		Command:           "python",
 		Args:              []string{"-m", "easydistill.kd.infer", "--config", configPath},
-		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
+		HostWorkDir:       e.configGen.GetRunWorkspace(uid, projectID, runID),
 		ConfigPath:        configPath,
-		LogPath:           e.configGen.GetLogPath(projectID, runID, "teacher_infer"),
+		LogPath:           e.configGen.GetLogPath(uid, projectID, runID, "teacher_infer"),
 		Env:               "GCS_DISTILL_STAGE=teacher_infer;GCS_DISTILL_PIPELINE_ID=" + pipeline.ID,
 		GPUs:              pipeline.ResourceRequest.GPUCount,
 		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs,
@@ -174,9 +177,9 @@ func (e *StageExecutor) executeTeacherInfer(ctx context.Context, stage *types.St
 		return fmt.Errorf("teacher infer container failed: %w", err)
 	}
 
-	stats, _ := e.manifestMgr.GetManifestStats(projectID, runID)
+	stats, _ := e.manifestMgr.GetManifestStats(uid, projectID, runID)
 	stage.ContainerID = containerID
-	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "teacher_infer")
+	stage.LogPath = e.configGen.GetLogPath(uid, projectID, runID, "teacher_infer")
 	stage.OutputManifest = map[string]string{
 		"container_id":  containerID,
 		"labeled_count": fmt.Sprintf("%d", stats["labeled"]),
@@ -188,14 +191,15 @@ func (e *StageExecutor) executeTeacherInfer(ctx context.Context, stage *types.St
 func (e *StageExecutor) executeDataGovern(stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
+	uid := pipeline.UID
 
-	labeled, err := e.manifestMgr.LoadLabeledData(projectID, runID)
+	labeled, err := e.manifestMgr.LoadLabeledData(uid, projectID, runID)
 	if err != nil {
 		return fmt.Errorf("load labeled data: %w", err)
 	}
 
 	train, test, stats := e.dataGovernor.FilterData(labeled)
-	if err := e.manifestMgr.SaveFilteredData(projectID, runID, train, test); err != nil {
+	if err := e.manifestMgr.SaveFilteredData(uid, projectID, runID, train, test); err != nil {
 		return fmt.Errorf("save filtered data: %w", err)
 	}
 
@@ -220,12 +224,13 @@ func (e *StageExecutor) executeDataGovern(stage *types.StageRun, project *types.
 func (e *StageExecutor) executeStudentTrain(ctx context.Context, stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
+	uid := pipeline.UID
 
 	configData, err := e.configGen.GenerateStudentTrainConfig(project, pipeline, runID)
 	if err != nil {
 		return fmt.Errorf("generate student train config: %w", err)
 	}
-	configPath := e.configGen.GetConfigPath(projectID, runID, "student_train")
+	configPath := e.configGen.GetConfigPath(uid, projectID, runID, "student_train")
 	if err := writeConfig(configPath, configData); err != nil {
 		return err
 	}
@@ -234,12 +239,13 @@ func (e *StageExecutor) executeStudentTrain(ctx context.Context, stage *types.St
 	xpuCount := xpuCountForRequest(pipeline.ResourceRequest.GPUCount, pipeline.ResourceRequest.GPUDeviceIDs)
 	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
 		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
+		TaskUID:           uid,
 		Image:             e.runtimeImage,
 		Command:           "accelerate",
 		Args:              easyDistillTrainArgs(configPath, xpuCount),
-		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
+		HostWorkDir:       e.configGen.GetRunWorkspace(uid, projectID, runID),
 		ConfigPath:        configPath,
-		LogPath:           e.configGen.GetLogPath(projectID, runID, "student_train"),
+		LogPath:           e.configGen.GetLogPath(uid, projectID, runID, "student_train"),
 		Env:               "GCS_DISTILL_STAGE=student_train;GCS_DISTILL_PIPELINE_ID=" + pipeline.ID,
 		GPUs:              pipeline.ResourceRequest.GPUCount,
 		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs,
@@ -252,9 +258,9 @@ func (e *StageExecutor) executeStudentTrain(ctx context.Context, stage *types.St
 		return fmt.Errorf("student train container failed: %w", err)
 	}
 
-	checkpointPath := filepath.Join(e.configGen.GetRunWorkspace(projectID, runID), "models", "checkpoints")
+	checkpointPath := filepath.Join(e.configGen.GetRunWorkspace(uid, projectID, runID), "models", "checkpoints")
 	stage.ContainerID = containerID
-	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "student_train")
+	stage.LogPath = e.configGen.GetLogPath(uid, projectID, runID, "student_train")
 	stage.OutputManifest = map[string]string{
 		"container_id":    containerID,
 		"checkpoint_path": checkpointPath,
@@ -266,12 +272,13 @@ func (e *StageExecutor) executeStudentTrain(ctx context.Context, stage *types.St
 func (e *StageExecutor) executeEvaluate(ctx context.Context, stage *types.StageRun, project *types.Project, pipeline *types.PipelineRun) error {
 	projectID := project.ID
 	runID := pipeline.ID
+	uid := pipeline.UID
 
 	configData, err := e.configGen.GenerateEvaluateConfig(project, runID)
 	if err != nil {
 		return fmt.Errorf("generate evaluate config: %w", err)
 	}
-	configPath := e.configGen.GetConfigPath(projectID, runID, "evaluate")
+	configPath := e.configGen.GetConfigPath(uid, projectID, runID, "evaluate")
 	if err := writeConfig(configPath, configData); err != nil {
 		return err
 	}
@@ -279,12 +286,13 @@ func (e *StageExecutor) executeEvaluate(ctx context.Context, stage *types.StageR
 
 	containerID, err := e.runContainerTask(ctx, &ContainerRequest{
 		ContainerName:     stageContainerName(pipeline.ID, stage.StageType),
+		TaskUID:           uid,
 		Image:             e.runtimeImage,
 		Command:           "python",
 		Args:              []string{"-m", "easydistill.eval.data_eval", "--config", configPath},
-		HostWorkDir:       e.configGen.GetRunWorkspace(projectID, runID),
+		HostWorkDir:       e.configGen.GetRunWorkspace(uid, projectID, runID),
 		ConfigPath:        configPath,
-		LogPath:           e.configGen.GetLogPath(projectID, runID, "evaluate"),
+		LogPath:           e.configGen.GetLogPath(uid, projectID, runID, "evaluate"),
 		Env:               "GCS_DISTILL_STAGE=evaluate;GCS_DISTILL_PIPELINE_ID=" + pipeline.ID,
 		GPUs:              1,
 		GPUDeviceIDs:      pipeline.ResourceRequest.GPUDeviceIDs,
@@ -297,7 +305,7 @@ func (e *StageExecutor) executeEvaluate(ctx context.Context, stage *types.StageR
 		return fmt.Errorf("evaluate container failed: %w", err)
 	}
 
-	resultPath := filepath.Join(e.configGen.GetRunWorkspace(projectID, runID), "eval", "results.json")
+	resultPath := filepath.Join(e.configGen.GetRunWorkspace(uid, projectID, runID), "eval", "results.json")
 	metrics, err := e.parseEvaluationResults(resultPath)
 	if err != nil {
 		logger.Warn("parse evaluation results failed", zap.String("result_path", resultPath), zap.Error(err))
@@ -305,7 +313,7 @@ func (e *StageExecutor) executeEvaluate(ctx context.Context, stage *types.StageR
 	}
 
 	stage.ContainerID = containerID
-	stage.LogPath = e.configGen.GetLogPath(projectID, runID, "evaluate")
+	stage.LogPath = e.configGen.GetLogPath(uid, projectID, runID, "evaluate")
 	stage.Metrics = metrics
 	stage.OutputManifest = map[string]string{
 		"container_id": containerID,
@@ -489,6 +497,7 @@ func xpuCountForRequest(gpuCount int, gpuDeviceIDs string) int {
 
 type ContainerRequest struct {
 	ContainerName     string
+	TaskUID           int
 	Image             string
 	Command           string
 	Args              []string
@@ -513,6 +522,9 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 	if containerName == "" {
 		return "", fmt.Errorf("container name is required")
 	}
+	if req.TaskUID <= 0 {
+		return "", fmt.Errorf("container task uid is required")
+	}
 	configPath := strings.TrimSpace(req.ConfigPath)
 	if configPath == "" {
 		return "", fmt.Errorf("config path is required")
@@ -524,7 +536,7 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 	}
 
 	resp, err := e.gcsClient.CreateContainerTask(ctx, gcsclient.ContainerTaskRequest{
-		TaskUID:           0,
+		TaskUID:           req.TaskUID,
 		TaskID:            stableTaskID(containerName + "|" + workDir),
 		ContainerName:     containerName,
 		Image:             req.Image,
@@ -594,8 +606,8 @@ func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName 
 	}
 }
 
-func (e *StageExecutor) ReadLogFile(projectID, runID, stageName string) (string, error) {
-	logPath := e.configGen.GetLogPath(projectID, runID, stageName)
+func (e *StageExecutor) ReadLogFile(uid int, projectID, runID, stageName string) (string, error) {
+	logPath := e.configGen.GetLogPath(uid, projectID, runID, stageName)
 	content, err := os.ReadFile(logPath)
 	if err != nil {
 		return "", fmt.Errorf("read log file: %w", err)
@@ -603,8 +615,8 @@ func (e *StageExecutor) ReadLogFile(projectID, runID, stageName string) (string,
 	return string(content), nil
 }
 
-func (e *StageExecutor) TailLogFile(projectID, runID, stageName string, lines int) (string, error) {
-	logPath := e.configGen.GetLogPath(projectID, runID, stageName)
+func (e *StageExecutor) TailLogFile(uid int, projectID, runID, stageName string, lines int) (string, error) {
+	logPath := e.configGen.GetLogPath(uid, projectID, runID, stageName)
 	content, err := os.ReadFile(logPath)
 	if err != nil {
 		return "", fmt.Errorf("read log file: %w", err)

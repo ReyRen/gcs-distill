@@ -89,6 +89,10 @@ func (h *PipelineHandler) GetPipeline(c *gin.Context) {
 }
 
 func (h *PipelineHandler) ListPipelines(c *gin.Context) {
+	uid, ok := requireUIDQuery(c)
+	if !ok {
+		return
+	}
 	projectID := c.Query("project_id")
 	if projectID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -101,7 +105,7 @@ func (h *PipelineHandler) ListPipelines(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	pipelines, total, err := h.pipelineSvc.ListPipelines(c.Request.Context(), projectID, page, pageSize)
+	pipelines, total, err := h.pipelineSvc.ListPipelines(c.Request.Context(), uid, projectID, page, pageSize)
 	if err != nil {
 		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{

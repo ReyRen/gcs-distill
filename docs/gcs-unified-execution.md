@@ -83,7 +83,7 @@ conn_max_lifetime_seconds = 300
 运行目录示例：
 
 ```text
-/storage-root-jfs/user-xxx/train-center/model-distill/projects/{project_id}/runs/{pipeline_id}
+/storage-root-jfs/user-{uid}/train-center/model-distill/projects/{project_id}/runs/{pipeline_id}
 ```
 
 `gcs-info-catch-v2` 需要把这个目录以同一路径挂载进容器。EasyDistill 配置中的所有输入、输出和日志路径都使用共享存储绝对路径，因此不再依赖 `gcs-distill` 的私有执行入口或私有工作目录约定。
@@ -91,7 +91,7 @@ conn_max_lifetime_seconds = 300
 前端可选择的数据集不放在 model-center 目录下，而是使用同一个共享根的 distill 数据集目录：
 
 ```text
-/storage-root-jfs/user-xxx/train-center/model-distill/datasets/candidates
+/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/candidates
 ```
 
 `gcs-distill` 只扫描这个受控候选目录供前端选择；`source_type=import` 的数据集路径必须来自该目录。
@@ -99,13 +99,13 @@ conn_max_lifetime_seconds = 300
 上传数据集不会写入候选目录，而是写入：
 
 ```text
-/storage-root-jfs/user-xxx/train-center/model-distill/datasets/uploaded/{dataset_id}/
+/storage-root-jfs/user-{uid}/train-center/model-distill/datasets/uploaded/{dataset_id}/
 ```
 
 流水线运行目录只在启动时按需创建：
 
 ```text
-/storage-root-jfs/user-xxx/train-center/model-distill/projects/{project_id}/runs/{pipeline_id}/
+/storage-root-jfs/user-{uid}/train-center/model-distill/projects/{project_id}/runs/{pipeline_id}/
 ```
 
 阶段日志展示同样保持统一边界：`gcs-distill` 不直接读 worker 本地日志文件，而是根据阶段 `container_id` 代理 `gcs-v2` 的 `/tasks/{containerName}/logs` 和 `/tasks/{containerName}/logs/ws`。真正的日志写入仍由 `gcs-info-catch-v2` 在执行容器时完成。

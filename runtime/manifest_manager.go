@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const defaultChatTemplate = `{{ message.content }}
@@ -16,11 +18,15 @@ const defaultChatTemplate = `{{ message.content }}
 `
 
 type ManifestManager struct {
-	workspaceRoot string
+	storageRoot string
 }
 
-func NewManifestManager(workspaceRoot string) *ManifestManager {
-	return &ManifestManager{workspaceRoot: workspaceRoot}
+func NewManifestManager(storageRoot string) *ManifestManager {
+	storageRoot = strings.TrimRight(strings.TrimSpace(storageRoot), "/")
+	if storageRoot == "" {
+		storageRoot = "/storage-root-jfs"
+	}
+	return &ManifestManager{storageRoot: storageRoot}
 }
 
 type Instruction struct {
@@ -43,16 +49,16 @@ type TrainingData struct {
 	Quality     float64 `json:"quality,omitempty"`
 }
 
-func (m *ManifestManager) CreateSeedManifest(projectID, runID string, instructions []Instruction) error {
-	seedPath := filepath.Join(m.workspaceRoot, "projects", projectID, "runs", runID, "data", "seed")
+func (m *ManifestManager) CreateSeedManifest(uid int, projectID, runID string, instructions []Instruction) error {
+	seedPath := filepath.Join(m.runWorkspace(uid, projectID, runID), "data", "seed")
 	if err := os.MkdirAll(seedPath, 0755); err != nil {
 		return fmt.Errorf("create seed data directory: %w", err)
 	}
 	return writeJSONArray(filepath.Join(seedPath, "instructions.json"), instructions)
 }
 
-func (m *ManifestManager) CreateDefaultChatTemplate(projectID, runID string) (string, error) {
-	templatePath := filepath.Join(m.workspaceRoot, "projects", projectID, "runs", runID, defaultTemplateRelPath)
+func (m *ManifestManager) CreateDefaultChatTemplate(uid int, projectID, runID string) (string, error) {
+	templatePath := filepath.Join(m.runWorkspace(uid, projectID, runID), defaultTemplateRelPath)
 	if err := os.MkdirAll(filepath.Dir(templatePath), 0755); err != nil {
 		return "", fmt.Errorf("create chat template directory: %w", err)
 	}
@@ -62,8 +68,8 @@ func (m *ManifestManager) CreateDefaultChatTemplate(projectID, runID string) (st
 	return templatePath, nil
 }
 
-func (m *ManifestManager) LoadLabeledData(projectID, runID string) ([]LabeledData, error) {
-	path := filepath.Join(m.workspaceRoot, "projects", projectID, "runs", runID, "data", "generated", "labeled.json")
+func (m *ManifestManager) LoadLabeledData(uid int, projectID, runID string) ([]LabeledData, error) {
+	path := filepath.Join(m.runWorkspace(uid, projectID, runID), "data", "generated", "labeled.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read labeled data: %w", err)
@@ -79,8 +85,8 @@ func (m *ManifestManager) LoadLabeledData(projectID, runID string) ([]LabeledDat
 	return items, nil
 }
 
-func (m *ManifestManager) SaveFilteredData(projectID, runID string, trainData, testData []TrainingData) error {
-	filteredPath := filepath.Join(m.workspaceRoot, "projects", projectID, "runs", runID, "data", "filtered")
+func (m *ManifestManager) SaveFilteredData(uid int, projectID, runID string, trainData, testData []TrainingData) error {
+	filteredPath := filepath.Join(m.runWorkspace(uid, projectID, runID), "data", "filtered")
 	if err := os.MkdirAll(filteredPath, 0755); err != nil {
 		return fmt.Errorf("create filtered data directory: %w", err)
 	}
@@ -93,8 +99,8 @@ func (m *ManifestManager) SaveFilteredData(projectID, runID string, trainData, t
 	return nil
 }
 
-func (m *ManifestManager) GetManifestStats(projectID, runID string) (map[string]int, error) {
-	base := filepath.Join(m.workspaceRoot, "projects", projectID, "runs", runID)
+func (m *ManifestManager) GetManifestStats(uid int, projectID, runID string) (map[string]int, error) {
+	base := m.runWorkspace(uid, projectID, runID)
 	stats := map[string]int{}
 
 	stats["seed"], _ = countJSONRecords(filepath.Join(base, "data", "seed", "instructions.json"))
@@ -103,6 +109,10 @@ func (m *ManifestManager) GetManifestStats(projectID, runID string) (map[string]
 	stats["test"], _ = countJSONRecords(filepath.Join(base, "data", "filtered", "test.json"))
 
 	return stats, nil
+}
+
+func (m *ManifestManager) runWorkspace(uid int, projectID, runID string) string {
+	return filepath.Join(m.storageRoot, "user-"+strconv.Itoa(uid), "train-center", "model-distill", "projects", projectID, "runs", runID)
 }
 
 func writeJSONArray(path string, data interface{}) error {

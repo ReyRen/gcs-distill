@@ -69,7 +69,7 @@ func main() {
 		stageRepo,
 		projectRepo,
 		datasetRepo,
-		cfg.Executor.WorkspaceRoot,
+		cfg.Storage.RootPath,
 		cfg.Executor.MaxConcurrent,
 		gcsClient,
 		cfg.Executor.RuntimeImage,

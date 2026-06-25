@@ -11,27 +11,19 @@ import (
 	"go.uber.org/zap"
 )
 
-// ProjectService 项目服务接口
 type ProjectService interface {
-	// CreateProject 创建项目
 	CreateProject(ctx context.Context, project *types.Project) error
-	// GetProject 获取项目
-	GetProject(ctx context.Context, id string) (*types.Project, error)
-	// ListProjects 列出项目
-	ListProjects(ctx context.Context, page, pageSize int) ([]*types.Project, int, error)
-	// UpdateProject 更新项目
+	GetProject(ctx context.Context, uid int, id string) (*types.Project, error)
+	ListProjects(ctx context.Context, uid, page, pageSize int) ([]*types.Project, int, error)
 	UpdateProject(ctx context.Context, project *types.Project) error
-	// DeleteProject 删除项目
-	DeleteProject(ctx context.Context, id string) error
+	DeleteProject(ctx context.Context, uid int, id string) error
 }
 
-// projectService 项目服务实现
 type projectService struct {
 	projectRepo mysqlrepo.ProjectRepository
 	modelSvc    ModelService
 }
 
-// NewProjectService 创建项目服务
 func NewProjectService(projectRepo mysqlrepo.ProjectRepository, modelSvc ...ModelService) ProjectService {
 	var svc ModelService
 	if len(modelSvc) > 0 {
@@ -43,46 +35,51 @@ func NewProjectService(projectRepo mysqlrepo.ProjectRepository, modelSvc ...Mode
 	}
 }
 
-// CreateProject 创建项目
 func (s *projectService) CreateProject(ctx context.Context, project *types.Project) error {
 	if err := s.prepareProject(ctx, project); err != nil {
 		return err
 	}
 
-	// 创建项目
 	if err := s.projectRepo.Create(ctx, project); err != nil {
-		logger.Error("创建项目失败",
+		logger.Error("create distill project failed",
 			zap.String("name", project.Name),
+			zap.Int("uid", project.UID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("创建项目失败: %w", err)
 	}
 
-	logger.Info("项目创建成功",
+	logger.Info("distill project created",
 		zap.String("project_id", project.ID),
+		zap.Int("uid", project.UID),
 		zap.String("name", project.Name),
 	)
-
 	return nil
 }
 
-// GetProject 获取项目
-func (s *projectService) GetProject(ctx context.Context, id string) (*types.Project, error) {
+func (s *projectService) GetProject(ctx context.Context, uid int, id string) (*types.Project, error) {
+	if uid <= 0 {
+		return nil, fmt.Errorf("uid 必须大于0")
+	}
 	project, err := s.projectRepo.GetByID(ctx, id)
 	if err != nil {
-		logger.Error("获取项目失败",
+		logger.Error("get distill project failed",
 			zap.String("project_id", id),
+			zap.Int("uid", uid),
 			zap.Error(err),
 		)
 		return nil, fmt.Errorf("获取项目失败: %w", err)
 	}
-
+	if project.UID != uid {
+		return nil, fmt.Errorf("项目不属于当前 uid: %s", id)
+	}
 	return project, nil
 }
 
-// ListProjects 列出项目
-func (s *projectService) ListProjects(ctx context.Context, page, pageSize int) ([]*types.Project, int, error) {
-	// 验证分页参数
+func (s *projectService) ListProjects(ctx context.Context, uid, page, pageSize int) ([]*types.Project, int, error) {
+	if uid <= 0 {
+		return nil, 0, fmt.Errorf("uid 必须大于0")
+	}
 	if page < 1 {
 		page = 1
 	}
@@ -91,72 +88,64 @@ func (s *projectService) ListProjects(ctx context.Context, page, pageSize int) (
 	}
 
 	offset := (page - 1) * pageSize
-
-	// 获取项目列表
-	projects, err := s.projectRepo.List(ctx, pageSize, offset)
+	projects, err := s.projectRepo.List(ctx, uid, pageSize, offset)
 	if err != nil {
-		logger.Error("获取项目列表失败", zap.Error(err))
+		logger.Error("list distill projects failed", zap.Int("uid", uid), zap.Error(err))
 		return nil, 0, fmt.Errorf("获取项目列表失败: %w", err)
 	}
 
-	// 获取总数
-	total, err := s.projectRepo.Count(ctx)
+	total, err := s.projectRepo.Count(ctx, uid)
 	if err != nil {
-		logger.Error("获取项目总数失败", zap.Error(err))
+		logger.Error("count distill projects failed", zap.Int("uid", uid), zap.Error(err))
 		return nil, 0, fmt.Errorf("获取项目总数失败: %w", err)
 	}
-
 	return projects, total, nil
 }
 
-// UpdateProject 更新项目
 func (s *projectService) UpdateProject(ctx context.Context, project *types.Project) error {
 	if err := s.prepareProject(ctx, project); err != nil {
 		return err
 	}
 
-	// 检查项目是否存在
-	_, err := s.projectRepo.GetByID(ctx, project.ID)
+	existing, err := s.projectRepo.GetByID(ctx, project.ID)
 	if err != nil {
 		return fmt.Errorf("项目不存在: %s", project.ID)
 	}
+	if existing.UID != project.UID {
+		return fmt.Errorf("项目不属于当前 uid: %s", project.ID)
+	}
 
-	// 更新项目
 	if err := s.projectRepo.Update(ctx, project); err != nil {
-		logger.Error("更新项目失败",
+		logger.Error("update distill project failed",
 			zap.String("project_id", project.ID),
+			zap.Int("uid", project.UID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("更新项目失败: %w", err)
 	}
-
-	logger.Info("项目更新成功",
-		zap.String("project_id", project.ID),
-		zap.String("name", project.Name),
-	)
-
 	return nil
 }
 
-// DeleteProject 删除项目
-func (s *projectService) DeleteProject(ctx context.Context, id string) error {
-	// 检查项目是否存在
-	_, err := s.projectRepo.GetByID(ctx, id)
+func (s *projectService) DeleteProject(ctx context.Context, uid int, id string) error {
+	if uid <= 0 {
+		return fmt.Errorf("uid 必须大于0")
+	}
+	project, err := s.projectRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("项目不存在: %s", id)
 	}
+	if project.UID != uid {
+		return fmt.Errorf("项目不属于当前 uid: %s", id)
+	}
 
-	// 删除项目（级联删除相关数据集和流水线）
 	if err := s.projectRepo.Delete(ctx, id); err != nil {
-		logger.Error("删除项目失败",
+		logger.Error("delete distill project failed",
 			zap.String("project_id", id),
+			zap.Int("uid", uid),
 			zap.Error(err),
 		)
 		return fmt.Errorf("删除项目失败: %w", err)
 	}
-
-	logger.Info("项目删除成功", zap.String("project_id", id))
-
 	return nil
 }
 
@@ -188,7 +177,6 @@ func (s *projectService) resolveLocalModel(
 		if s.modelSvc == nil {
 			return fmt.Errorf("%s本地模型无法通过 model_id 解析，请配置模型服务", label)
 		}
-
 		model, err := getModel(ctx, cfg.ModelID)
 		if err != nil {
 			return fmt.Errorf("%s本地模型不存在或不可用: %w", label, err)
@@ -196,7 +184,6 @@ func (s *projectService) resolveLocalModel(
 		if model == nil {
 			return fmt.Errorf("%s本地模型不存在或不可用", label)
 		}
-
 		cfg.ModelPath = model.Path
 		if cfg.ModelName == "" {
 			cfg.ModelName = model.Name
@@ -207,7 +194,6 @@ func (s *projectService) resolveLocalModel(
 	if cfg.ModelPath == "" {
 		return fmt.Errorf("%s本地模型必须提供 model_id", label)
 	}
-
 	if s.modelSvc != nil {
 		if err := s.modelSvc.ValidateLocalModel(ctx, cfg.ModelPath); err != nil {
 			return fmt.Errorf("%s本地模型路径不可用: %w", label, err)
@@ -219,21 +205,21 @@ func (s *projectService) resolveLocalModel(
 	return nil
 }
 
-// validateProject 验证项目信息
 func (s *projectService) validateProject(project *types.Project) error {
+	if project.UID <= 0 {
+		return fmt.Errorf("uid 必须大于0")
+	}
 	if project.Name == "" {
 		return fmt.Errorf("项目名称不能为空")
 	}
-
 	if len(project.Name) > 255 {
 		return fmt.Errorf("项目名称长度不能超过255个字符")
 	}
 
 	if project.TeacherModelConfig.ProviderType != types.ProviderAPI &&
 		project.TeacherModelConfig.ProviderType != types.ProviderLocal {
-		return fmt.Errorf("无效的教师模型提供者类型: %s", project.TeacherModelConfig.ProviderType)
+		return fmt.Errorf("无效的教师模型 provider_type: %s", project.TeacherModelConfig.ProviderType)
 	}
-
 	if project.TeacherModelConfig.ModelName == "" {
 		return fmt.Errorf("教师模型名称不能为空")
 	}
@@ -242,17 +228,14 @@ func (s *projectService) validateProject(project *types.Project) error {
 		return fmt.Errorf("教师本地模型路径不能为空")
 	}
 
-	// 学生模型必须是本地模型（离线环境）
 	if project.StudentModelConfig.ProviderType != types.ProviderLocal {
-		return fmt.Errorf("学生模型必须使用本地模型 (provider_type=local)，当前环境不支持在线模型")
+		return fmt.Errorf("学生模型必须使用本地模型 (provider_type=local)")
 	}
-
 	if project.StudentModelConfig.ModelName == "" {
 		return fmt.Errorf("学生模型名称不能为空")
 	}
 	if project.StudentModelConfig.ModelPath == "" {
 		return fmt.Errorf("学生本地模型路径不能为空")
 	}
-
 	return nil
 }

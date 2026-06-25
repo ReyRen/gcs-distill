@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -62,14 +63,9 @@ func (c DatabaseConfig) ConnMaxLifetime() time.Duration {
 }
 
 type StorageConfig struct {
-	Type                  string
-	RootPath              string
-	BasePath              string
-	ModelsBasePath        string
-	DatasetsBasePath      string
-	DatasetCandidatesPath string
-	DatasetUploadsPath    string
-	DatasetGeneratedPath  string
+	Type           string
+	RootPath       string
+	ModelsBasePath string
 }
 
 type GCSConfig struct {
@@ -87,7 +83,6 @@ type LoggingConfig struct {
 }
 
 type ExecutorConfig struct {
-	WorkspaceRoot string
 	MaxConcurrent int
 	RuntimeImage  string
 }
@@ -146,11 +141,9 @@ func Default() *Config {
 			ConnMaxLifetimeSeconds: 300,
 		},
 		Storage: StorageConfig{
-			Type:             "nfs",
-			RootPath:         "/storage-root-jfs/user-xxx",
-			BasePath:         "/storage-root-jfs/user-xxx/train-center/model-distill",
-			ModelsBasePath:   "/storage-root-jfs/train-base-models",
-			DatasetsBasePath: "/storage-root-jfs/user-xxx/train-center/model-distill/datasets",
+			Type:           "nfs",
+			RootPath:       "/storage-root-jfs",
+			ModelsBasePath: "/storage-root-jfs/train-base-models",
 		},
 		GCS: GCSConfig{BaseURL: "http://172.18.29.80:8072/api/v1", TimeoutSeconds: 10},
 		Logging: LoggingConfig{
@@ -162,7 +155,6 @@ func Default() *Config {
 			Compress: true,
 		},
 		Executor: ExecutorConfig{
-			WorkspaceRoot: "/storage-root-jfs/user-xxx/train-center/model-distill",
 			MaxConcurrent: 5,
 			RuntimeImage:  "easy-distill/easydistill:latest",
 		},
@@ -195,23 +187,11 @@ func validate(config *Config) error {
 	if config.Database.Name == "" {
 		return fmt.Errorf("database.name must not be empty")
 	}
-	if config.Storage.BasePath == "" {
-		return fmt.Errorf("storage.base_path must not be empty")
-	}
 	if config.Storage.RootPath == "" {
 		return fmt.Errorf("storage.root_path must not be empty")
 	}
-	if config.Storage.DatasetsBasePath == "" {
-		return fmt.Errorf("storage.datasets_base_path must not be empty")
-	}
-	if config.Storage.DatasetCandidatesPath == "" {
-		return fmt.Errorf("storage.dataset_candidates_path must not be empty")
-	}
-	if config.Storage.DatasetUploadsPath == "" {
-		return fmt.Errorf("storage.dataset_uploads_path must not be empty")
-	}
-	if config.Storage.DatasetGeneratedPath == "" {
-		return fmt.Errorf("storage.dataset_generated_path must not be empty")
+	if config.Storage.ModelsBasePath == "" {
+		return fmt.Errorf("storage.models_base_path must not be empty")
 	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
@@ -223,25 +203,58 @@ func validate(config *Config) error {
 
 func normalizeStorage(storage *StorageConfig) {
 	storage.RootPath = strings.TrimRight(strings.TrimSpace(storage.RootPath), "/")
-	storage.BasePath = strings.TrimRight(strings.TrimSpace(storage.BasePath), "/")
 	storage.ModelsBasePath = strings.TrimRight(strings.TrimSpace(storage.ModelsBasePath), "/")
-	storage.DatasetsBasePath = strings.TrimRight(strings.TrimSpace(storage.DatasetsBasePath), "/")
-	storage.DatasetCandidatesPath = strings.TrimRight(strings.TrimSpace(storage.DatasetCandidatesPath), "/")
-	storage.DatasetUploadsPath = strings.TrimRight(strings.TrimSpace(storage.DatasetUploadsPath), "/")
-	storage.DatasetGeneratedPath = strings.TrimRight(strings.TrimSpace(storage.DatasetGeneratedPath), "/")
+}
 
-	if storage.DatasetsBasePath == "" {
-		return
+func (s StorageConfig) UserRoot(uid int) (string, error) {
+	if uid <= 0 {
+		return "", fmt.Errorf("uid must be greater than 0")
 	}
-	if storage.DatasetCandidatesPath == "" {
-		storage.DatasetCandidatesPath = storage.DatasetsBasePath + "/candidates"
+	root := strings.TrimRight(strings.TrimSpace(s.RootPath), "/")
+	if root == "" {
+		root = "/storage-root-jfs"
 	}
-	if storage.DatasetUploadsPath == "" {
-		storage.DatasetUploadsPath = storage.DatasetsBasePath + "/uploaded"
+	return filepath.Clean(filepath.Join(root, "user-"+strconv.Itoa(uid))), nil
+}
+
+func (s StorageConfig) UserModelDistillBase(uid int) (string, error) {
+	root, err := s.UserRoot(uid)
+	if err != nil {
+		return "", err
 	}
-	if storage.DatasetGeneratedPath == "" {
-		storage.DatasetGeneratedPath = storage.DatasetsBasePath + "/generated"
+	return filepath.Join(root, "train-center", "model-distill"), nil
+}
+
+func (s StorageConfig) UserDatasetsBase(uid int) (string, error) {
+	base, err := s.UserModelDistillBase(uid)
+	if err != nil {
+		return "", err
 	}
+	return filepath.Join(base, "datasets"), nil
+}
+
+func (s StorageConfig) UserDatasetCandidates(uid int) (string, error) {
+	base, err := s.UserDatasetsBase(uid)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "candidates"), nil
+}
+
+func (s StorageConfig) UserDatasetUploads(uid int) (string, error) {
+	base, err := s.UserDatasetsBase(uid)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "uploaded"), nil
+}
+
+func (s StorageConfig) UserDatasetGenerated(uid int) (string, error) {
+	base, err := s.UserDatasetsBase(uid)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "generated"), nil
 }
 
 func applyValue(cfg *Config, section, key, value string) error {
@@ -278,18 +291,8 @@ func applyValue(cfg *Config, section, key, value string) error {
 		cfg.Storage.Type = value
 	case "storage.root_path":
 		cfg.Storage.RootPath = value
-	case "storage.base_path":
-		cfg.Storage.BasePath = value
 	case "storage.models_base_path":
 		cfg.Storage.ModelsBasePath = value
-	case "storage.datasets_base_path":
-		cfg.Storage.DatasetsBasePath = value
-	case "storage.dataset_candidates_path":
-		cfg.Storage.DatasetCandidatesPath = value
-	case "storage.dataset_uploads_path":
-		cfg.Storage.DatasetUploadsPath = value
-	case "storage.dataset_generated_path":
-		cfg.Storage.DatasetGeneratedPath = value
 	case "gcs.base_url":
 		cfg.GCS.BaseURL = strings.TrimRight(value, "/")
 	case "gcs.timeout_seconds":
@@ -306,8 +309,6 @@ func applyValue(cfg *Config, section, key, value string) error {
 		return setInt(value, &cfg.Logging.MaxAge, "logging.max_age")
 	case "logging.compress":
 		return setBool(value, &cfg.Logging.Compress, "logging.compress")
-	case "executor.workspace_root":
-		cfg.Executor.WorkspaceRoot = value
 	case "executor.max_concurrent":
 		return setInt(value, &cfg.Executor.MaxConcurrent, "executor.max_concurrent")
 	case "executor.runtime_image":

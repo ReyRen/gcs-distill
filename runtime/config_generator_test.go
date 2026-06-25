@@ -9,9 +9,10 @@ import (
 )
 
 func TestGenerateTeacherInferConfigAPI(t *testing.T) {
-	gen := NewConfigGenerator("/shared/distill")
+	gen := NewConfigGenerator("/shared")
 	project := &types.Project{
-		ID: "project-1",
+		ID:  "project-1",
+		UID: 380,
 		TeacherModelConfig: types.ModelConfig{
 			ProviderType: types.ProviderAPI,
 			ModelName:    "remote-teacher",
@@ -58,9 +59,10 @@ func TestGenerateTeacherInferConfigAPI(t *testing.T) {
 }
 
 func TestGenerateTeacherInferConfigLocal(t *testing.T) {
-	gen := NewConfigGenerator("/shared/distill")
+	gen := NewConfigGenerator("/shared")
 	project := &types.Project{
-		ID: "project-1",
+		ID:  "project-1",
+		UID: 380,
 		TeacherModelConfig: types.ModelConfig{
 			ProviderType: types.ProviderLocal,
 			ModelName:    "teacher",
@@ -97,9 +99,10 @@ func TestGenerateTeacherInferConfigLocal(t *testing.T) {
 }
 
 func TestGenerateStudentTrainConfigUsesEasyDistillContract(t *testing.T) {
-	gen := NewConfigGenerator("/shared/distill")
+	gen := NewConfigGenerator("/shared")
 	project := &types.Project{
-		ID: "project-1",
+		ID:  "project-1",
+		UID: 380,
 		TeacherModelConfig: types.ModelConfig{
 			ProviderType: types.ProviderAPI,
 			ModelName:    "teacher",
@@ -111,6 +114,7 @@ func TestGenerateStudentTrainConfigUsesEasyDistillContract(t *testing.T) {
 		},
 	}
 	pipeline := &types.PipelineRun{
+		UID: 380,
 		TrainingConfig: types.TrainingConfig{
 			NumTrainEpochs:            2,
 			PerDeviceTrainBatchSize:   1,
@@ -138,7 +142,7 @@ func TestGenerateStudentTrainConfigUsesEasyDistillContract(t *testing.T) {
 	if got.JobType != "kd_black_box_train_only" {
 		t.Fatalf("JobType = %q", got.JobType)
 	}
-	wantLabeled := filepath.Join("/shared/distill", "projects", "project-1", "runs", "run-1", "data", "filtered", "train.json")
+	wantLabeled := filepath.Join("/shared", "user-380", "train-center", "model-distill", "projects", "project-1", "runs", "run-1", "data", "filtered", "train.json")
 	if got.Dataset.LabeledPath != wantLabeled {
 		t.Fatalf("LabeledPath = %q, want %q", got.Dataset.LabeledPath, wantLabeled)
 	}
@@ -151,9 +155,10 @@ func TestGenerateStudentTrainConfigUsesEasyDistillContract(t *testing.T) {
 }
 
 func TestGenerateEvaluateConfigUsesDataEvalContract(t *testing.T) {
-	gen := NewConfigGenerator("/shared/distill")
+	gen := NewConfigGenerator("/shared")
 	project := &types.Project{
-		ID: "project-1",
+		ID:  "project-1",
+		UID: 380,
 		EvaluationConfig: &types.EvaluationConfig{
 			ExtraParams: map[string]interface{}{
 				"base_url":       "https://judge.example/v1",

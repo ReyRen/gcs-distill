@@ -8,6 +8,7 @@ import (
 const distillSchema = `
 CREATE TABLE IF NOT EXISTS distill_projects (
   id VARCHAR(64) PRIMARY KEY,
+  uid BIGINT NOT NULL,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   business_scenario VARCHAR(255),
@@ -16,23 +17,27 @@ CREATE TABLE IF NOT EXISTS distill_projects (
   evaluation_config JSON,
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  INDEX idx_distill_projects_uid_created_at (uid, created_at),
   INDEX idx_distill_projects_name (name),
   INDEX idx_distill_projects_created_at (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS distill_datasets (
   id VARCHAR(64) PRIMARY KEY,
+  uid BIGINT NOT NULL,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   source_type VARCHAR(50) NOT NULL,
   file_path TEXT NOT NULL,
   record_count INT DEFAULT 0,
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  INDEX idx_distill_datasets_uid_created_at (uid, created_at),
   INDEX idx_distill_datasets_created_at (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS distill_pipeline_runs (
   id VARCHAR(64) PRIMARY KEY,
+  uid BIGINT NOT NULL,
   project_id VARCHAR(64) NOT NULL,
   dataset_id VARCHAR(64) NOT NULL,
   status VARCHAR(50) NOT NULL DEFAULT 'pending',
@@ -45,6 +50,7 @@ CREATE TABLE IF NOT EXISTS distill_pipeline_runs (
   started_at DATETIME(6) NULL,
   finished_at DATETIME(6) NULL,
   updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  INDEX idx_distill_pipeline_runs_uid_project (uid, project_id),
   INDEX idx_distill_pipeline_runs_project_id (project_id),
   INDEX idx_distill_pipeline_runs_status (status),
   INDEX idx_distill_pipeline_runs_created_at (created_at),

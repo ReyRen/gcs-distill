@@ -47,10 +47,17 @@ type modelService struct {
 
 // NewModelService 创建模型服务
 func NewModelService(storageCfg *config.StorageConfig) ModelService {
-	modelsBasePath := storageCfg.ModelsBasePath
+	modelsBasePath := ""
+	if storageCfg != nil {
+		modelsBasePath = strings.TrimSpace(storageCfg.ModelsBasePath)
+	}
 	if modelsBasePath == "" {
 		// 默认使用 basePath/models
-		modelsBasePath = filepath.Join(storageCfg.BasePath, "models")
+		root := "/storage-root-jfs"
+		if storageCfg != nil && strings.TrimSpace(storageCfg.RootPath) != "" {
+			root = strings.TrimRight(strings.TrimSpace(storageCfg.RootPath), "/")
+		}
+		modelsBasePath = filepath.Join(root, "train-base-models")
 	}
 	return &modelService{
 		modelsBasePath: modelsBasePath,

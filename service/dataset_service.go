@@ -19,8 +19,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const defaultDatasetBaseRel = "train-center/model-distill/datasets"
-
 type DatasetCandidate struct {
 	Name        string    `json:"name"`
 	FilePath    string    `json:"file_path"`
@@ -34,12 +32,12 @@ type DatasetCandidate struct {
 type DatasetService interface {
 	CreateDataset(ctx context.Context, dataset *types.Dataset) error
 	CreateUploadedDataset(ctx context.Context, dataset *types.Dataset, file multipart.File, originalFilename string) error
-	GetDataset(ctx context.Context, id string) (*types.Dataset, error)
-	ListDatasets(ctx context.Context, page, pageSize int) ([]*types.Dataset, int, error)
-	ListDatasetCandidates(ctx context.Context) ([]DatasetCandidate, error)
+	GetDataset(ctx context.Context, uid int, id string) (*types.Dataset, error)
+	ListDatasets(ctx context.Context, uid, page, pageSize int) ([]*types.Dataset, int, error)
+	ListDatasetCandidates(ctx context.Context, uid int) ([]DatasetCandidate, error)
 	UpdateDataset(ctx context.Context, dataset *types.Dataset) error
-	DeleteDataset(ctx context.Context, id string) error
-	GetDatasetPath(datasetID string) string
+	DeleteDataset(ctx context.Context, uid int, id string) error
+	GetDatasetPath(uid int, datasetID string) (string, error)
 }
 
 type datasetService struct {
@@ -61,24 +59,18 @@ func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Datas
 	if dataset.SourceType != "import" {
 		return fmt.Errorf("POST /api/v1/datasets 只用于登记候选数据集，上传文件请调用 POST /api/v1/datasets/upload")
 	}
-
 	if err := s.prepareDataset(dataset); err != nil {
 		return err
 	}
 
 	if err := s.datasetRepo.Create(ctx, dataset); err != nil {
-		logger.Error("创建数据集失败",
+		logger.Error("create dataset failed",
 			zap.String("name", dataset.Name),
+			zap.Int("uid", dataset.UID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("创建数据集失败: %w", err)
 	}
-
-	logger.Info("数据集创建成功",
-		zap.String("dataset_id", dataset.ID),
-		zap.String("name", dataset.Name),
-	)
-
 	return nil
 }
 
@@ -93,7 +85,10 @@ func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *typ
 		return fmt.Errorf("上传文件名不能为空")
 	}
 
-	datasetDir := s.GetDatasetPath(dataset.ID)
+	datasetDir, err := s.GetDatasetPath(dataset.UID, dataset.ID)
+	if err != nil {
+		return err
+	}
 	if err := os.MkdirAll(datasetDir, 0o755); err != nil {
 		return fmt.Errorf("创建数据集目录失败: %w", err)
 	}
@@ -123,36 +118,34 @@ func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *typ
 
 	if err := s.datasetRepo.Create(ctx, dataset); err != nil {
 		_ = os.RemoveAll(datasetDir)
-		logger.Error("创建上传数据集失败",
+		logger.Error("create uploaded dataset failed",
 			zap.String("file_path", dataset.FilePath),
+			zap.Int("uid", dataset.UID),
 			zap.Error(err),
 		)
 		return fmt.Errorf("创建数据集失败: %w", err)
 	}
-
-	logger.Info("上传数据集创建成功",
-		zap.String("dataset_id", dataset.ID),
-		zap.String("file_path", dataset.FilePath),
-		zap.Int("record_count", dataset.RecordCount),
-	)
-
 	return nil
 }
 
-func (s *datasetService) GetDataset(ctx context.Context, id string) (*types.Dataset, error) {
+func (s *datasetService) GetDataset(ctx context.Context, uid int, id string) (*types.Dataset, error) {
+	if uid <= 0 {
+		return nil, fmt.Errorf("uid 必须大于0")
+	}
 	dataset, err := s.datasetRepo.GetByID(ctx, id)
 	if err != nil {
-		logger.Error("获取数据集失败",
-			zap.String("dataset_id", id),
-			zap.Error(err),
-		)
 		return nil, fmt.Errorf("获取数据集失败: %w", err)
 	}
-
+	if dataset.UID != uid {
+		return nil, fmt.Errorf("数据集不属于当前 uid: %s", id)
+	}
 	return dataset, nil
 }
 
-func (s *datasetService) ListDatasets(ctx context.Context, page, pageSize int) ([]*types.Dataset, int, error) {
+func (s *datasetService) ListDatasets(ctx context.Context, uid, page, pageSize int) ([]*types.Dataset, int, error) {
+	if uid <= 0 {
+		return nil, 0, fmt.Errorf("uid 必须大于0")
+	}
 	if page < 1 {
 		page = 1
 	}
@@ -161,39 +154,38 @@ func (s *datasetService) ListDatasets(ctx context.Context, page, pageSize int) (
 	}
 
 	offset := (page - 1) * pageSize
-	datasets, err := s.datasetRepo.List(ctx, pageSize, offset)
+	datasets, err := s.datasetRepo.List(ctx, uid, pageSize, offset)
 	if err != nil {
-		logger.Error("获取数据集列表失败",
-			zap.Error(err),
-		)
 		return nil, 0, fmt.Errorf("获取数据集列表失败: %w", err)
 	}
 
-	total, err := s.datasetRepo.Count(ctx)
+	total, err := s.datasetRepo.Count(ctx, uid)
 	if err != nil {
-		logger.Error("获取数据集总数失败",
-			zap.Error(err),
-		)
 		return nil, 0, fmt.Errorf("获取数据集总数失败: %w", err)
 	}
-
 	return datasets, total, nil
 }
 
-func (s *datasetService) ListDatasetCandidates(ctx context.Context) ([]DatasetCandidate, error) {
+func (s *datasetService) ListDatasetCandidates(ctx context.Context, uid int) ([]DatasetCandidate, error) {
+	if uid <= 0 {
+		return nil, fmt.Errorf("uid 必须大于0")
+	}
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	default:
 	}
 
-	baseDir := s.datasetCandidatesPath()
+	baseDir, err := s.datasetCandidatesPath(uid)
+	if err != nil {
+		return nil, err
+	}
 	entries, err := os.ReadDir(baseDir)
 	if os.IsNotExist(err) {
 		return []DatasetCandidate{}, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("扫描数据集目录失败: %w", err)
+		return nil, fmt.Errorf("扫描数据集候选目录失败: %w", err)
 	}
 
 	items := make([]DatasetCandidate, 0, len(entries))
@@ -211,7 +203,7 @@ func (s *datasetService) ListDatasetCandidates(ctx context.Context) ([]DatasetCa
 		if entry.IsDir() {
 			nested, err := s.listDatasetCandidatesInDir(entryPath, entry.Name())
 			if err != nil {
-				logger.Warn("扫描数据集子目录失败", zap.String("path", entryPath), zap.Error(err))
+				logger.Warn("scan dataset candidate subdir failed", zap.String("path", entryPath), zap.Error(err))
 				continue
 			}
 			items = append(items, nested...)
@@ -222,7 +214,7 @@ func (s *datasetService) ListDatasetCandidates(ctx context.Context) ([]DatasetCa
 		}
 		item, err := s.datasetCandidateFromFile(entryPath, entry.Name(), "")
 		if err != nil {
-			logger.Warn("读取数据集候选失败", zap.String("path", entryPath), zap.Error(err))
+			logger.Warn("read dataset candidate failed", zap.String("path", entryPath), zap.Error(err))
 			continue
 		}
 		items = append(items, item)
@@ -251,7 +243,7 @@ func (s *datasetService) listDatasetCandidatesInDir(dirPath, dirName string) ([]
 			dirPath,
 		)
 		if err != nil {
-			logger.Warn("读取数据集候选失败", zap.String("path", filepath.Join(dirPath, entry.Name())), zap.Error(err))
+			logger.Warn("read dataset candidate failed", zap.String("path", filepath.Join(dirPath, entry.Name())), zap.Error(err))
 			continue
 		}
 		items = append(items, item)
@@ -290,44 +282,46 @@ func (s *datasetService) datasetCandidateFromFile(filePath, displayName, sourceD
 }
 
 func (s *datasetService) UpdateDataset(ctx context.Context, dataset *types.Dataset) error {
-	if dataset.Name == "" {
-		return fmt.Errorf("数据集名称不能为空")
+	if dataset.UID <= 0 {
+		return fmt.Errorf("uid 必须大于0")
 	}
-
-	if _, err := s.datasetRepo.GetByID(ctx, dataset.ID); err != nil {
+	existing, err := s.datasetRepo.GetByID(ctx, dataset.ID)
+	if err != nil {
 		return fmt.Errorf("数据集不存在: %s", dataset.ID)
 	}
-	if dataset.SourceType == "import" {
-		if err := s.ensureDatasetFilePath(dataset.FilePath); err != nil {
-			return err
-		}
+	if existing.UID != dataset.UID {
+		return fmt.Errorf("数据集不属于当前 uid: %s", dataset.ID)
+	}
+
+	dataset.SourceType = existing.SourceType
+	dataset.FilePath = existing.FilePath
+	dataset.RecordCount = existing.RecordCount
+	dataset.CreatedAt = existing.CreatedAt
+	if err := s.validateDataset(dataset); err != nil {
+		return err
 	}
 
 	if err := s.datasetRepo.Update(ctx, dataset); err != nil {
-		logger.Error("更新数据集失败",
-			zap.String("dataset_id", dataset.ID),
-			zap.Error(err),
-		)
 		return fmt.Errorf("更新数据集失败: %w", err)
 	}
-
-	logger.Info("数据集更新成功",
-		zap.String("dataset_id", dataset.ID),
-		zap.String("name", dataset.Name),
-	)
-
 	return nil
 }
 
-func (s *datasetService) DeleteDataset(ctx context.Context, id string) error {
+func (s *datasetService) DeleteDataset(ctx context.Context, uid int, id string) error {
+	if uid <= 0 {
+		return fmt.Errorf("uid 必须大于0")
+	}
 	dataset, err := s.datasetRepo.GetByID(ctx, id)
 	if err != nil {
 		return fmt.Errorf("数据集不存在: %s", id)
 	}
+	if dataset.UID != uid {
+		return fmt.Errorf("数据集不属于当前 uid: %s", id)
+	}
 
 	if dataset.FilePath != "" && dataset.SourceType != "import" {
 		if err := s.removeOwnedDatasetArtifact(dataset); err != nil {
-			logger.Warn("删除数据集文件失败",
+			logger.Warn("remove dataset artifact failed",
 				zap.String("file_path", dataset.FilePath),
 				zap.Error(err),
 			)
@@ -335,19 +329,17 @@ func (s *datasetService) DeleteDataset(ctx context.Context, id string) error {
 	}
 
 	if err := s.datasetRepo.Delete(ctx, id); err != nil {
-		logger.Error("删除数据集失败",
-			zap.String("dataset_id", id),
-			zap.Error(err),
-		)
 		return fmt.Errorf("删除数据集失败: %w", err)
 	}
-
-	logger.Info("数据集删除成功", zap.String("dataset_id", id))
 	return nil
 }
 
-func (s *datasetService) GetDatasetPath(datasetID string) string {
-	return filepath.Join(s.datasetUploadsPath(), datasetID)
+func (s *datasetService) GetDatasetPath(uid int, datasetID string) (string, error) {
+	uploadsPath, err := s.datasetUploadsPath(uid)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(uploadsPath, datasetID), nil
 }
 
 func (s *datasetService) prepareDataset(dataset *types.Dataset) error {
@@ -366,7 +358,7 @@ func (s *datasetService) prepareDataset(dataset *types.Dataset) error {
 	}
 
 	if dataset.SourceType == "import" {
-		if err := s.ensureDatasetFilePath(dataset.FilePath); err != nil {
+		if err := s.ensureDatasetFilePath(dataset.UID, dataset.FilePath); err != nil {
 			return err
 		}
 		if dataset.RecordCount <= 0 {
@@ -377,11 +369,13 @@ func (s *datasetService) prepareDataset(dataset *types.Dataset) error {
 			dataset.RecordCount = recordCount
 		}
 	}
-
 	return nil
 }
 
 func (s *datasetService) validateDataset(dataset *types.Dataset) error {
+	if dataset.UID <= 0 {
+		return fmt.Errorf("uid 必须大于0")
+	}
 	if dataset.Name == "" {
 		return fmt.Errorf("数据集名称不能为空")
 	}
@@ -402,48 +396,38 @@ func (s *datasetService) validateDataset(dataset *types.Dataset) error {
 	if dataset.SourceType == "import" && strings.TrimSpace(dataset.FilePath) == "" {
 		return fmt.Errorf("导入数据集必须提供 file_path")
 	}
-
 	return nil
 }
 
-func (s *datasetService) datasetBasePath() string {
+func (s *datasetService) storage() config.StorageConfig {
 	if s.storageCfg == nil {
-		return filepath.Clean(filepath.Join("/storage-root-jfs/user-xxx", filepath.FromSlash(defaultDatasetBaseRel)))
+		return config.StorageConfig{RootPath: "/storage-root-jfs"}
 	}
-	if path := strings.TrimSpace(s.storageCfg.DatasetsBasePath); path != "" {
-		return filepath.Clean(path)
-	}
-	root := strings.TrimSpace(s.storageCfg.RootPath)
-	if root == "" {
-		root = "/storage-root-jfs/user-xxx"
-	}
-	return filepath.Clean(filepath.Join(root, filepath.FromSlash(defaultDatasetBaseRel)))
+	return *s.storageCfg
 }
 
-func (s *datasetService) datasetCandidatesPath() string {
-	if s.storageCfg != nil {
-		if path := strings.TrimSpace(s.storageCfg.DatasetCandidatesPath); path != "" {
-			return filepath.Clean(path)
-		}
-	}
-	return filepath.Join(s.datasetBasePath(), "candidates")
+func (s *datasetService) datasetBasePath(uid int) (string, error) {
+	return s.storage().UserDatasetsBase(uid)
 }
 
-func (s *datasetService) datasetUploadsPath() string {
-	if s.storageCfg != nil {
-		if path := strings.TrimSpace(s.storageCfg.DatasetUploadsPath); path != "" {
-			return filepath.Clean(path)
-		}
-	}
-	return filepath.Join(s.datasetBasePath(), "uploaded")
+func (s *datasetService) datasetCandidatesPath(uid int) (string, error) {
+	return s.storage().UserDatasetCandidates(uid)
 }
 
-func (s *datasetService) ensureDatasetFilePath(filePath string) error {
+func (s *datasetService) datasetUploadsPath(uid int) (string, error) {
+	return s.storage().UserDatasetUploads(uid)
+}
+
+func (s *datasetService) ensureDatasetFilePath(uid int, filePath string) error {
 	cleanPath := filepath.Clean(strings.TrimSpace(filePath))
 	if cleanPath == "." || cleanPath == "" {
 		return fmt.Errorf("数据集 file_path 不能为空")
 	}
-	if err := ensurePathUnderBase(cleanPath, s.datasetCandidatesPath()); err != nil {
+	base, err := s.datasetCandidatesPath(uid)
+	if err != nil {
+		return err
+	}
+	if err := ensurePathUnderBase(cleanPath, base); err != nil {
 		return err
 	}
 
@@ -460,8 +444,12 @@ func (s *datasetService) ensureDatasetFilePath(filePath string) error {
 	return nil
 }
 
-func (s *datasetService) ensurePathUnderDatasetBase(path string) error {
-	return ensurePathUnderBase(path, s.datasetBasePath())
+func (s *datasetService) ensurePathUnderDatasetBase(dataset *types.Dataset, path string) error {
+	base, err := s.datasetBasePath(dataset.UID)
+	if err != nil {
+		return err
+	}
+	return ensurePathUnderBase(path, base)
 }
 
 func ensurePathUnderBase(path, base string) error {
@@ -475,7 +463,7 @@ func ensurePathUnderBase(path, base string) error {
 
 func (s *datasetService) removeOwnedDatasetArtifact(dataset *types.Dataset) error {
 	cleanPath := filepath.Clean(dataset.FilePath)
-	if err := s.ensurePathUnderDatasetBase(cleanPath); err != nil {
+	if err := s.ensurePathUnderDatasetBase(dataset, cleanPath); err != nil {
 		return err
 	}
 
