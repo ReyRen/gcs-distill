@@ -154,6 +154,29 @@ func TestUpdateDatasetPreservesStoredSource(t *testing.T) {
 	}
 }
 
+func TestFillDatasetNameDerivesFromFilePath(t *testing.T) {
+	dataset := &types.Dataset{
+		Name:     "build-record-name",
+		FilePath: "/storage-root-jfs/user-380/train-center/model-distill/datasets/uploaded/dataset-1/train.jsonl",
+	}
+
+	fillDatasetName(dataset)
+
+	if dataset.DatasetName != "train.jsonl" {
+		t.Fatalf("dataset_name = %q, want train.jsonl", dataset.DatasetName)
+	}
+}
+
+func TestFillDatasetNameFallsBackToName(t *testing.T) {
+	dataset := &types.Dataset{Name: "build-record-name"}
+
+	fillDatasetName(dataset)
+
+	if dataset.DatasetName != "build-record-name" {
+		t.Fatalf("dataset_name = %q, want fallback name", dataset.DatasetName)
+	}
+}
+
 type fakeDatasetRepo struct {
 	dataset *types.Dataset
 }

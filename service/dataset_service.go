@@ -115,6 +115,7 @@ func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *typ
 		return fmt.Errorf("统计数据集记录数失败: %w", err)
 	}
 	dataset.RecordCount = recordCount
+	fillDatasetName(dataset)
 
 	if err := s.datasetRepo.Create(ctx, dataset); err != nil {
 		_ = os.RemoveAll(datasetDir)
@@ -139,6 +140,7 @@ func (s *datasetService) GetDataset(ctx context.Context, uid int, id string) (*t
 	if dataset.UID != uid {
 		return nil, fmt.Errorf("数据集不属于当前 uid: %s", id)
 	}
+	fillDatasetName(dataset)
 	return dataset, nil
 }
 
@@ -158,6 +160,7 @@ func (s *datasetService) ListDatasets(ctx context.Context, uid, page, pageSize i
 	if err != nil {
 		return nil, 0, fmt.Errorf("获取数据集列表失败: %w", err)
 	}
+	fillDatasetNames(datasets)
 
 	total, err := s.datasetRepo.Count(ctx, uid)
 	if err != nil {
@@ -300,6 +303,7 @@ func (s *datasetService) UpdateDataset(ctx context.Context, dataset *types.Datas
 	if err := s.validateDataset(dataset); err != nil {
 		return err
 	}
+	fillDatasetName(dataset)
 
 	if err := s.datasetRepo.Update(ctx, dataset); err != nil {
 		return fmt.Errorf("更新数据集失败: %w", err)
@@ -356,6 +360,7 @@ func (s *datasetService) prepareDataset(dataset *types.Dataset) error {
 	if err := s.validateDataset(dataset); err != nil {
 		return err
 	}
+	fillDatasetName(dataset)
 
 	if dataset.SourceType == "import" {
 		if err := s.ensureDatasetFilePath(dataset.UID, dataset.FilePath); err != nil {
@@ -369,6 +374,7 @@ func (s *datasetService) prepareDataset(dataset *types.Dataset) error {
 			dataset.RecordCount = recordCount
 		}
 	}
+	fillDatasetName(dataset)
 	return nil
 }
 
@@ -472,6 +478,30 @@ func (s *datasetService) removeOwnedDatasetArtifact(dataset *types.Dataset) erro
 		return os.RemoveAll(parentDir)
 	}
 	return os.RemoveAll(cleanPath)
+}
+
+func fillDatasetNames(datasets []*types.Dataset) {
+	for _, dataset := range datasets {
+		fillDatasetName(dataset)
+	}
+}
+
+func fillDatasetName(dataset *types.Dataset) {
+	if dataset == nil {
+		return
+	}
+	if path := strings.TrimSpace(dataset.FilePath); path != "" {
+		cleanPath := filepath.Clean(strings.ReplaceAll(path, "\\", "/"))
+		name := filepath.Base(cleanPath)
+		if name != "." && name != string(filepath.Separator) && name != "" {
+			dataset.DatasetName = name
+			return
+		}
+	}
+	if strings.TrimSpace(dataset.DatasetName) != "" {
+		return
+	}
+	dataset.DatasetName = dataset.Name
 }
 
 func isSupportedDatasetFile(name string) bool {

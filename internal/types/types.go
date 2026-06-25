@@ -76,6 +76,7 @@ type Dataset struct {
 	ID          string    `json:"id" db:"id"`
 	UID         int       `json:"uid" db:"uid"`
 	Name        string    `json:"name" db:"name"`
+	DatasetName string    `json:"dataset_name,omitempty" db:"-"`
 	Description string    `json:"description" db:"description"`
 	SourceType  string    `json:"source_type" db:"source_type"`
 	FilePath    string    `json:"file_path" db:"file_path"`
@@ -89,7 +90,6 @@ type PipelineRun struct {
 	UID             int             `json:"uid" db:"uid"`
 	ProjectID       string          `json:"project_id" db:"project_id"`
 	DatasetID       string          `json:"dataset_id" db:"dataset_id"`
-	DatasetName     string          `json:"dataset_name,omitempty" db:"-"`
 	Status          PipelineStatus  `json:"status" db:"status"`
 	CurrentStage    int             `json:"current_stage" db:"current_stage"`
 	TriggerMode     string          `json:"trigger_mode" db:"trigger_mode"`

@@ -179,6 +179,7 @@ export interface Dataset {
   id?: string;
   uid: number;
   name: string;
+  dataset_name?: string;
   description?: string;
   source_type: "upload" | "import";
   file_path?: string;
@@ -250,7 +251,6 @@ export interface PipelineRun {
   uid: number;
   project_id: string;
   dataset_id: string;
-  dataset_name?: string;
   status?: PipelineStatus;
   current_stage?: number;
   trigger_mode?: "manual" | string;
@@ -359,6 +359,7 @@ GET /api/v1/datasets?uid=380&page=1&page_size=20
 ```
 
 已登记列表来自数据库 `distill_datasets`。`candidates` 只是待登记的共享目录文件，不等于数据集列表。
+`Dataset.name` 是创建/登记时填写的记录名称，`Dataset.dataset_name` 是后端从 `file_path` 推导出的真实数据文件名，详情页展示“数据集名称”优先用 `dataset_name`。
 
 数据集输入目录和 model-center 使用同一个共享存储根，但 distill 不放在 model-center 目录下。默认候选目录是：
 

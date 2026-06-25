@@ -157,12 +157,15 @@ interface Dataset {
   id?: string;
   uid: number;
   name: string;
+  dataset_name?: string;
   description?: string;
   source_type: "upload" | "import";
   file_path?: string;
   record_count?: number;
 }
 ```
+
+`name` 是前端创建/登记数据集时填写的记录名称；`dataset_name` 是后端从 `file_path` 推导出的真实数据文件名，详情页可直接展示它作为“数据集名称”。
 
 数据集是独立资源，不属于项目。创建流水线时再通过 `uid + project_id + dataset_id` 把项目配置和数据集组合起来执行。数据集文件最终在 `dataset_build` 阶段被读取，支持 JSON 数组或 JSONL/NDJSON。只要记录里有非空 `instruction` 字段，就会被写入运行目录：
 
@@ -185,7 +188,6 @@ interface PipelineRun {
   uid: number;
   project_id: string;
   dataset_id: string;
-  dataset_name?: string;
   trigger_mode?: "manual" | string;
   training_config: TrainingConfig;
   resource_request: ResourceRequest;
@@ -492,6 +494,8 @@ EasyDistill 关系：无，只读数据库。
 用途：获取数据集详情。
 
 Path 参数：`id`。
+
+响应里的 `data.dataset_name` 是后端从 `file_path` 推导出的真实数据文件名，用于详情页展示“数据集名称”；`data.name` 保留为创建/登记时填写的记录名称。
 
 后端链路：
 
@@ -826,15 +830,11 @@ PipelineHandler.ListPipelines
 
 EasyDistill 关系：无，只读数据库。
 
-返回的每条流水线会带 `dataset_name`，由后端从 `dataset_id` 对应的数据集记录聚合出来，前端列表可直接展示数据集名称。
-
 #### `GET /api/v1/pipelines/{id}`
 
 用途：获取流水线详情。
 
 Path 参数：`id`。
-
-响应里的 `data.dataset_name` 是该流水线绑定的数据集名称，前端详情页可直接展示，不需要额外调用数据集详情接口。
 
 后端链路：
 
