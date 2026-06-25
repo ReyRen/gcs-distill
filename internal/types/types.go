@@ -89,6 +89,7 @@ type PipelineRun struct {
 	UID             int             `json:"uid" db:"uid"`
 	ProjectID       string          `json:"project_id" db:"project_id"`
 	DatasetID       string          `json:"dataset_id" db:"dataset_id"`
+	DatasetName     string          `json:"dataset_name,omitempty" db:"-"`
 	Status          PipelineStatus  `json:"status" db:"status"`
 	CurrentStage    int             `json:"current_stage" db:"current_stage"`
 	TriggerMode     string          `json:"trigger_mode" db:"trigger_mode"`

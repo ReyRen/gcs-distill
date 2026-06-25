@@ -71,22 +71,25 @@ func (r *pipelineRepo) Create(ctx context.Context, pipeline *types.PipelineRun) 
 
 func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineRun, error) {
 	query := `
-		SELECT id, uid, project_id, dataset_id, status, current_stage, trigger_mode,
-			training_config, resource_request, error_message,
-			created_at, started_at, finished_at, updated_at
-		FROM distill_pipeline_runs
-		WHERE id = ?
+		SELECT p.id, p.uid, p.project_id, p.dataset_id, COALESCE(d.name, '') AS dataset_name,
+			p.status, p.current_stage, p.trigger_mode, p.training_config, p.resource_request,
+			p.error_message, p.created_at, p.started_at, p.finished_at, p.updated_at
+		FROM distill_pipeline_runs p
+		LEFT JOIN distill_datasets d ON p.dataset_id = d.id
+		WHERE p.id = ?
 	`
 
 	var pipeline types.PipelineRun
 	var trainingConfig, resourceRequest []byte
 	var errorMessage sql.NullString
+	var datasetName sql.NullString
 	var startedAt, finishedAt sql.NullTime
 	err := r.db.sql.QueryRowContext(ctx, query, id).Scan(
 		&pipeline.ID,
 		&pipeline.UID,
 		&pipeline.ProjectID,
 		&pipeline.DatasetID,
+		&datasetName,
 		&pipeline.Status,
 		&pipeline.CurrentStage,
 		&pipeline.TriggerMode,
@@ -107,6 +110,7 @@ func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineR
 	if err := scanPipelineJSON(&pipeline, trainingConfig, resourceRequest); err != nil {
 		return nil, err
 	}
+	pipeline.DatasetName = nullStringValue(datasetName)
 	pipeline.ErrorMessage = nullStringValue(errorMessage)
 	pipeline.StartedAt = nullTimePtr(startedAt)
 	pipeline.FinishedAt = nullTimePtr(finishedAt)
@@ -115,12 +119,13 @@ func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineR
 
 func (r *pipelineRepo) List(ctx context.Context, uid int, projectID string, limit, offset int) ([]*types.PipelineRun, error) {
 	query := `
-		SELECT id, uid, project_id, dataset_id, status, current_stage, trigger_mode,
-			training_config, resource_request, error_message,
-			created_at, started_at, finished_at, updated_at
-		FROM distill_pipeline_runs
-		WHERE uid = ? AND project_id = ?
-		ORDER BY created_at DESC
+		SELECT p.id, p.uid, p.project_id, p.dataset_id, COALESCE(d.name, '') AS dataset_name,
+			p.status, p.current_stage, p.trigger_mode, p.training_config, p.resource_request,
+			p.error_message, p.created_at, p.started_at, p.finished_at, p.updated_at
+		FROM distill_pipeline_runs p
+		LEFT JOIN distill_datasets d ON p.dataset_id = d.id
+		WHERE p.uid = ? AND p.project_id = ?
+		ORDER BY p.created_at DESC
 		LIMIT ? OFFSET ?
 	`
 
@@ -135,12 +140,14 @@ func (r *pipelineRepo) List(ctx context.Context, uid int, projectID string, limi
 		var pipeline types.PipelineRun
 		var trainingConfig, resourceRequest []byte
 		var errorMessage sql.NullString
+		var datasetName sql.NullString
 		var startedAt, finishedAt sql.NullTime
 		if err := rows.Scan(
 			&pipeline.ID,
 			&pipeline.UID,
 			&pipeline.ProjectID,
 			&pipeline.DatasetID,
+			&datasetName,
 			&pipeline.Status,
 			&pipeline.CurrentStage,
 			&pipeline.TriggerMode,
@@ -157,6 +164,7 @@ func (r *pipelineRepo) List(ctx context.Context, uid int, projectID string, limi
 		if err := scanPipelineJSON(&pipeline, trainingConfig, resourceRequest); err != nil {
 			return nil, err
 		}
+		pipeline.DatasetName = nullStringValue(datasetName)
 		pipeline.ErrorMessage = nullStringValue(errorMessage)
 		pipeline.StartedAt = nullTimePtr(startedAt)
 		pipeline.FinishedAt = nullTimePtr(finishedAt)

@@ -607,6 +607,11 @@
             "example": "uuid-dataset",
             "type": "string"
           },
+          "dataset_name": {
+            "description": "Display name of the dataset bound to this pipeline. Populated by joining dataset_id to distill_datasets.",
+            "example": "customer/train.jsonl",
+            "type": "string"
+          },
           "error_message": {
             "type": "string"
           },

@@ -185,6 +185,7 @@ interface PipelineRun {
   uid: number;
   project_id: string;
   dataset_id: string;
+  dataset_name?: string;
   trigger_mode?: "manual" | string;
   training_config: TrainingConfig;
   resource_request: ResourceRequest;
@@ -825,11 +826,15 @@ PipelineHandler.ListPipelines
 
 EasyDistill 关系：无，只读数据库。
 
+返回的每条流水线会带 `dataset_name`，由后端从 `dataset_id` 对应的数据集记录聚合出来，前端列表可直接展示数据集名称。
+
 #### `GET /api/v1/pipelines/{id}`
 
 用途：获取流水线详情。
 
 Path 参数：`id`。
+
+响应里的 `data.dataset_name` 是该流水线绑定的数据集名称，前端详情页可直接展示，不需要额外调用数据集详情接口。
 
 后端链路：
 

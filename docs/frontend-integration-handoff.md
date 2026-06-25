@@ -250,6 +250,7 @@ export interface PipelineRun {
   uid: number;
   project_id: string;
   dataset_id: string;
+  dataset_name?: string;
   status?: PipelineStatus;
   current_stage?: number;
   trigger_mode?: "manual" | string;
