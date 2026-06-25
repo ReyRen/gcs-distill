@@ -108,6 +108,7 @@ API 文档入口：
 | --- | --- |
 | Swagger UI | `http://<distill.host>:8080/swagger/index.html` |
 | OpenAPI JSON | `http://<distill.host>:8080/swagger/openapi.json` |
+| 前端页面与跳转说明 | [`docs/frontend-page-flow-guide.md`](docs/frontend-page-flow-guide.md) |
 | 前端接口逻辑映射 | [`docs/frontend-api-backend-map.md`](docs/frontend-api-backend-map.md) |
 
 日志接口与 `gcs-model-center-v2` 保持一致：`GET /logs` 返回 `text/plain` tail 内容，`GET /logs/ws` 通过 WebSocket 实时转发 `gcs-v2` task 日志；`GET /logs/stream` 仅作为兼容别名保留，不是 SSE。
