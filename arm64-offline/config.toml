@@ -1,0 +1,45 @@
+# GCS-Distill config.
+# Database fields follow gcs-model-center-v2 so GCS services can share one MySQL instance.
+
+[server]
+host = "0.0.0.0"
+port = 8080
+mode = "release"
+
+[database]
+enabled = true
+driver = "mysql"
+host = "172.18.127.67"
+port = 3306
+name = "ai_market"
+user = "root"
+password = "!Market4AI"
+password_env = ""
+max_open_conns = 20
+max_idle_conns = 5
+conn_max_lifetime_seconds = 300
+
+[storage]
+type = "nfs"
+# Shared JFS root. Per-user paths are derived as:
+#   {root_path}/user-{uid}/train-center/model-distill
+root_path = "/storage-root-jfs"
+# Global read-only base model pool shared with SFT.
+models_base_path = "/storage-root-jfs/train-base-models"
+
+[gcs]
+base_url = "http://172.18.29.80:8072/api/v1"
+timeout_seconds = 10
+
+[logging]
+level = "info"
+output = "stdout"
+file_path = "/var/log/gcs-distill/server.log"
+max_size = 100
+max_age = 7
+compress = true
+
+[executor]
+max_concurrent = 5
+# External EasyDistill runtime image. gcs-distill only passes this reference to gcs-v2.
+runtime_image = "easy-distill/easydistill:latest"

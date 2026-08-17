@@ -1,0 +1,17 @@
+[Unit]
+Description=GCS Distill service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/gcs/gcs-distill
+ExecStart=/opt/gcs/gcs-distill/gcs-distill-server --config /opt/gcs/gcs-distill/config.toml
+Environment=TZ=Asia/Shanghai
+Restart=on-failure
+RestartSec=10s
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

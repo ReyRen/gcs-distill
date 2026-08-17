@@ -1,0 +1,10 @@
+project=gcs-distill
+source_branch=main
+source_commit=8ca3b24
+build_target=linux/arm64
+go_version=go1.25.0
+version=v0.1.0
+cgo_enabled=0
+linkage=static
+build_host=Ubuntu 20.04 aarch64
+build_date=2026-08-17
