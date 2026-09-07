@@ -1,4 +1,4 @@
-.PHONY: all build clean test server swagger run-server tidy fmt lint install-service enable-service start-service restart-service status-service logs-service deploy test-integration test-e2e test-all help
+.PHONY: all build arm64 arm64-clean arm64-image release clean test server swagger run-server tidy fmt lint install-service enable-service start-service restart-service status-service logs-service deploy test-integration test-e2e test-all help
 
 BINARY_SERVER ?= bin/gcs-distill-server
 VERSION ?= v0.1.0
@@ -14,6 +14,9 @@ all: build
 help:
 	@echo "GCS-Distill Makefile commands:"
 	@echo "  make build               - update Swagger and build server"
+	@echo "  make arm64               - generate arm64/out deployment directory"
+	@echo "  make arm64-image         - rebuild the server-side Ascend image"
+	@echo "  make release             - build native and ARM64 outputs"
 	@echo "  make server              - build server binary"
 	@echo "  make swagger             - validate and format OpenAPI"
 	@echo "  make test                - run Go tests"
@@ -23,6 +26,17 @@ help:
 
 build: swagger
 	@$(MAKE) server SKIP_SWAGGER=1
+
+arm64:
+	@bash arm64/build.sh
+
+arm64-clean:
+	@rm -rf arm64/out
+
+arm64-image:
+	@bash arm64/build-image.sh "$(EASYDISTILL_SOURCE)"
+
+release: build arm64
 
 swagger:
 	@echo "Updating Swagger/OpenAPI..."

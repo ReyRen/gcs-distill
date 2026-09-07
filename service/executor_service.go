@@ -62,7 +62,7 @@ func NewExecutorService(
 		stageRepo:     stageRepo,
 		projectRepo:   projectRepo,
 		datasetRepo:   datasetRepo,
-		stageExecutor: runtime.NewStageExecutor(workspaceRoot, datasetRepo, gcsClient, runtimeImage),
+		stageExecutor: runtime.NewStageExecutor(workspaceRoot, datasetRepo, gcsClient, runtimeImage, stageRepo, pipelineRepo),
 		queue:         make(chan string, 100),
 		stopChan:      make(chan struct{}),
 		maxConcurrent: maxConcurrent,
@@ -156,6 +156,13 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 
 	// 按阶段顺序执行
 	for _, stage := range stages {
+		current, err := s.pipelineRepo.GetByID(ctx, pipelineID)
+		if err != nil {
+			return err
+		}
+		if current.Status == types.StatusCanceled {
+			return nil
+		}
 		if stage.StageOrder != pipeline.CurrentStage {
 			continue
 		}
@@ -176,7 +183,14 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		}
 
 		// 执行阶段
-		err := s.stageExecutor.ExecuteStage(ctx, stage, pipeline, project)
+		err = s.stageExecutor.ExecuteStage(ctx, stage, pipeline, project)
+		current, readErr := s.pipelineRepo.GetByID(ctx, pipelineID)
+		if readErr != nil {
+			return readErr
+		}
+		if current.Status == types.StatusCanceled {
+			return nil
+		}
 
 		finishTime := time.Now()
 		stage.FinishedAt = &finishTime
