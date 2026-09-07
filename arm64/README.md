@@ -25,4 +25,11 @@ bash arm64/test-image.sh /absolute/path/to/Qwen2.5-0.5B-Instruct 0
 
 The test performs real local teacher inference, one-process student training, and evaluation through a local OpenAI-compatible mock judge. Its Docker flags and command lines match the GCS worker contract.
 
-Images and archives stay outside this source repository. Install the service package with `cd arm64/out && sudo bash install.sh`.
+Images and archives stay outside this source repository. The 910A deployment on host `172.18.127.43` verifies project, dataset and pipeline CRUD, stage submission, status, logs, cancellation and deletion. A stage may fail after submission when its model or runtime is incompatible with 910A. Real inference, training and evaluation remain the onsite 910B3 image acceptance test.
+
+```bash
+make arm64
+make deploy-arm64
+make status
+make logs
+```

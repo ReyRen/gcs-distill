@@ -15,6 +15,22 @@
   <img alt="Database" src="https://img.shields.io/badge/Database-MySQL%20distill__*-0F766E?style=for-the-badge">
 </p>
 
+## 统一编译与运维
+
+AMD64/x86_64 与 ARM64 使用同一组入口：
+
+| 操作 | 命令 |
+| --- | --- |
+| 编译当前架构 | `make build` |
+| 生成 ARM64 部署目录 | `make arm64` |
+| 编译并部署当前架构 | `make deploy` |
+| 部署已生成的 `arm64/out` | `make deploy-arm64` |
+| 重启服务 | `make restart` |
+| 查看状态 | `make status` |
+| 持续查看日志 | `make logs` |
+
+ARM64 控制面部署到 43 服务器的 `/gcs-distill`。910A 环境验收项目、数据集、流水线创建、任务提交、状态同步、日志、取消和删除；运行镜像允许因模型或芯片不兼容进入失败终态。现场 910B3 再用适配镜像验证真实推理、训练和评测结果。
+
 ## 项目定位
 
 `gcs-distill` 是蒸馏控制面。它负责业务对象、流水线阶段、运行目录、EasyDistill 配置和产物清单；实际容器资源调度与 Docker 执行统一交给 [`gcs-v2`](https://github.com/ReyRen/gcs-v2) 与 [`gcs-info-catch-v2`](https://github.com/ReyRen/gcs-info-catch-v2)。
