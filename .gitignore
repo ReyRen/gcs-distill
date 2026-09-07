@@ -47,6 +47,9 @@ temp/
 # Build artifacts
 *.tar.gz
 *.zip
+/arm64/out/
+/arm64/*.tar
+/arm64/*.tar.gz
 
 # Generated protobuf files (optional, can be committed)
 # *.pb.go

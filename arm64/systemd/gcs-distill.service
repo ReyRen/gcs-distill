@@ -1,0 +1,17 @@
+[Unit]
+Description=gcs-distill ARM64
+Wants=network-online.target
+After=network-online.target docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/gcs-distill
+ExecStart=/gcs-distill/bin/gcs-distill-server --config config.toml
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target

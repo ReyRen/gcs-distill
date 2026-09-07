@@ -25,11 +25,13 @@ type StageExecutor struct {
 	manifestMgr  *ManifestManager
 	dataGovernor *DataGovernor
 	datasetRepo  mysqlrepo.DatasetRepository
+	stageRepo    mysqlrepo.StageRepository
+	pipelineRepo mysqlrepo.PipelineRepository
 	gcsClient    *gcsclient.Client
 	runtimeImage string
 }
 
-func NewStageExecutor(storageRoot string, datasetRepo mysqlrepo.DatasetRepository, gcsClient *gcsclient.Client, runtimeImage string) *StageExecutor {
+func NewStageExecutor(storageRoot string, datasetRepo mysqlrepo.DatasetRepository, gcsClient *gcsclient.Client, runtimeImage string, stageRepo mysqlrepo.StageRepository, pipelineRepo mysqlrepo.PipelineRepository) *StageExecutor {
 	if strings.TrimSpace(runtimeImage) == "" {
 		runtimeImage = "easy-distill/easydistill:latest"
 	}
@@ -38,6 +40,8 @@ func NewStageExecutor(storageRoot string, datasetRepo mysqlrepo.DatasetRepositor
 		manifestMgr:  NewManifestManager(storageRoot),
 		dataGovernor: NewDataGovernor(),
 		datasetRepo:  datasetRepo,
+		stageRepo:    stageRepo,
+		pipelineRepo: pipelineRepo,
 		gcsClient:    gcsClient,
 		runtimeImage: runtimeImage,
 	}
@@ -173,13 +177,14 @@ func (e *StageExecutor) executeTeacherInfer(ctx context.Context, stage *types.St
 	if err != nil {
 		return fmt.Errorf("start teacher infer container: %w", err)
 	}
-	if err := e.waitForContainerTask(ctx, containerID); err != nil {
+	if err := e.recordContainer(ctx, stage, containerID, e.configGen.GetLogPath(uid, projectID, runID, "teacher_infer")); err != nil {
+		return err
+	}
+	if err := e.waitForContainerTask(ctx, containerID, pipeline.ID); err != nil {
 		return fmt.Errorf("teacher infer container failed: %w", err)
 	}
 
 	stats, _ := e.manifestMgr.GetManifestStats(uid, projectID, runID)
-	stage.ContainerID = containerID
-	stage.LogPath = e.configGen.GetLogPath(uid, projectID, runID, "teacher_infer")
 	stage.OutputManifest = map[string]string{
 		"container_id":  containerID,
 		"labeled_count": fmt.Sprintf("%d", stats["labeled"]),
@@ -254,13 +259,14 @@ func (e *StageExecutor) executeStudentTrain(ctx context.Context, stage *types.St
 	if err != nil {
 		return fmt.Errorf("start student train container: %w", err)
 	}
-	if err := e.waitForContainerTask(ctx, containerID); err != nil {
+	if err := e.recordContainer(ctx, stage, containerID, e.configGen.GetLogPath(uid, projectID, runID, "student_train")); err != nil {
+		return err
+	}
+	if err := e.waitForContainerTask(ctx, containerID, pipeline.ID); err != nil {
 		return fmt.Errorf("student train container failed: %w", err)
 	}
 
 	checkpointPath := filepath.Join(e.configGen.GetRunWorkspace(uid, projectID, runID), "models", "checkpoints")
-	stage.ContainerID = containerID
-	stage.LogPath = e.configGen.GetLogPath(uid, projectID, runID, "student_train")
 	stage.OutputManifest = map[string]string{
 		"container_id":    containerID,
 		"checkpoint_path": checkpointPath,
@@ -301,7 +307,10 @@ func (e *StageExecutor) executeEvaluate(ctx context.Context, stage *types.StageR
 	if err != nil {
 		return fmt.Errorf("start evaluate container: %w", err)
 	}
-	if err := e.waitForContainerTask(ctx, containerID); err != nil {
+	if err := e.recordContainer(ctx, stage, containerID, e.configGen.GetLogPath(uid, projectID, runID, "evaluate")); err != nil {
+		return err
+	}
+	if err := e.waitForContainerTask(ctx, containerID, pipeline.ID); err != nil {
 		return fmt.Errorf("evaluate container failed: %w", err)
 	}
 
@@ -312,8 +321,6 @@ func (e *StageExecutor) executeEvaluate(ctx context.Context, stage *types.StageR
 		metrics = map[string]interface{}{"error": err.Error()}
 	}
 
-	stage.ContainerID = containerID
-	stage.LogPath = e.configGen.GetLogPath(uid, projectID, runID, "evaluate")
 	stage.Metrics = metrics
 	stage.OutputManifest = map[string]string{
 		"container_id": containerID,
@@ -578,15 +585,46 @@ func maxInt(a, b int) int {
 	return b
 }
 
-func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName string) error {
+func (e *StageExecutor) recordContainer(ctx context.Context, stage *types.StageRun, containerName, logPath string) error {
+	stage.ContainerID = containerName
+	stage.LogPath = logPath
+	if e.stageRepo != nil {
+		if err := e.stageRepo.Update(ctx, stage); err != nil {
+			e.stopContainerTask(containerName)
+			return fmt.Errorf("persist stage container before waiting: %w", err)
+		}
+	}
+	return nil
+}
+
+func (e *StageExecutor) stopContainerTask(containerName string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := e.gcsClient.DeleteTask(ctx, containerName); err != nil {
+		logger.Warn("stop distill container failed", zap.String("container_name", containerName), zap.Error(err))
+	}
+}
+
+func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName, pipelineID string) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
+			e.stopContainerTask(containerName)
 			return fmt.Errorf("wait gcs-v2 container task timeout: %w", ctx.Err())
 		case <-ticker.C:
+			if e.pipelineRepo != nil {
+				pipeline, err := e.pipelineRepo.GetByID(ctx, pipelineID)
+				if err != nil || pipeline.Status == types.StatusCanceled {
+					e.stopContainerTask(containerName)
+					if err != nil {
+						return fmt.Errorf("pipeline is no longer available: %w", err)
+					}
+					return context.Canceled
+				}
+			}
 			task, found, err := e.gcsClient.GetTask(ctx, containerName)
 			if err != nil {
 				logger.Warn("query gcs-v2 task failed", zap.String("container_name", containerName), zap.Error(err))
