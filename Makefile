@@ -1,4 +1,4 @@
-.PHONY: all build arm64 arm64-clean arm64-image release clean test server swagger run-server tidy fmt lint install-service enable-service start-service restart-service status-service logs-service deploy test-integration test-e2e test-all help
+.PHONY: all build arm64 arm64-clean arm64-image release clean test server swagger run-server tidy fmt lint install-service enable-service start-service restart-service status-service logs-service deploy deploy-arm64 restart status logs test-integration test-e2e test-all help
 
 BINARY_SERVER ?= bin/gcs-distill-server
 VERSION ?= v0.1.0
@@ -21,8 +21,9 @@ help:
 	@echo "  make swagger             - validate and format OpenAPI"
 	@echo "  make test                - run Go tests"
 	@echo "  make deploy              - update Swagger, build binary, install and restart systemd service"
-	@echo "  make status-service      - show systemd service status"
-	@echo "  make logs-service        - follow systemd service logs"
+	@echo "  make deploy-arm64        - install arm64/out and restart systemd service"
+	@echo "  make status              - show systemd service status"
+	@echo "  make logs                - follow systemd service logs"
 
 build: swagger
 	@$(MAKE) server SKIP_SWAGGER=1
@@ -96,6 +97,16 @@ logs-service:
 	$(SUDO) journalctl -u $(SERVICE_NAME) -f
 
 deploy: build install-service enable-service restart-service
+
+deploy-arm64:
+	@test -x arm64/out/install.sh
+	@cd arm64/out && $(SUDO) bash install.sh
+
+restart: restart-service
+
+status: status-service
+
+logs: logs-service
 
 test-integration: test-e2e
 
