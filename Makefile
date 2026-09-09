@@ -1,13 +1,9 @@
-.PHONY: all build arm64 arm64-clean arm64-image release clean test server swagger run-server tidy fmt lint install-service enable-service start-service restart-service status-service logs-service deploy deploy-arm64 restart status logs test-integration test-e2e test-all help
+.PHONY: all build arm64 arm64-clean arm64-image release clean test server swagger run-server tidy fmt lint install deploy start stop restart status logs journal verify uninstall test-integration test-e2e test-all help
 
 BINARY_SERVER ?= bin/gcs-distill-server
 VERSION ?= v0.1.0
 GO ?= go
-SUDO ?= sudo
 SERVICE_NAME ?= gcs-distill
-SERVICE_FILE ?= $(SERVICE_NAME).service
-SERVICE_DIR ?= /etc/systemd/system
-ENV_DIR ?= /etc/gcs-distill
 
 all: build
 
@@ -20,10 +16,11 @@ help:
 	@echo "  make server              - build server binary"
 	@echo "  make swagger             - validate and format OpenAPI"
 	@echo "  make test                - run Go tests"
-	@echo "  make deploy              - update Swagger, build binary, install and restart systemd service"
-	@echo "  make deploy-arm64        - install arm64/out and restart systemd service"
+	@echo "  make install             - register this directory with systemd"
+	@echo "  make deploy              - build, install, restart and verify"
 	@echo "  make status              - show systemd service status"
-	@echo "  make logs                - follow systemd service logs"
+	@echo "  make logs                - follow service logs"
+	@echo "  make verify              - verify systemd and /health"
 
 build: swagger
 	@$(MAKE) server SKIP_SWAGGER=1
@@ -76,37 +73,15 @@ fmt:
 lint:
 	@golangci-lint run ./...
 
-install-service:
-	$(SUDO) install -d $(ENV_DIR)
-	$(SUDO) install -m 644 $(SERVICE_FILE) $(SERVICE_DIR)/$(SERVICE_FILE)
-	$(SUDO) systemctl daemon-reload
+install: build
+	$(MAKE) -f offline/Makefile PACKAGE_DIR="$(CURDIR)" UNIT_TEMPLATE="$(CURDIR)/offline/gcs-distill.service.tpl" install
 
-enable-service:
-	$(SUDO) systemctl enable $(SERVICE_NAME)
+deploy: install
+	$(MAKE) -f offline/Makefile PACKAGE_DIR="$(CURDIR)" UNIT_TEMPLATE="$(CURDIR)/offline/gcs-distill.service.tpl" restart
+	$(MAKE) -f offline/Makefile PACKAGE_DIR="$(CURDIR)" UNIT_TEMPLATE="$(CURDIR)/offline/gcs-distill.service.tpl" verify
 
-start-service:
-	$(SUDO) systemctl start $(SERVICE_NAME)
-
-restart-service:
-	$(SUDO) systemctl restart $(SERVICE_NAME)
-
-status-service:
-	$(SUDO) systemctl status $(SERVICE_NAME)
-
-logs-service:
-	$(SUDO) journalctl -u $(SERVICE_NAME) -f
-
-deploy: build install-service enable-service restart-service
-
-deploy-arm64:
-	@test -x arm64/out/install.sh
-	@cd arm64/out && $(SUDO) bash install.sh
-
-restart: restart-service
-
-status: status-service
-
-logs: logs-service
+start stop restart status logs journal verify uninstall:
+	$(MAKE) -f offline/Makefile PACKAGE_DIR="$(CURDIR)" UNIT_TEMPLATE="$(CURDIR)/offline/gcs-distill.service.tpl" $@
 
 test-integration: test-e2e
 

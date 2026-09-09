@@ -1,0 +1,5 @@
+/bin/
+/config.toml
+/BUILD-INFO.json
+/logs/
+/images/*.tar

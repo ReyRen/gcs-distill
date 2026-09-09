@@ -16,11 +16,11 @@ accelerate launch --module easydistill.kd.train
 python -m easydistill.eval.data_eval
 ```
 
-Export the image on the connected build host with `bash arm64/export-image.sh`. On the offline Ascend 910B3 host, load and run the complete image test with a small local model:
+Export the image on the connected build host with `bash arm64/export-image.sh`. The release `offline` directory stores an uncompressed `docker save` archive so onsite staff can use `make load-image`. On the offline Ascend 910B3 host, run the complete image test with a small local model:
 
 ```bash
-gzip -dc gcs-distill-easydistill-ascend-0.22.1rc1-cann9.0-arm64.tar.gz | docker load
-bash arm64/test-image.sh /absolute/path/to/Qwen2.5-0.5B-Instruct 0
+make load-image
+bash scripts/test-image.sh /absolute/path/to/Qwen2.5-0.5B-Instruct 0
 ```
 
 The test performs real local teacher inference, one-process student training, and evaluation through a local OpenAI-compatible mock judge. Its Docker flags and command lines match the GCS worker contract.
@@ -29,7 +29,11 @@ Images and archives stay outside this source repository. The 910A deployment on 
 
 ```bash
 make arm64
-make deploy-arm64
-make status
-make logs
+cd arm64/out
+make install
+make start
+make verify
 ```
+
+The generated directory may be renamed or moved before installation. systemd
+runs the binary and configuration directly from that final directory.
