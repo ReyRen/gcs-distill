@@ -23,11 +23,13 @@ AMD64/x86_64 与 ARM64 使用同一组入口：
 | --- | --- |
 | 编译当前架构 | `make build` |
 | 生成 ARM64 部署目录 | `make arm64` |
-| 编译并部署当前架构 | `make deploy` |
-| 部署已生成的 `arm64/out` | `make deploy-arm64` |
+| 注册当前目录 | `make install` |
+| 编译、注册、重启并检查 | `make deploy` |
+| 启动/停止服务 | `make start` / `make stop` |
 | 重启服务 | `make restart` |
 | 查看状态 | `make status` |
 | 持续查看日志 | `make logs` |
+| 检查健康状态 | `make verify` |
 
 ARM64 控制面部署到 43 服务器的 `/gcs-distill`。910A 环境验收项目、数据集、流水线创建、任务提交、状态同步、日志、取消和删除；运行镜像允许因模型或芯片不兼容进入失败终态。现场 910B3 再用适配镜像验证真实推理、训练和评测结果。
 
@@ -151,21 +153,18 @@ systemd 部署方式与 `gcs-v2` 保持一致：
 
 ```bash
 make deploy
-make status-service
-make logs-service
+make status
+make logs
+make verify
 ```
 
 `make deploy` 会按顺序执行：
 
 ```text
-swagger -> server build -> install systemd unit -> enable service -> restart service
+swagger -> server build -> install dynamic systemd unit -> restart service -> health check
 ```
 
-默认服务文件假设仓库位于 `/root/go/src/gcs-distill`，服务启动命令为：
-
-```text
-/root/go/src/gcs-distill/bin/gcs-distill-server --config /root/go/src/gcs-distill/config.toml
-```
+systemd 使用执行 `make install` 时的真实绝对目录作为 `WorkingDirectory` 和 `ExecStart`。安装只注册 unit，不复制二进制或配置；目录移动或改名后需重新执行 `make install`。
 
 默认配置会尽量复用 GCS 系列统一服务：MySQL 使用同一个 `ai_market`，GCS 地址指向同一个 `gcs-v2`，学生基模从全域只读目录 `/storage-root-jfs/train-base-models` 选择。用户级稳定目录由 `gcs-s3` 在注册时创建，`gcs-distill` 运行工作区位于 `/storage-root-jfs/user-{uid}/train-center/model-distill`，前端可选数据集位于 `datasets/candidates`，上传数据集位于 `datasets/uploaded`。如果生产环境不希望在 `config.toml` 直接写数据库密码，可以清空 `database.password`，设置 `database.password_env = "AI_MARKET_DB_PASSWORD"`，并创建 `/etc/gcs-distill/gcs-distill.env`：
 
@@ -173,7 +172,7 @@ swagger -> server build -> install systemd unit -> enable service -> restart ser
 AI_MARKET_DB_PASSWORD=your-password
 ```
 
-EasyDistill runtime 镜像不在本仓库构建，Dockerfile 应放在 EasyDistill 或专门的镜像发布仓库。`executor.runtime_image` 只是提交给 `gcs-v2` 的镜像引用；镜像应提前构建并推送到 worker 节点可拉取的 registry。执行时链路为：
+源码仓库只保存 EasyDistill Ascend 镜像的构建、导出、加载和测试脚本，不提交镜像归档。`executor.runtime_image` 是提交给 `gcs-v2` 的镜像引用；在线环境可使用 registry，离线现场则在每台可调度 worker 执行 `offline` 中的 `make load-image`。执行链路为：
 
 ```text
 gcs-distill config/runtime_image -> gcs-v2 container job -> gcs-info-catch-v2 docker pull/run

@@ -50,6 +50,11 @@ temp/
 /arm64/out/
 /arm64/*.tar
 /arm64/*.tar.gz
+/offline/bin/
+/offline/config.toml
+/offline/BUILD-INFO.json
+/offline/logs/
+/offline/images/*.tar
 
 # Generated protobuf files (optional, can be committed)
 # *.pb.go
