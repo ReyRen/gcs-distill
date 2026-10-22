@@ -14,7 +14,6 @@ port = 3306
 name = "ai_market"
 user = "root"
 password_env = "GCS_DISTILL_DB_PASSWORD"
-password_env = ""
 max_open_conns = 20
 max_idle_conns = 5
 conn_max_lifetime_seconds = 300

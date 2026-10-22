@@ -12,7 +12,7 @@
 - 数据镜像：`gcs/distill-data:2.0.0-aeb8ca3-x86_64`，ID `sha256:3ea860dcd708835a18b81d1a7d3d9f38e94f57e1ca6b3217a5aef0127a44b181`。
 - 训练镜像：`gcs/distill-trainer:0.9.3-cu124-x86_64`，ID `sha256:7f92fac4d0c2576f3ed21301b6bbcc1408bcd4a619f36982629fc5200fc4e89f`；PyTorch 2.6.0 / CUDA 12.4。
 - 二进制、镜像归档、依赖锁文件的最终校验值以离线包 `manifest.json` 和 `SHA256SUMS` 为准。worker 使用原生 Linux amd64、CGO/NVML，glibc 最低 2.31；没有使用 Ascend 构建标签。
-- 三个仓库仅本地提交，未推送 GitHub。worker 发布增加 NVML 进程计数和采集时间，不包含工作区已有的推理模块修改。
+- 三个仓库发布到 GitHub `main`：`ReyRen/gcs-distill`、`ReyRen/gcs-v2`、`ReyRen/gcs-info-catch-v2`。worker 发布增加 NVML 进程计数和采集时间，不包含工作区已有的推理模块修改。
 
 ## 实际通过的检查
 

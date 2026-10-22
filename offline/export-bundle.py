@@ -64,7 +64,7 @@ for role, src, tag in [('data', a.data_image, 'gcs/distill-data:2.0.0-aeb8ca3-x8
     prefix = '/opt/easydistill' if role == 'data' else '/opt/llamafactory'
     lock = subprocess.check_output(['docker','run','--rm','--pull=never','--network','none',tag,'cat',prefix+'/runtime-requirements.lock'])
     (root / 'locks' / (role+'-requirements.lock')).write_bytes(lock)
-(root / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+(root / 'manifest.json').write_bytes((json.dumps(manifest, indent=2) + '\n').encode('utf-8'))
 checks = [sha(f) + '  ' + f.relative_to(root).as_posix() for f in sorted(root.rglob('*')) if f.is_file()]
-(root / 'SHA256SUMS').write_text('\n'.join(checks) + '\n')
+(root / 'SHA256SUMS').write_bytes(('\n'.join(checks) + '\n').encode('ascii'))
 print('OFFLINE_BUNDLE_READY', root)

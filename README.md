@@ -15,6 +15,17 @@ teacher_config → dataset_build → distill_data → dataset_export → [studen
 - [离线部署与基础环境](offline/README.md)
 - [OpenAPI](server/apidocs/swagger/openapi.json)，服务入口 `/swagger/`
 
+现有 x86 联调环境部署在 `172.18.29.80`，前端可直接使用：
+
+| 用途 | 地址 |
+|---|---|
+| Swagger 页面，展开接口后可使用 Try it out | [接口展示](http://172.18.29.80:8080/swagger/index.html) |
+| OpenAPI，可导入 Apifox/Postman | [接口定义](http://172.18.29.80:8080/swagger/openapi.json) |
+| API 基础地址 | `http://172.18.29.80:8080/api/v1` |
+| 健康检查 | [health](http://172.18.29.80:8080/health) |
+
+先读取 `/workflows`、`/runtime`、`/models/student` 和 `/resources/available` 初始化表单。资源提交前调用 `/resources/validate`；创建任务为 pending，需另调 start。用户 UID 从平台登录态取得，项目、数据集与任务的详细对接规则见前端交接文档。
+
 ```sh
 go test ./...
 make build
