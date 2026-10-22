@@ -1069,7 +1069,7 @@
           },
           "path": {
             "description": "Full path to model directory",
-            "example": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct",
+            "example": "/storage-root-jfs/user-369/train-center/model-distill/models/base/Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
           "readiness_error": {
@@ -1115,7 +1115,7 @@
           },
           "model_path": {
             "description": "Resolved local model path. Frontend should not hand-type it; backend fills it from model_id. Kept for backward compatibility.",
-            "example": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct",
+            "example": "/storage-root-jfs/user-369/train-center/model-distill/models/base/Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
           "provider_type": {
@@ -1717,7 +1717,19 @@
     },
     "/api/v1/models/student": {
       "get": {
-        "description": "Get all available student models from the configured models directory",
+        "description": "只访问 /storage-root-jfs/user-{uid}/train-center/model-distill/models/base；不回退到公共模型池，禁止跨用户路径和符号链接。",
+        "parameters": [
+          {
+            "description": "当前用户 UID；仅访问该用户的私有基模目录。",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1728,6 +1740,9 @@
               }
             },
             "description": "Student model list"
+          },
+          "400": {
+            "description": "uid 缺失或无效"
           }
         },
         "summary": "List student models",
@@ -1738,7 +1753,7 @@
     },
     "/api/v1/models/student/{id}": {
       "get": {
-        "description": "Get details of a specific student model by ID",
+        "description": "只访问 /storage-root-jfs/user-{uid}/train-center/model-distill/models/base；不回退到公共模型池，禁止跨用户路径和符号链接。",
         "parameters": [
           {
             "description": "Model directory name under storage.models_base_path",
@@ -1748,6 +1763,16 @@
             "schema": {
               "example": "Qwen2.5-0.5B-Instruct",
               "type": "string"
+            }
+          },
+          {
+            "description": "当前用户 UID；仅访问该用户的私有基模目录。",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
             }
           }
         ],
@@ -1761,6 +1786,9 @@
               }
             },
             "description": "Student model details"
+          },
+          "400": {
+            "description": "uid 缺失或无效"
           },
           "404": {
             "content": {

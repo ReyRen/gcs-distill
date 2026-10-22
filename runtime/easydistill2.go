@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
+	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/types"
 	"github.com/goccy/go-yaml"
 	"github.com/google/uuid"
@@ -402,10 +403,8 @@ func normalizeImageReferences(rows []map[string]interface{}, base, userRoot stri
 
 func (e *StageExecutor) prepareDataset2(ctx context.Context, stage *types.StageRun, project *types.Project, p *types.PipelineRun) error {
 	root := e.configGen.GetRunWorkspace(p.UID, project.ID, p.ID)
-	for _, dir := range []string{"configs", "data/seed", "data/intermediate", "data/exported", "models/checkpoints", "logs"} {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0755); err != nil {
-			return err
-		}
+	if err := e.prepareRunDirectories(p.UID, root); err != nil {
+		return err
 	}
 	dataset, err := e.datasetRepo.GetByID(ctx, p.DatasetID)
 	if err != nil {
@@ -566,7 +565,7 @@ func (g *ConfigGenerator) BuildTrainerConfig(project *types.Project, p *types.Pi
 	}
 	cfg := map[string]interface{}{"model_name_or_path": w.StudentModel.ModelPath, "trust_remote_code": true, "stage": stage, "do_train": true,
 		"finetuning_type": w.FinetuningType, "dataset": "gcs_distilled", "dataset_dir": filepath.Join(root, "configs"), "template": w.ModelTemplate,
-		"output_dir": filepath.Join(root, "models", "checkpoints"), "overwrite_output_dir": false, "report_to": "none", "plot_loss": true,
+		"output_dir": filepath.Join(root, "models", "checkpoints"), "logging_dir": filepath.Join(root, "logs", "student_train", "trainer"), "overwrite_output_dir": false, "report_to": "none", "plot_loss": true,
 		"num_train_epochs": train.NumTrainEpochs, "per_device_train_batch_size": train.PerDeviceTrainBatchSize, "gradient_accumulation_steps": train.GradientAccumulationSteps,
 		"learning_rate": train.LearningRate, "cutoff_len": train.MaxLength, "logging_steps": train.LoggingSteps, "save_steps": train.SaveSteps, "fp16": true, "flash_attn": "sdpa", "save_safetensors": true}
 	cfg["weight_decay"] = train.WeightDecay
@@ -582,6 +581,18 @@ func (g *ConfigGenerator) BuildTrainerConfig(project *types.Project, p *types.Pi
 
 func (e *StageExecutor) executeStudentTrain2(ctx context.Context, stage *types.StageRun, project *types.Project, p *types.PipelineRun) error {
 	w := p.TrainingConfig.Distillation
+	if w == nil || w.StudentModel == nil || w.StudentModel.ModelID == "" {
+		return fmt.Errorf("student model is required")
+	}
+	storage := config.StorageConfig{RootPath: e.configGen.storageRoot}
+	base, err := storage.UserStudentModels(p.UID)
+	if err != nil {
+		return err
+	}
+	modelPath, err := SafeArtifactPath(base, w.StudentModel.ModelID)
+	if err != nil || modelPath != w.StudentModel.ModelPath {
+		return fmt.Errorf("student model must belong to the current user's private catalog")
+	}
 	cfg, datasets, err := e.configGen.BuildTrainerConfig(project, p)
 	if err != nil {
 		return err

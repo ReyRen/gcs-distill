@@ -17,9 +17,10 @@ func init() {
 	})
 }
 
-func TestModelServiceListsStudentsFromSharedBasePath(t *testing.T) {
+func TestModelServiceListsStudentsFromUserBasePath(t *testing.T) {
 	ctx := context.Background()
-	basePath := t.TempDir()
+	storage := config.StorageConfig{RootPath: t.TempDir()}
+	basePath, _ := storage.UserStudentModels(380)
 	validPath := filepath.Join(basePath, "Qwen2.5-0.5B-Instruct")
 	invalidPath := filepath.Join(basePath, "missing-config")
 
@@ -27,15 +28,15 @@ func TestModelServiceListsStudentsFromSharedBasePath(t *testing.T) {
 	mustWriteModelFile(t, filepath.Join(validPath, "config.json"), []byte(`{"model_type":"qwen2"}`))
 	mustMkdirAll(t, invalidPath)
 
-	svc := NewModelService(&config.StorageConfig{ModelsBasePath: basePath})
+	svc := NewModelService(&storage)
 
-	studentModels, err := svc.ListStudentModels(ctx)
+	studentModels, err := svc.ListStudentModels(ctx, 380)
 	if err != nil {
 		t.Fatalf("ListStudentModels() error = %v", err)
 	}
 	assertSingleModel(t, studentModels, "Qwen2.5-0.5B-Instruct", validPath)
 
-	studentModel, err := svc.GetStudentModel(ctx, "Qwen2.5-0.5B-Instruct")
+	studentModel, err := svc.GetStudentModel(ctx, 380, "Qwen2.5-0.5B-Instruct")
 	if err != nil {
 		t.Fatalf("GetStudentModel() error = %v", err)
 	}
@@ -43,15 +44,25 @@ func TestModelServiceListsStudentsFromSharedBasePath(t *testing.T) {
 		t.Fatalf("GetStudentModel() path = %q, want %q", studentModel.Path, validPath)
 	}
 
-	if _, err := svc.GetStudentModel(ctx, "../Qwen2.5-0.5B-Instruct"); err == nil {
+	if _, err := svc.GetStudentModel(ctx, 380, "../Qwen2.5-0.5B-Instruct"); err == nil {
 		t.Fatalf("GetStudentModel() expected path traversal error")
+	}
+	if other, err := svc.ListStudentModels(ctx, 381); err != nil || len(other) != 0 {
+		t.Fatalf("another user saw private models: %v %v", other, err)
+	}
+	if _, err := svc.GetStudentModel(ctx, 381, "Qwen2.5-0.5B-Instruct"); err == nil {
+		t.Fatal("another user resolved a private model")
+	}
+	if _, err := svc.ListStudentModels(ctx, 0); err == nil {
+		t.Fatal("missing UID accepted")
 	}
 }
 
 func TestModelServiceValidateStudentModelRejectsSiblingPrefixPath(t *testing.T) {
 	ctx := context.Background()
 	root := t.TempDir()
-	basePath := filepath.Join(root, "models")
+	storage := config.StorageConfig{RootPath: root}
+	basePath, _ := storage.UserStudentModels(380)
 	validPath := filepath.Join(basePath, "valid")
 	siblingPath := filepath.Join(root, "models-extra", "invalid")
 
@@ -63,13 +74,16 @@ func TestModelServiceValidateStudentModelRejectsSiblingPrefixPath(t *testing.T) 
 	mustMkdirAll(t, siblingPath)
 	mustWriteModelFile(t, filepath.Join(siblingPath, "config.json"), []byte(`{}`))
 
-	svc := NewModelService(&config.StorageConfig{ModelsBasePath: basePath})
+	svc := NewModelService(&storage)
 
-	if err := svc.ValidateStudentModel(ctx, validPath); err != nil {
+	if err := svc.ValidateStudentModel(ctx, 380, validPath); err != nil {
 		t.Fatalf("ValidateStudentModel(valid) error = %v", err)
 	}
-	if err := svc.ValidateStudentModel(ctx, siblingPath); err == nil {
+	if err := svc.ValidateStudentModel(ctx, 380, siblingPath); err == nil {
 		t.Fatalf("ValidateStudentModel(sibling) expected boundary error")
+	}
+	if err := svc.ValidateStudentModel(ctx, 381, validPath); err == nil {
+		t.Fatal("another user's model path accepted")
 	}
 }
 

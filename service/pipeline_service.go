@@ -149,6 +149,14 @@ func (s *pipelineService) StartPipeline(ctx context.Context, id string) error {
 	if p.TrainingConfig.Distillation == nil {
 		return newValidationError("旧版任务已停用，请创建 EasyDistill 2 任务")
 	}
+	if w := p.TrainingConfig.Distillation; w.TrainStudent {
+		if s.modelSvc == nil || w.StudentModel == nil {
+			return newValidationError("学生模型目录服务不可用")
+		}
+		if err := s.modelSvc.ValidateStudentModel(ctx, p.UID, w.StudentModel.ModelPath); err != nil {
+			return newValidationError("学生基模不可用，请重新选择当前用户基模并创建任务: " + err.Error())
+		}
+	}
 	if s.resources != nil {
 		if err := s.resources.Validate(ctx, &p.ResourceRequest, p.TrainingConfig.Distillation.TrainStudent, false); err != nil {
 			return newValidationError(err.Error())
@@ -265,10 +273,10 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 		}
 		student := w.StudentModel
 		if student.ModelID == "" {
-			return newValidationError("请从共享模型池选择学生基模 ID")
+			return newValidationError("请从当前用户模型目录选择学生基模 ID")
 		}
 		if student.ModelID != "" {
-			model, err := s.modelSvc.GetStudentModel(ctx, student.ModelID)
+			model, err := s.modelSvc.GetStudentModel(ctx, pipeline.UID, student.ModelID)
 			if err != nil {
 				return newValidationError("学生基模不存在")
 			}
@@ -279,7 +287,7 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 		if w.ModelTemplate == "" {
 			_, _, w.ModelTemplate = modelCapabilities(student.ModelPath)
 		}
-		if err := s.modelSvc.ValidateStudentModel(ctx, student.ModelPath); err != nil {
+		if err := s.modelSvc.ValidateStudentModel(ctx, pipeline.UID, student.ModelPath); err != nil {
 			return newValidationError(err.Error())
 		}
 		if strings.HasPrefix(w.JobType, "mm_") {

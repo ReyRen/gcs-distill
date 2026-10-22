@@ -34,6 +34,6 @@ GCS_DISTILL_DB_PASSWORD=... bin/gcs-distill-server --config config.toml
 
 内部 API 必须位于可信平台认证网关之后。UID 来自登录态，任务、阶段、日志和下载均校验归属。不得允许外部用户任意伪造 UID。
 
-用户目录为 `/storage-root-jfs/user-{uid}/train-center/model-distill`，只读学生基模池为 `/storage-root-jfs/train-base-models`。含密钥配置不作为产物开放。运行时禁止拉取镜像、模型或安装依赖；缺少镜像时明确报错。
+用户目录为 `/storage-root-jfs/user-{uid}/train-center/model-distill`，用户私有学生基模目录为 `/storage-root-jfs/user-{uid}/train-center/model-distill/models/base`。含密钥配置不作为产物开放。运行时禁止拉取镜像、模型或安装依赖；缺少镜像时明确报错。
 
 EasyDistill 固定提交 `aeb8ca3eab8b2a82f754c01c3d1f59ad276268c3`；LLaMA-Factory 固定提交 `ca75f1edf3cb50343ed1c98605141c3e22075b5f`。构建阶段可联网，现场通过完整镜像归档部署。学生效果评估由独立测评模块完成，数据评分不代表模型效果。

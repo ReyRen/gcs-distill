@@ -64,9 +64,8 @@ func (c DatabaseConfig) ConnMaxLifetime() time.Duration {
 }
 
 type StorageConfig struct {
-	Type           string
-	RootPath       string
-	ModelsBasePath string
+	Type     string
+	RootPath string
 }
 
 type GCSConfig struct {
@@ -144,9 +143,8 @@ func Default() *Config {
 			ConnMaxLifetimeSeconds: 300,
 		},
 		Storage: StorageConfig{
-			Type:           "nfs",
-			RootPath:       "/storage-root-jfs",
-			ModelsBasePath: "/storage-root-jfs/train-base-models",
+			Type:     "nfs",
+			RootPath: "/storage-root-jfs",
 		},
 		GCS:         GCSConfig{BaseURL: "http://172.18.29.80:8072/api/v1", TimeoutSeconds: 10},
 		ModelCenter: GCSConfig{BaseURL: "http://172.18.29.80:8090/api/v1", TimeoutSeconds: 10},
@@ -195,9 +193,6 @@ func validate(config *Config) error {
 	if config.Storage.RootPath == "" {
 		return fmt.Errorf("storage.root_path must not be empty")
 	}
-	if config.Storage.ModelsBasePath == "" {
-		return fmt.Errorf("storage.models_base_path must not be empty")
-	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
 	if !validLogLevels[config.Logging.Level] {
@@ -208,7 +203,6 @@ func validate(config *Config) error {
 
 func normalizeStorage(storage *StorageConfig) {
 	storage.RootPath = strings.TrimRight(strings.TrimSpace(storage.RootPath), "/")
-	storage.ModelsBasePath = strings.TrimRight(strings.TrimSpace(storage.ModelsBasePath), "/")
 }
 
 func (s StorageConfig) UserRoot(uid int) (string, error) {
@@ -236,6 +230,14 @@ func (s StorageConfig) UserDatasetsBase(uid int) (string, error) {
 		return "", err
 	}
 	return filepath.Join(base, "datasets"), nil
+}
+
+func (s StorageConfig) UserStudentModels(uid int) (string, error) {
+	base, err := s.UserModelDistillBase(uid)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "models", "base"), nil
 }
 
 func (s StorageConfig) UserDatasetCandidates(uid int) (string, error) {
@@ -296,8 +298,6 @@ func applyValue(cfg *Config, section, key, value string) error {
 		cfg.Storage.Type = value
 	case "storage.root_path":
 		cfg.Storage.RootPath = value
-	case "storage.models_base_path":
-		cfg.Storage.ModelsBasePath = value
 	case "gcs.base_url":
 		cfg.GCS.BaseURL = strings.TrimRight(value, "/")
 	case "gcs.timeout_seconds":

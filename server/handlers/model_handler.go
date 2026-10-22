@@ -21,7 +21,11 @@ func NewModelHandler(modelSvc service.ModelService) *ModelHandler {
 
 // ListStudentModels 列出所有可用的学生模型
 func (h *ModelHandler) ListStudentModels(c *gin.Context) {
-	models, err := h.modelSvc.ListStudentModels(c.Request.Context())
+	uid, ok := requireUIDQuery(c)
+	if !ok {
+		return
+	}
+	models, err := h.modelSvc.ListStudentModels(c.Request.Context(), uid)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    http.StatusInternalServerError,
@@ -39,6 +43,10 @@ func (h *ModelHandler) ListStudentModels(c *gin.Context) {
 
 // GetStudentModel 获取指定学生模型信息
 func (h *ModelHandler) GetStudentModel(c *gin.Context) {
+	uid, ok := requireUIDQuery(c)
+	if !ok {
+		return
+	}
 	modelID := c.Param("id")
 	if modelID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -48,7 +56,7 @@ func (h *ModelHandler) GetStudentModel(c *gin.Context) {
 		return
 	}
 
-	model, err := h.modelSvc.GetStudentModel(c.Request.Context(), modelID)
+	model, err := h.modelSvc.GetStudentModel(c.Request.Context(), uid, modelID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    http.StatusNotFound,

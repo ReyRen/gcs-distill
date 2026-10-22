@@ -88,3 +88,22 @@ func TestArchivedLogsSurviveContainerRemoval(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 }
+
+func TestControlStageLogsAreAvailableWithoutContainer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	storage := config.StorageConfig{RootPath: t.TempDir()}
+	p := &types.PipelineRun{UID: 369, ID: "run", ProjectID: "project"}
+	root := runtime.NewConfigGenerator(storage.RootPath).GetRunWorkspace(p.UID, p.ProjectID, p.ID)
+	logDir := filepath.Join(root, "logs", "teacher_config")
+	os.MkdirAll(logDir, 0750)
+	os.WriteFile(filepath.Join(logDir, "events.log"), []byte("started\nsucceeded\n"), 0600)
+	stage := &types.StageRun{ID: "stage", PipelineRunID: p.ID, LogPath: logDir}
+	h := NewPipelineHandler(artifactPipeline{pipeline: p, stage: stage}, gcsclient.NewClient("http://unused", time.Second), storage)
+	r := gin.New()
+	r.GET("/pipelines/:id/stages/:stage_id/logs/download", h.DownloadStageLogs)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("GET", "/pipelines/run/stages/stage/logs/download", nil))
+	if w.Code != 200 || w.Body.String() != "started\nsucceeded\n" {
+		t.Fatal(w.Code, w.Body.String())
+	}
+}

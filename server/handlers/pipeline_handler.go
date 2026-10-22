@@ -243,7 +243,7 @@ func (h *PipelineHandler) StreamStageLogsWebSocket(c *gin.Context) {
 	}
 
 	tail := c.DefaultQuery("tail", "100")
-	if stage.Status == types.StatusSucceeded || stage.Status == types.StatusFailed || stage.Status == types.StatusCanceled {
+	if stage.ContainerID == "" || stage.Status == types.StatusSucceeded || stage.Status == types.StatusFailed || stage.Status == types.StatusCanceled {
 		logs, err := h.readStageLogs(c, stage, containerName, tail)
 		if err != nil {
 			c.JSON(404, gin.H{"code": 404, "message": "日志暂不可用"})
@@ -326,7 +326,7 @@ func (h *PipelineHandler) stageLogFile(c *gin.Context, stage *types.StageRun) (s
 		return "", err
 	}
 	root := runtime.NewConfigGenerator(h.storage.RootPath).GetRunWorkspace(p.UID, p.ProjectID, p.ID)
-	for _, name := range []string{"log.txt", "archived.log"} {
+	for _, name := range []string{"log.txt", "archived.log", "events.log"} {
 		rel, err := filepath.Rel(root, filepath.Join(stage.LogPath, name))
 		if err != nil {
 			continue
@@ -396,6 +396,9 @@ func (h *PipelineHandler) stageLogTarget(c *gin.Context) (*types.StageRun, strin
 	}
 
 	if stage.ContainerID == "" {
+		if _, err := h.stageLogFile(c, stage); err == nil {
+			return stage, "", true
+		}
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    http.StatusNotFound,
 			"message": "阶段容器尚未创建，日志暂不可用",

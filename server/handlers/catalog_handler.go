@@ -45,7 +45,7 @@ func (h *WorkflowHandler) RuntimeCatalog(c *gin.Context) {
 	c.JSON(200, gin.H{"code": 200, "data": gin.H{"architecture": "linux/amd64", "offline": true, "image_pull_policy": "never",
 		"data_image": h.executor.RuntimeImage, "trainer_images": []string{h.executor.TrainerImage}, "data_workers": h.executor.DataWorkers,
 		"finetuning_types": []string{"lora", "full"}, "model_templates": []string{"qwen", "llama3", "deepseek", "gemma", "mistral", "qwen2_vl"},
-		"training_scope": "single_node_multi_gpu", "max_training_nodes": 1, "resource_selection": "explicit", "deferred_gpu_allocation": true, "weights_source": "local_shared_model_pool", "model_evaluation": "separate_module"}})
+		"training_scope": "single_node_multi_gpu", "max_training_nodes": 1, "resource_selection": "explicit", "deferred_gpu_allocation": true, "weights_source": "user_private_model_pool", "model_evaluation": "separate_module"}})
 }
 
 // Scope all operations on a pipeline, including logs and WebSockets, to its UID.

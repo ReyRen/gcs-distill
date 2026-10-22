@@ -89,12 +89,16 @@ func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *typ
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(datasetDir, 0o755); err != nil {
+	relativeDir, err := filepath.Rel(s.storage().RootPath, datasetDir)
+	if err != nil {
+		return err
+	}
+	if _, err := runtime.EnsureStorageDir(s.storage().RootPath, relativeDir); err != nil {
 		return fmt.Errorf("创建数据集目录失败: %w", err)
 	}
 
 	dataset.FilePath = filepath.Join(datasetDir, safeFilename)
-	targetFile, err := os.Create(dataset.FilePath)
+	targetFile, err := os.OpenFile(dataset.FilePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return fmt.Errorf("创建数据集文件失败: %w", err)
 	}
@@ -430,7 +434,16 @@ func (s *datasetService) datasetBasePath(uid int) (string, error) {
 }
 
 func (s *datasetService) datasetCandidatesPath(uid int) (string, error) {
-	return s.storage().UserDatasetCandidates(uid)
+	storage := s.storage()
+	path, err := storage.UserDatasetCandidates(uid)
+	if err != nil {
+		return "", err
+	}
+	rel, err := filepath.Rel(storage.RootPath, path)
+	if err != nil {
+		return "", err
+	}
+	return runtime.EnsureStorageDir(storage.RootPath, rel)
 }
 
 func (s *datasetService) datasetUploadsPath(uid int) (string, error) {

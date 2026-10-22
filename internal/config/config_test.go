@@ -32,7 +32,6 @@ conn_max_lifetime_seconds = 600
 [storage]
 type = "nfs"
 root_path = "/mnt/shared"
-models_base_path = "/mnt/shared/train-base-models"
 
 [gcs]
 base_url = "http://gcs-v2:8072/api/v1/"
@@ -74,9 +73,6 @@ runtime_image = "easy-distill/easydistill:test"
 	if cfg.Storage.RootPath != "/mnt/shared" {
 		t.Fatalf("storage root path = %q", cfg.Storage.RootPath)
 	}
-	if cfg.Storage.ModelsBasePath != "/mnt/shared/train-base-models" {
-		t.Fatalf("models base path = %q", cfg.Storage.ModelsBasePath)
-	}
 	if cfg.Executor.RuntimeImage != "easy-distill/easydistill:test" {
 		t.Fatalf("runtime image = %q", cfg.Executor.RuntimeImage)
 	}
@@ -96,6 +92,9 @@ func TestStorageConfigBuildsUserModelDistillPaths(t *testing.T) {
 	}
 	if _, err := cfg.UserRoot(0); err == nil {
 		t.Fatal("UserRoot(0) error = nil, want uid validation error")
+	}
+	if got, err := cfg.UserStudentModels(380); err != nil || got != filepath.Clean("/mnt/shared/user-380/train-center/model-distill/models/base") {
+		t.Fatalf("UserStudentModels() = %q, %v", got, err)
 	}
 }
 
@@ -133,9 +132,6 @@ func TestDefaultUsesSharedGCSServiceConfig(t *testing.T) {
 	}
 	if cfg.Storage.RootPath != "/storage-root-jfs" {
 		t.Fatalf("storage root path = %q", cfg.Storage.RootPath)
-	}
-	if cfg.Storage.ModelsBasePath != "/storage-root-jfs/train-base-models" {
-		t.Fatalf("models base path = %q", cfg.Storage.ModelsBasePath)
 	}
 	if cfg.Executor.RuntimeImage != "gcs/distill-data:2.0.0-aeb8ca3-x86_64" {
 		t.Fatalf("runtime image = %q, want external EasyDistill image reference", cfg.Executor.RuntimeImage)

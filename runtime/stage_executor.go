@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"os"
@@ -39,7 +40,40 @@ func NewStageExecutor(storageRoot string, datasetRepo mysqlrepo.DatasetRepositor
 	return &StageExecutor{configGen: NewConfigGenerator(storageRoot), datasetRepo: datasetRepo, stageRepo: stageRepo, pipelineRepo: pipelineRepo, gcsClient: gcsClient, runtimeImage: runtimeImage, dataWorkers: workers}
 }
 
-func (e *StageExecutor) ExecuteStage(ctx context.Context, stage *types.StageRun, pipeline *types.PipelineRun, project *types.Project) error {
+func (e *StageExecutor) ExecuteStage(ctx context.Context, stage *types.StageRun, pipeline *types.PipelineRun, project *types.Project) (resultErr error) {
+	if pipeline.UID <= 0 || pipeline.UID != project.UID || pipeline.ProjectID != project.ID {
+		return fmt.Errorf("stage workspace ownership mismatch")
+	}
+	root := e.configGen.GetRunWorkspace(pipeline.UID, project.ID, pipeline.ID)
+	if err := e.prepareRunDirectories(pipeline.UID, root); err != nil {
+		return err
+	}
+	stage.LogPath = filepath.Join(root, "logs", string(stage.StageType))
+	if filepath.Base(string(stage.StageType)) != string(stage.StageType) || strings.Contains(string(stage.StageType), "..") {
+		return fmt.Errorf("invalid stage log directory")
+	}
+	relativeLogPath, err := filepath.Rel(e.configGen.storageRoot, stage.LogPath)
+	if err != nil {
+		return err
+	}
+	if _, err := EnsureStorageDir(e.configGen.storageRoot, relativeLogPath); err != nil {
+		return err
+	}
+	if err := appendStageEvent(stage, "started", nil); err != nil {
+		return err
+	}
+	defer func() {
+		status := "succeeded"
+		if resultErr != nil {
+			status = "failed"
+			if resultErr == context.Canceled {
+				status = "canceled"
+			}
+		}
+		if err := appendStageEvent(stage, status, resultErr); err != nil && resultErr == nil {
+			resultErr = fmt.Errorf("persist stage log: %w", err)
+		}
+	}()
 	w := pipeline.TrainingConfig.Distillation
 	if w == nil {
 		return fmt.Errorf("retired workflow: create an EasyDistill 2 task")
@@ -67,6 +101,57 @@ func (e *StageExecutor) ExecuteStage(ctx context.Context, stage *types.StageRun,
 	default:
 		return fmt.Errorf("unsupported stage: %s", stage.StageType)
 	}
+}
+
+func appendStageEvent(stage *types.StageRun, status string, stageErr error) error {
+	if err := os.MkdirAll(stage.LogPath, 0750); err != nil {
+		return err
+	}
+	event := map[string]interface{}{"time": time.Now().UTC().Format(time.RFC3339Nano), "stage": stage.StageType, "status": status}
+	if stageErr != nil {
+		event["error"] = stageErr.Error()
+	}
+	data, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(stage.LogPath, "events.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(append(data, '\n'))
+	closeErr := f.Close()
+	if err != nil {
+		return err
+	}
+	return closeErr
+}
+
+func (e *StageExecutor) prepareRunDirectories(uid int, root string) error {
+	userRoot := filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", uid))
+	rel, err := filepath.Rel(userRoot, root)
+	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		return fmt.Errorf("run workspace must belong to the current user")
+	}
+	for _, dir := range []string{"configs", "data/seed", "data/intermediate", "data/exported", "models/checkpoints", "logs", "cache/home", "cache/huggingface/datasets", "cache/torch", "cache/torch_extensions", "cache/triton", "cache/matplotlib", "tmp"} {
+		path := filepath.Join(root, filepath.FromSlash(dir))
+		relative, err := filepath.Rel(e.configGen.storageRoot, path)
+		if err != nil {
+			return err
+		}
+		if _, err := EnsureStorageDir(e.configGen.storageRoot, relative); err != nil {
+			return err
+		}
+	}
+	return os.Chmod(filepath.Join(root, "configs"), 0700)
+}
+
+func containerCacheEnv(root string) string {
+	values := []string{"HOME=" + filepath.Join(root, "cache", "home"), "TMPDIR=" + filepath.Join(root, "tmp")}
+	for _, item := range [][2]string{{"HF_HOME", "huggingface"}, {"HF_DATASETS_CACHE", "huggingface/datasets"}, {"TORCH_HOME", "torch"}, {"TORCH_EXTENSIONS_DIR", "torch_extensions"}, {"TRITON_CACHE_DIR", "triton"}, {"MPLCONFIGDIR", "matplotlib"}, {"XDG_CACHE_HOME", "."}} {
+		values = append(values, item[0]+"="+filepath.Join(root, "cache", filepath.FromSlash(item[1])))
+	}
+	return strings.Join(values, ";")
 }
 
 func stageContainerName(pipelineID string, stageType types.StageType) string {
@@ -149,6 +234,9 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 	if req.TaskUID <= 0 {
 		return "", fmt.Errorf("container task uid is required")
 	}
+	if err := e.prepareRunDirectories(req.TaskUID, workDir); err != nil {
+		return "", err
+	}
 	configPath := strings.TrimSpace(req.ConfigPath)
 	if configPath == "" {
 		return "", fmt.Errorf("config path is required")
@@ -184,7 +272,7 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 		Args:              args,
 		WorkingDir:        workDir,
 		LogPath:           req.LogPath,
-		Envs:              "GCS_APPLICATION=gcs-distill;HF_HUB_OFFLINE=1;TRANSFORMERS_OFFLINE=1;HF_DATASETS_OFFLINE=1;HF_HUB_DISABLE_TELEMETRY=1;PIP_NO_INDEX=1;" + req.Env,
+		Envs:              "GCS_APPLICATION=gcs-distill;HF_HUB_OFFLINE=1;TRANSFORMERS_OFFLINE=1;HF_DATASETS_OFFLINE=1;HF_HUB_DISABLE_TELEMETRY=1;PIP_NO_INDEX=1;" + req.Env + ";" + containerCacheEnv(workDir),
 		WorkerNums:        1,
 		WorkersName:       append([]string(nil), req.WorkersName...),
 		Mounts:            append([]gcsclient.ContainerTaskMount(nil), req.Mounts...),

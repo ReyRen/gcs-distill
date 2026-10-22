@@ -56,3 +56,7 @@ Agent 模拟工具可离线运行，真实外部搜索以及未安装的图像/�
 Agent、图文指令、图文 CoT 已使用真实教师完成数据生产到学生 LoRA 的小样本验收。训练镜像为 `gcs/distill-trainer:0.9.3-cu124-vl-x86_64`，内置 qwen-vl-utils，运行时不安装视觉依赖。图文图片需提前上传到当前用户 JFS，数据导出会把附件保存在独立生成数据集目录。
 
 模型权重不包含在程序/镜像包中，交付时需另外复制模型池及 MODEL_PROVENANCE.json；视觉模型为 Qwen2-VL-2B-Instruct，约 4.43 GB。教师服务也应在客户内网提前部署，验收临时服务不能直接当生产服务。模型准备脚本 `x86/prepare-vision-model.py` 只在有网络的构建环境使用，客户现场使用完整模型目录。新包不会联网下载模型、图片或 Python 依赖。
+
+## 用户私有基模
+
+学生基模从当前用户的 `train-center/model-distill/models/base/{model_id}` 加载，列表与详情均要求 uid。用 `scripts/import-model.py --shared-root /storage-root-jfs --uid 369 --source /offline/models/MODEL` 导入完整模型；不修改原始公共模型池。视觉模型包先离线解压，再按用户导入。导入占用该用户配额；首次导入会创建目录。详细树形目录和日志/缓存位置见 `docs/storage-layout.md`。

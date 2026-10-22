@@ -102,3 +102,35 @@ func SafeArtifactPath(root, relative string) (string, error) {
 	}
 	return path, nil
 }
+
+// EnsureStorageDir creates only real directories under an existing shared root.
+func EnsureStorageDir(root, relative string) (string, error) {
+	if relative == "" || filepath.IsAbs(relative) {
+		return "", fmt.Errorf("relative storage directory required")
+	}
+	clean := filepath.Clean(filepath.FromSlash(relative))
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("storage directory is outside the shared root")
+	}
+	current, err := SafeArtifactPath(root, ".")
+	if err != nil {
+		return "", err
+	}
+	for _, part := range strings.Split(clean, string(os.PathSeparator)) {
+		if part == "." {
+			continue
+		}
+		current = filepath.Join(current, part)
+		if err := os.Mkdir(current, 0750); err != nil && !os.IsExist(err) {
+			return "", err
+		}
+		info, err := os.Lstat(current)
+		if err != nil {
+			return "", err
+		}
+		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+			return "", fmt.Errorf("storage directory cannot contain symlinks or files")
+		}
+	}
+	return current, nil
+}

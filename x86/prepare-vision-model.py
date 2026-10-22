@@ -9,11 +9,15 @@ import requests
 
 parser = argparse.ArgumentParser(description='Online build-host preparation, never called by offline runtime.')
 parser.add_argument('--shared-root', type=Path, default=Path('/storage-root-jfs'))
+parser.add_argument('--uid', type=int, required=True)
 args = parser.parse_args()
+if args.uid <= 0:
+    parser.error('--uid must be positive')
+base = args.shared_root / f'user-{args.uid}/train-center/model-distill/models'
 model = 'Qwen/Qwen2-VL-2B-Instruct'
 api = 'https://modelscope.cn/api/v1/models/' + model
-staging = args.shared_root / '.gcs-distill-imports/Qwen2-VL-2B-Instruct'
-destination = args.shared_root / 'train-base-models/Qwen2-VL-2B-Instruct'
+staging = base / '.imports/Qwen2-VL-2B-Instruct'
+destination = base / 'base/Qwen2-VL-2B-Instruct'
 if destination.exists():
     manifest = json.loads((destination / 'MODEL_PROVENANCE.json').read_text())
     for item in manifest['files']:
@@ -93,5 +97,6 @@ provenance = {'model_id': model, 'source': 'https://modelscope.cn/models/' + mod
               'files': verified, 'license': 'Apache-2.0'}
 (staging / 'MODEL_PROVENANCE.json').write_text(json.dumps(provenance, indent=2) + '\n')
 assert not destination.exists(), 'Model destination already exists; preserve it'
+destination.parent.mkdir(parents=True, exist_ok=True)
 os.rename(staging, destination)
 print('VISION_MODEL_READY', destination, sum(x['bytes'] for x in verified), flush=True)

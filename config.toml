@@ -23,8 +23,7 @@ type = "nfs"
 # Shared JFS root. Per-user paths are derived as:
 #   {root_path}/user-{uid}/train-center/model-distill
 root_path = "/storage-root-jfs"
-# Global read-only base model pool shared with SFT.
-models_base_path = "/storage-root-jfs/train-base-models"
+# Student bases: {root_path}/user-{uid}/train-center/model-distill/models/base/{model_id}
 
 [gcs]
 base_url = "http://172.18.29.80:8072/api/v1"

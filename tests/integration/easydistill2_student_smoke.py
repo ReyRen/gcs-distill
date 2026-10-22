@@ -13,6 +13,8 @@ for name in ['base-url', 'teacher-url', 'worker', 'model-id', 'report']:
 p.add_argument('--uid', type=int, required=True)
 p.add_argument('--gpu', type=int, required=True)
 p.add_argument('--gpus',default='')
+p.add_argument('--jobs', nargs='+', choices=['instruct_distill', 'dpo_data_build'], default=['instruct_distill', 'dpo_data_build'])
+p.add_argument('--keep-records', action='store_true', help='Retain only this acceptance project for follow-up storage verification')
 a = p.parse_args()
 indices=[int(x) for x in a.gpus.split(',')] if a.gpus else [a.gpu]
 base = a.base_url.rstrip('/') + '/api/v1'
@@ -26,7 +28,7 @@ project = req('POST', '/projects', json={'uid': a.uid, 'name': 'EasyDistill 2 �
 seed = '\n'.join(json.dumps({'instruction': 'Explain two plus two, example ' + str(i)}) for i in range(2))
 dataset = req('POST', '/datasets/upload', data={'uid': a.uid, 'name': 'GPU 验收合成数据'}, files={'file': ('seed.jsonl', seed)})
 report = []
-for job in ['instruct_distill', 'dpo_data_build']:
+for job in a.jobs:
     body = {'uid': a.uid, 'project_id': project['id'], 'dataset_id': dataset['id'],
             'training_config': {'num_train_epochs': 1, 'per_device_train_batch_size': 1, 'gradient_accumulation_steps': 1,
                                 'learning_rate': 0.0001, 'max_length': 128, 'logging_steps': 1, 'save_steps': 100,
@@ -58,9 +60,10 @@ for job in ['instruct_distill', 'dpo_data_build']:
     report.append({'job_type': job, 'pipeline_id': runid, 'output_dataset_id': current['summary']['output_dataset_id'], 'gpus': indices,
                    'weights_bytes': z.getinfo('adapter_model.safetensors').file_size, 'status': 'passed'})
     print(json.dumps(report[-1]), flush=True)
-Path(a.report).write_text(json.dumps({'result': 'EASYDISTILL2_STUDENT_GCS_GPU_OK', 'tests': report}, indent=2))
-req('DELETE', '/projects/' + project['id'])
-req('DELETE', '/datasets/' + dataset['id'])
-for item in report:
-    req('DELETE', '/datasets/' + item['output_dataset_id'])
+Path(a.report).write_text(json.dumps({'result': 'EASYDISTILL2_STUDENT_GCS_GPU_OK', 'project_id': project['id'], 'seed_dataset_id': dataset['id'], 'tests': report}, indent=2))
+if not a.keep_records:
+    req('DELETE', '/projects/' + project['id'])
+    req('DELETE', '/datasets/' + dataset['id'])
+    for item in report:
+        req('DELETE', '/datasets/' + item['output_dataset_id'])
 print('EASYDISTILL2_STUDENT_GCS_GPU_OK', flush=True)

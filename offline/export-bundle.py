@@ -27,7 +27,7 @@ shutil.copytree(str(repo / 'offline/scripts'), str(root / 'scripts'))
 shutil.copy2(str(repo / 'offline/README.md'), str(root / 'README.md'))
 shutil.copy2(str(repo / 'offline/gcs-distill.service.tpl'), str(root / 'gcs-distill.service.tpl'))
 shutil.copy2(str(repo / 'config.toml'), str(root / 'config.example.toml'))
-for src in ['docs/easydistill2-frontend-handoff.md', 'docs/easydistill2-x86-verification-20261022.md', 'server/apidocs/swagger/openapi.json']:
+for src in ['docs/easydistill2-frontend-handoff.md', 'docs/easydistill2-x86-verification-20261022.md', 'docs/storage-layout.md', 'server/apidocs/swagger/openapi.json']:
     shutil.copy2(str(repo / src), str(root / 'docs' / Path(src).name))
 for src in (repo / 'tests/integration').glob('*.py'):
     shutil.copy2(str(src),str(root / 'tests' / src.name))
