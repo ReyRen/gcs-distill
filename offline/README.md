@@ -4,7 +4,7 @@
 
 ## 平台提前准备
 
-1. Linux x86_64、现有 Docker/Swarm 和可附加的 `myNet` 网络。GPU 节点需 NVIDIA 驱动及 Container Toolkit，支持镜像 CUDA 12.4。Docker、驱动、Toolkit、存储客户端属于平台基础环境，平台需按客户操作系统另外准备其离线安装包。
+1. Linux x86_64、现有 Docker 和 worker 的容器网络，须能访问内网教师服务；使用 Swarm overlay 时需允许普通容器附加。沿用平台实际网络，不要求新建名为 myNet 的网络。GPU 节点需 NVIDIA 驱动及 Container Toolkit，支持镜像 CUDA 12.4。Docker、驱动、Toolkit、存储客户端属于平台基础环境，平台需按客户操作系统另外准备其离线安装包。
 2. 控制服务与所有执行节点以相同绝对路径挂载真正共享的存储，允许读写用户目录。平台/gcs-s3 创建用户根目录；distill 按需创建子目录。候选文件放 `datasets/candidates`。
 3. 学生基模完整入库：config、tokenizer 配置、词表及全部权重分片；视觉模型还需要 processor、chat template 等原始配套文件。禁止提交 Hugging Face 仓库名等待下载。LoRA 输出是适配器，使用时需要原始基模；全量训练输出完整权重。
 4. MySQL、Redis、GCS manager/worker、模型中心正常。教师须为 worker 可访问的内网 OpenAI 兼容服务；离线允许访问内网。
@@ -47,6 +47,6 @@ python3 scripts/cleanup-legacy.py --apply --include-previous-v2
 
 ## 验收边界
 
-预检镜像烟测使用 `--network none`。`--model /absolute/shared/model` 验证断网加载 tokenizer/config；`--gpu-device 0` 在指定 GPU 进行最小张量检查。真实训练必须使用已分配且显存充足的 GPU。当前交付已经完成平台单卡和双卡的 SFT、DPO LoRA 验收，具体边界见 `docs/easydistill2-x86-verification-20261022.md`。
+预检镜像烟测使用 `--network none`。`--container-network NAME_OR_ID` 可额外核对实际 worker 网络；`--model /absolute/shared/model` 验证断网加载 tokenizer/config；`--gpu-device 0` 在指定 GPU 进行最小张量检查。真实训练必须使用已分配且显存充足的 GPU。当前交付已经完成平台单卡和双卡的 SFT、DPO LoRA 验收，具体边界见 `docs/easydistill2-x86-verification-20261022.md`。
 
 Agent 模拟工具可离线运行，真实外部搜索以及未安装的图像/视频生成后端未开放。数据质量和学生模型效果分别验收，不伪造 token、成本和模型效果。没有通用断点续跑接口；服务重启后排队任务继续调度，已中断的运行任务标记失败并清理容器，需克隆或新建任务重新执行。

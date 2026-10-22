@@ -10,14 +10,16 @@ p.add_argument('--shared-root', type=Path, required=True)
 p.add_argument('--data-only', action='store_true')
 p.add_argument('--gpu-device')
 p.add_argument('--model', type=Path)
+p.add_argument('--container-network', help='optional existing worker network name or ID')
 a = p.parse_args()
 root = a.shared_root.resolve()
 if not root.is_dir() or not os.path.ismount(str(root)):
     raise RuntimeError('shared storage root must already be mounted')
 subprocess.check_call(['docker', 'info', '--format', '{{.OSType}}/{{.Architecture}}'])
-net = json.loads(subprocess.check_output(['docker', 'network', 'inspect', 'myNet']))[0]
-if not net.get('Attachable'):
-    raise RuntimeError('myNet must allow worker containers to attach')
+if a.container_network:
+    net = json.loads(subprocess.check_output(['docker', 'network', 'inspect', a.container_network]))[0]
+    if net.get('Driver') == 'overlay' and not net.get('Attachable'):
+        raise RuntimeError('worker overlay network must allow containers to attach')
 data = 'gcs/distill-data:2.0.0-aeb8ca3-x86_64'
 trainer = 'gcs/distill-trainer:0.9.3-cu124-x86_64'
 tests = [(data, ['easydistill', '--list-jobs'])]
