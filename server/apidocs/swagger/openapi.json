@@ -1132,7 +1132,7 @@
             "type": "integer"
           },
           "learning_rate": {
-            "example": 0.00002,
+            "example": 2e-05,
             "format": "double",
             "type": "number"
           },
@@ -2551,6 +2551,9 @@
               }
             },
             "description": "Project deleted"
+          },
+          "409": {
+            "description": "项目存在排队或运行中的任务，请先取消并等待任务结束"
           }
         },
         "summary": "Delete project",

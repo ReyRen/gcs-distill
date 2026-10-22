@@ -3,12 +3,15 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ReyRen/gcs-distill/internal/types"
 	"github.com/google/uuid"
 )
+
+var ErrProjectHasActiveTasks = errors.New("项目存在排队或运行中的任务，请先取消并等待任务结束")
 
 type ProjectRepository interface {
 	Create(ctx context.Context, project *types.Project) error
@@ -180,14 +183,47 @@ func (r *projectRepo) Update(ctx context.Context, project *types.Project) error 
 }
 
 func (r *projectRepo) Delete(ctx context.Context, id string) error {
-	result, err := r.db.sql.ExecContext(ctx, `DELETE FROM distill_projects WHERE id = ?`, id)
+	tx, err := r.db.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	// Lock the parent against new runs and every child against a concurrent start.
+	var projectID string
+	if err := tx.QueryRowContext(ctx, `SELECT id FROM distill_projects WHERE id = ? FOR UPDATE`, id).Scan(&projectID); err != nil {
+		return err
+	}
+	rows, err := tx.QueryContext(ctx, `SELECT status FROM distill_pipeline_runs WHERE project_id = ? FOR UPDATE`, id)
+	if err != nil {
+		return err
+	}
+	active := false
+	for rows.Next() {
+		var status types.PipelineStatus
+		if err := rows.Scan(&status); err != nil {
+			rows.Close()
+			return err
+		}
+		if status == types.StatusScheduled || status == types.StatusPreparing || status == types.StatusRunning {
+			active = true
+		}
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return err
+	}
+	if active {
+		return ErrProjectHasActiveTasks
+	}
+	result, err := tx.ExecContext(ctx, `DELETE FROM distill_projects WHERE id = ?`, id)
 	if err != nil {
 		return fmt.Errorf("delete project failed: %w", err)
 	}
 	if rows, _ := result.RowsAffected(); rows == 0 {
 		return fmt.Errorf("project not found: %s", id)
 	}
-	return nil
+	return tx.Commit()
 }
 
 func (r *projectRepo) Count(ctx context.Context, uid int, filters ...types.ListFilter) (int, error) {

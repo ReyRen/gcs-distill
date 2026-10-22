@@ -50,6 +50,10 @@ def main():
         assert len(preview['stages'])==4
         pipeline=request('POST','/pipelines',json=payload)
         request('POST',f'/pipelines/{pipeline["id"]}/start')
+        if job=='instruct_distill':
+            blocked=requests.delete(base+f'/projects/{project["id"]}',params={'uid':args.uid},timeout=30)
+            assert blocked.status_code==409,blocked.text
+            assert request('GET',f'/projects/{project["id"]}')['id']==project['id']
         deadline=time.time()+150
         while time.time()<deadline:
             current=request('GET',f'/pipelines/{pipeline["id"]}')

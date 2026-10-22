@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/ReyRen/gcs-distill/internal/types"
+	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
 	"github.com/ReyRen/gcs-distill/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -117,7 +119,11 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 	}
 
 	if err := h.projectSvc.DeleteProject(c.Request.Context(), uid, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		status := http.StatusInternalServerError
+		if errors.Is(err, mysqlrepo.ErrProjectHasActiveTasks) {
+			status = http.StatusConflict
+		}
+		c.JSON(status, gin.H{"code": status, "message": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "项目删除成功"})
