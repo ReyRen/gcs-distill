@@ -50,7 +50,7 @@ func NewRouter(
 	datasetHandler := handlers.NewDatasetHandler(datasetSvc)
 	pipelineHandler := handlers.NewPipelineHandler(pipelineSvc, gcsClient, cfg.Storage)
 	modelHandler := handlers.NewModelHandler(modelSvc)
-	resourceSvc := service.NewResourceService(gcsClient)
+	resourceSvc := service.NewResourceService(gcsClient, cfg.Executor.DataWorkers)
 	resourceHandler := handlers.NewResourceHandler(resourceSvc, gcsClient)
 	storageConfig := cfg.Storage
 
@@ -162,6 +162,7 @@ func (r *Router) setupRoutes() {
 		resources := v1.Group("/resources")
 		{
 			resources.GET("/available", r.resourceHandler.Available)
+			resources.POST("/validate", r.resourceHandler.Validate)
 			resources.GET("/nodes", r.resourceHandler.ListNodes)
 			resources.GET("/nodes/:name", r.resourceHandler.GetNode)
 		}

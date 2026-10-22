@@ -27,7 +27,7 @@ func (h *DatasetHandler) CreateDataset(c *gin.Context) {
 
 	req.ID = uuid.New().String()
 	if err := h.datasetSvc.CreateDataset(c.Request.Context(), &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "数据集创建成功", "data": req})
@@ -63,7 +63,7 @@ func (h *DatasetHandler) UploadDataset(c *gin.Context) {
 	}
 
 	if err := h.datasetSvc.CreateUploadedDataset(c.Request.Context(), &req, uploadedFile, fileHeader.Filename); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "数据集上传成功", "data": req})
@@ -98,7 +98,7 @@ func (h *DatasetHandler) ListDatasets(c *gin.Context) {
 
 	datasets, total, err := h.datasetSvc.ListDatasets(c.Request.Context(), uid, page, pageSize, types.ListFilter{Name: c.Query("name"), SourceType: c.Query("source_type")})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -120,7 +120,7 @@ func (h *DatasetHandler) ListDatasetCandidates(c *gin.Context) {
 	}
 	candidates, err := h.datasetSvc.ListDatasetCandidates(c.Request.Context(), uid)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -148,7 +148,7 @@ func (h *DatasetHandler) UpdateDataset(c *gin.Context) {
 	req.ID = id
 
 	if err := h.datasetSvc.UpdateDataset(c.Request.Context(), &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "数据集更新成功", "data": req})
@@ -166,7 +166,7 @@ func (h *DatasetHandler) DeleteDataset(c *gin.Context) {
 	}
 
 	if err := h.datasetSvc.DeleteDataset(c.Request.Context(), uid, id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "数据集删除成功"})

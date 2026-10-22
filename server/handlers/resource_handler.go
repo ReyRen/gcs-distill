@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
+	"github.com/ReyRen/gcs-distill/internal/types"
 	"github.com/ReyRen/gcs-distill/service"
 	"github.com/gin-gonic/gin"
 )
@@ -49,6 +50,23 @@ func (h *ResourceHandler) ListNodes(c *gin.Context) {
 		"message": "获取 gcs-v2 节点列表成功",
 		"data":    nodes,
 	})
+}
+
+func (h *ResourceHandler) Validate(c *gin.Context) {
+	var request types.ResourceRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "资源选择格式无效"})
+		return
+	}
+	if err := types.NormalizeResourceRequest(&request, true); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		return
+	}
+	if err := h.resources.Validate(c.Request.Context(), &request, true, true); err != nil {
+		c.JSON(http.StatusConflict, gin.H{"code": 409, "message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"code": 200, "data": gin.H{"valid": true, "resource_request": request, "training_scope": "single_node_multi_gpu", "reserves_resources": false}})
 }
 
 func (h *ResourceHandler) GetNode(c *gin.Context) {

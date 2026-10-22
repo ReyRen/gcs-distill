@@ -29,7 +29,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 
 	req.ID = uuid.New().String()
 	if err := h.projectSvc.CreateProject(c.Request.Context(), &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *ProjectHandler) ListProjects(c *gin.Context) {
 
 	projects, total, err := h.projectSvc.ListProjects(c.Request.Context(), uid, page, pageSize, types.ListFilter{Name: c.Query("name")})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 	for _, p := range projects {
@@ -100,7 +100,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 	req.ID = id
 
 	if err := h.projectSvc.UpdateProject(c.Request.Context(), &req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
+		writeServiceError(c, err)
 		return
 	}
 	redactProjectCredentials(&req)

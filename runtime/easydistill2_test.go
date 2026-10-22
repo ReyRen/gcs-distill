@@ -196,6 +196,7 @@ func TestDistill2SnapshotsTeacherAndSelectsStudentPerRun(t *testing.T) {
 	w.ModelTemplate = "qwen"
 	w.StudentModel = &types.ModelConfig{ProviderType: types.ProviderLocal, ModelName: "selected", ModelPath: "/base/selected"}
 	p.ResourceRequest.GPUCount = 1
+	p.ResourceRequest.SelectedResources = []types.SelectedResource{{NodeName: "worker", XPUIndices: []int{0}}}
 	if err := NormalizeDistillation(p, project); err != nil {
 		t.Fatal(err)
 	}

@@ -72,6 +72,74 @@
       }
     },
     "schemas": {
+      "AvailableDevice": {
+        "description": "Worker telemetry uses MiB. Null means unknown, never zero. Only selectable=true cards may be selected in the UI; refreshing and validation do not reserve resources.",
+        "properties": {
+          "hardware_enabled": {
+            "nullable": true,
+            "type": "boolean"
+          },
+          "index": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "memory_free_mib": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "memory_total_mib": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "memory_used_mib": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "process_count": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "scheduler_available": {
+            "type": "boolean"
+          },
+          "selectable": {
+            "type": "boolean"
+          },
+          "software_enabled": {
+            "nullable": true,
+            "type": "boolean"
+          },
+          "state": {
+            "enum": [
+              "available",
+              "node_unavailable",
+              "unsupported_runtime",
+              "telemetry_unknown",
+              "telemetry_stale",
+              "hardware_unavailable",
+              "reserved",
+              "in_use"
+            ],
+            "type": "string"
+          },
+          "utilization_percent": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "uuid": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "AvailableNode": {
         "properties": {
           "address": {
@@ -79,8 +147,18 @@
             "type": "string"
           },
           "available": {
+            "description": "GCS node scheduling eligibility, not physical GPU idleness.",
             "example": true,
             "type": "boolean"
+          },
+          "data_supported": {
+            "type": "boolean"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/AvailableDevice"
+            },
+            "type": "array"
           },
           "enable_xpu_indices": {
             "example": [
@@ -110,8 +188,8 @@
             "type": "integer"
           },
           "node_memory": {
-            "example": 540000000000,
-            "format": "int64",
+            "description": "Node RAM in GiB, from the existing Swarm node API.",
+            "example": 503,
             "type": "integer"
           },
           "node_os": {
@@ -126,9 +204,17 @@
             "example": "ready",
             "type": "string"
           },
+          "observed_at": {
+            "format": "date-time",
+            "nullable": true,
+            "type": "string"
+          },
           "raw": {
             "additionalProperties": true,
             "type": "object"
+          },
+          "training_supported": {
+            "type": "boolean"
           },
           "workers_xpucount": {
             "example": 4,
@@ -143,11 +229,26 @@
       },
       "AvailableResources": {
         "properties": {
+          "max_training_nodes": {
+            "enum": [
+              1
+            ],
+            "type": "integer"
+          },
           "nodes": {
             "items": {
               "$ref": "#/components/schemas/AvailableNode"
             },
             "type": "array"
+          },
+          "telemetry_error": {
+            "type": "string"
+          },
+          "training_scope": {
+            "enum": [
+              "single_node_multi_gpu"
+            ],
+            "type": "string"
           }
         },
         "type": "object"
@@ -798,18 +899,22 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 1,
             "type": "array"
           },
           "gpu_count": {
-            "description": "GPU count for optional student training. Data production uses CPU workers and the selected teacher endpoint.",
+            "description": "Derived from selected_resources[0].xpu_indices when omitted/zero. A provided positive count must match; data-only requests are normalized to zero.",
             "example": 1,
+            "minimum": 0,
             "type": "integer"
           },
           "selected_resources": {
-            "description": "Preferred manual resource selection passed through to gcs-v2 /api/v1/tasks/container.",
+            "description": "Student training requires exactly one named node and at least one physical GPU index. No cross-node selection or automatic GPU-count-only selection.",
             "items": {
               "$ref": "#/components/schemas/SelectedResource"
             },
+            "maxItems": 1,
+            "minItems": 1,
             "type": "array"
           }
         },
@@ -824,6 +929,7 @@
           },
           "node_name": {
             "example": "gpu-node-01",
+            "minLength": 1,
             "type": "string"
           },
           "xpu_indices": {
@@ -832,11 +938,18 @@
               1
             ],
             "items": {
+              "minimum": 0,
               "type": "integer"
             },
-            "type": "array"
+            "minItems": 1,
+            "type": "array",
+            "uniqueItems": true
           }
         },
+        "required": [
+          "node_name",
+          "xpu_indices"
+        ],
         "type": "object"
       },
       "StageListResponse": {
@@ -1077,6 +1190,7 @@
             "type": "string"
           },
           "concurrency": {
+            "description": "Positive values override existing recipe and stage settings; zero/omitted retains recipe defaults; negative values are rejected.",
             "example": 10,
             "type": "integer"
           },
@@ -1091,6 +1205,7 @@
             "type": "object"
           },
           "max_tokens": {
+            "description": "Positive values override existing recipe and stage settings; zero/omitted retains recipe defaults; negative values are rejected.",
             "example": 2048,
             "type": "integer"
           },
@@ -1122,6 +1237,41 @@
         },
         "type": "object"
       },
+      "TeacherService": {
+        "properties": {
+          "capability_source": {
+            "enum": [
+              "model_config",
+              "unknown"
+            ],
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "served_model_name": {
+            "type": "string"
+          },
+          "service_type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "supports_vision": {
+            "description": "null means unknown. Model configuration detection is not an inference probe.",
+            "nullable": true,
+            "type": "boolean"
+          },
+          "uid": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "TrainingConfig": {
         "properties": {
           "distillation": {
@@ -1132,7 +1282,7 @@
             "type": "integer"
           },
           "learning_rate": {
-            "example": 2e-05,
+            "example": 0.00002,
             "format": "double",
             "type": "number"
           },
@@ -1149,8 +1299,10 @@
             "type": "integer"
           },
           "num_train_epochs": {
+            "description": "Positive student training epochs; fractional values such as 0.5 are supported.",
             "example": 3,
-            "type": "integer"
+            "format": "double",
+            "type": "number"
           },
           "per_device_train_batch_size": {
             "example": 4,
@@ -1955,6 +2107,7 @@
     },
     "/api/v1/pipelines/{id}/clone": {
       "post": {
+        "description": "All fields are optional patches. Nested objects merge; arrays replace. UID/project cannot be changed. Unchanged teacher credentials remain server-side; masked credentials are rejected after changing the teacher connection. Does not start the task.",
         "parameters": [
           {
             "in": "path",
@@ -1978,10 +2131,20 @@
           "content": {
             "application/json": {
               "schema": {
+                "additionalProperties": false,
                 "properties": {
+                  "dataset_id": {
+                    "type": "string"
+                  },
                   "name": {
                     "maxLength": 255,
                     "type": "string"
+                  },
+                  "resource_request": {
+                    "$ref": "#/components/schemas/ResourceRequest"
+                  },
+                  "training_config": {
+                    "$ref": "#/components/schemas/TrainingConfig"
                   }
                 },
                 "type": "object"
@@ -2011,7 +2174,7 @@
             "description": "Not a training dataset"
           }
         },
-        "summary": "Copy private run snapshot as a new pending task; does not start"
+        "summary": "Create an edited copy of the private server-side snapshot as pending, within the original project"
       }
     },
     "/api/v1/pipelines/{id}/model/download": {
@@ -2666,7 +2829,7 @@
     },
     "/api/v1/resources/available": {
       "get": {
-        "description": "Aggregate gcs-v2 brain and nodes into frontend resource selection data, matching gcs-model-center-v2.",
+        "description": "Combines existing GCS Brain/Swarm scheduling information with worker card measurements. devices[].selectable is the UI choice flag; available/enable_xpu_indices alone do not establish physical idleness. Unknown or >120s-old telemetry is not selectable. Only configured x86 NVIDIA training is supported.",
         "responses": {
           "200": {
             "content": {
@@ -2747,6 +2910,35 @@
         ]
       }
     },
+    "/api/v1/resources/validate": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResourceRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Current measurements and scheduler eligibility passed; data.resource_request includes normalized gpu_count. No reservation has been made."
+          },
+          "400": {
+            "description": "Invalid single-node selection, duplicate/negative index or inconsistent count"
+          },
+          "409": {
+            "description": "Resources changed, busy, stale, missing or unsupported"
+          }
+        },
+        "summary": "Validate one node and multiple physical GPU indices without reserving them",
+        "tags": [
+          "Resources"
+        ]
+      }
+    },
     "/api/v1/runtime": {
       "get": {
         "parameters": [],
@@ -2796,6 +2988,22 @@
             "content": {
               "application/json": {
                 "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/TeacherService"
+                          },
+                          "type": "array"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
                   "type": "object"
                 }
               }
@@ -2891,6 +3099,7 @@
     },
     "/api/v1/workflows/preview": {
       "post": {
+        "description": "Returns redacted execution config, stages, train_student, training_scope and normalized resource_request without creating or reserving anything. Data-only previews clear GPU selection.",
         "requestBody": {
           "content": {
             "application/json": {

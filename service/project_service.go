@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
@@ -28,7 +29,7 @@ func NewProjectService(repo mysqlrepo.ProjectRepository) ProjectService {
 
 func (s *projectService) CreateProject(ctx context.Context, project *types.Project) error {
 	if err := s.prepareProject(ctx, project); err != nil {
-		return err
+		return newValidationError(err.Error())
 	}
 
 	if err := s.projectRepo.Create(ctx, project); err != nil {
@@ -120,7 +121,7 @@ func (s *projectService) UpdateProject(ctx context.Context, project *types.Proje
 		}
 	}
 	if err := s.prepareProject(ctx, project); err != nil {
-		return err
+		return newValidationError(err.Error())
 	}
 
 	if err := s.projectRepo.Update(ctx, project); err != nil {
@@ -158,6 +159,7 @@ func (s *projectService) DeleteProject(ctx context.Context, uid int, id string) 
 }
 
 func (s *projectService) prepareProject(_ context.Context, p *types.Project) error {
+	p.Name = strings.TrimSpace(p.Name)
 	if p.UID <= 0 {
 		return fmt.Errorf("uid 必须大于0")
 	}

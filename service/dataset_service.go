@@ -57,10 +57,10 @@ func NewDatasetService(
 
 func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Dataset) error {
 	if dataset.SourceType != "import" {
-		return fmt.Errorf("POST /api/v1/datasets 只用于登记候选数据集，上传文件请调用 POST /api/v1/datasets/upload")
+		return newValidationError("POST /api/v1/datasets 只用于登记候选数据集，上传文件请调用 POST /api/v1/datasets/upload")
 	}
 	if err := s.prepareDataset(dataset); err != nil {
-		return err
+		return newValidationError(err.Error())
 	}
 
 	if err := s.datasetRepo.Create(ctx, dataset); err != nil {
@@ -77,7 +77,7 @@ func (s *datasetService) CreateDataset(ctx context.Context, dataset *types.Datas
 func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *types.Dataset, file multipart.File, originalFilename string) error {
 	dataset.SourceType = "upload"
 	if err := s.prepareDataset(dataset); err != nil {
-		return err
+		return newValidationError(err.Error())
 	}
 
 	safeFilename := filepath.Base(strings.ReplaceAll(strings.TrimSpace(originalFilename), "\\", "/"))
@@ -112,7 +112,13 @@ func (s *datasetService) CreateUploadedDataset(ctx context.Context, dataset *typ
 	recordCount, err := countDatasetRecords(dataset.FilePath)
 	if err != nil {
 		_ = os.Remove(dataset.FilePath)
-		return fmt.Errorf("统计数据集记录数失败: %w", err)
+		_ = os.Remove(datasetDir)
+		return newValidationError(fmt.Sprintf("数据集格式无效: %v", err))
+	}
+	if recordCount == 0 {
+		_ = os.Remove(dataset.FilePath)
+		_ = os.Remove(datasetDir)
+		return newValidationError("数据集必须至少包含一条记录")
 	}
 	dataset.RecordCount = recordCount
 	fillDatasetName(dataset)
@@ -371,13 +377,14 @@ func (s *datasetService) prepareDataset(dataset *types.Dataset) error {
 		if err := s.ensureDatasetFilePath(dataset.UID, dataset.FilePath); err != nil {
 			return err
 		}
-		if dataset.RecordCount <= 0 {
-			recordCount, err := countDatasetRecords(dataset.FilePath)
-			if err != nil {
-				return fmt.Errorf("统计数据集记录数失败: %w", err)
-			}
-			dataset.RecordCount = recordCount
+		recordCount, err := countDatasetRecords(dataset.FilePath)
+		if err != nil {
+			return fmt.Errorf("数据集格式无效: %w", err)
 		}
+		if recordCount == 0 {
+			return fmt.Errorf("数据集必须至少包含一条记录")
+		}
+		dataset.RecordCount = recordCount
 	}
 	fillDatasetName(dataset)
 	return nil
@@ -390,7 +397,7 @@ func (s *datasetService) validateDataset(dataset *types.Dataset) error {
 	if dataset.Name == "" {
 		return fmt.Errorf("数据集名称不能为空")
 	}
-	if len(dataset.Name) > 255 {
+	if len([]rune(dataset.Name)) > 255 {
 		return fmt.Errorf("数据集名称长度不能超过255个字符")
 	}
 	if dataset.SourceType == "" {

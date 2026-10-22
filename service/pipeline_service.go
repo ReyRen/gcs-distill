@@ -32,6 +32,13 @@ type pipelineService struct {
 	executorSvc  ExecutorService
 	modelSvc     ModelService
 	teachers     *TeacherService
+	resources    *ResourceService
+	trainerImage string
+}
+
+type PipelineOptions struct {
+	Resources    *ResourceService
+	TrainerImage string
 }
 
 func NewPipelineService(
@@ -42,6 +49,7 @@ func NewPipelineService(
 	executorSvc ExecutorService,
 	modelSvc ModelService,
 	teachers *TeacherService,
+	options PipelineOptions,
 ) PipelineService {
 	return &pipelineService{
 		pipelineRepo: pipelineRepo,
@@ -51,6 +59,8 @@ func NewPipelineService(
 		executorSvc:  executorSvc,
 		modelSvc:     modelSvc,
 		teachers:     teachers,
+		resources:    options.Resources,
+		trainerImage: options.TrainerImage,
 	}
 }
 
@@ -139,6 +149,11 @@ func (s *pipelineService) StartPipeline(ctx context.Context, id string) error {
 	if p.TrainingConfig.Distillation == nil {
 		return newValidationError("旧版任务已停用，请创建 EasyDistill 2 任务")
 	}
+	if s.resources != nil {
+		if err := s.resources.Validate(ctx, &p.ResourceRequest, p.TrainingConfig.Distillation.TrainStudent, false); err != nil {
+			return newValidationError(err.Error())
+		}
+	}
 	claimed, err := s.pipelineRepo.Transition(ctx, id, types.StatusPending, types.StatusScheduled)
 	if err != nil {
 		return err
@@ -219,6 +234,14 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 		pipeline.TrainingConfig.Distillation = &types.DistillationConfig{Version: "2.0", JobType: "instruct_distill"}
 	}
 	w := pipeline.TrainingConfig.Distillation
+	if w.TrainStudent && s.trainerImage != "" {
+		if w.TrainerImage == "" {
+			w.TrainerImage = s.trainerImage
+		}
+		if w.TrainerImage != s.trainerImage {
+			return newValidationError("请选择运行环境目录中已准备好的离线训练镜像")
+		}
+	}
 	if w.TeacherModel == nil {
 		teacher := project.TeacherModelConfig
 		w.TeacherModel = &teacher
@@ -253,6 +276,9 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 			student.ModelPath = model.Path
 		}
 		student.ProviderType = types.ProviderLocal
+		if w.ModelTemplate == "" {
+			_, _, w.ModelTemplate = modelCapabilities(student.ModelPath)
+		}
 		if err := s.modelSvc.ValidateStudentModel(ctx, student.ModelPath); err != nil {
 			return newValidationError(err.Error())
 		}
@@ -266,10 +292,14 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 	if err := runtime.NormalizeDistillation(pipeline, project); err != nil {
 		return newValidationError(err.Error())
 	}
-	if _, err := runtime.WalkRecords(dataset.FilePath, func(row map[string]interface{}) error {
+	recordCount, err := runtime.WalkRecords(dataset.FilePath, func(row map[string]interface{}) error {
 		return runtime.MapSeedRecord(row, w)
-	}); err != nil {
+	})
+	if err != nil {
 		return newValidationError("种子数据校验失败: " + err.Error())
+	}
+	if recordCount == 0 {
+		return newValidationError("种子数据集不能为空")
 	}
 
 	if pipeline.TrainingConfig.Distillation.TrainStudent && pipeline.TrainingConfig.NumTrainEpochs <= 0 {
@@ -283,6 +313,11 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 	}
 	if pipeline.ResourceRequest.GPUCount < 0 {
 		return newValidationError("GPU数量不能为负数")
+	}
+	if s.resources != nil {
+		if err := s.resources.Validate(ctx, &pipeline.ResourceRequest, w.TrainStudent, false); err != nil {
+			return newValidationError(err.Error())
+		}
 	}
 	return nil
 }

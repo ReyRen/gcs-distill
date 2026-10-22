@@ -4,7 +4,7 @@
 
 ## 版本与部署
 
-- 控制服务：`172.18.29.80`，`gcs-distill.service`，版本 `v2.0.0-x86-offline`。
+- 控制服务：`172.18.29.80`，`gcs-distill.service`，版本 `v2.0.1-x86-offline`。
 - GCS manager：`172.18.29.80`，`gcs-V2.service`。
 - GCS worker：`172.18.36.230`，节点 `specialai-3090-0`，`gcs-info-catch-V2.service`。
 - 生产 distill 配置单独保存在 `/etc/gcs-distill/config.toml`，权限 0600；交付模板不含数据库密码。
@@ -12,7 +12,7 @@
 - 数据镜像：`gcs/distill-data:2.0.0-aeb8ca3-x86_64`，ID `sha256:3ea860dcd708835a18b81d1a7d3d9f38e94f57e1ca6b3217a5aef0127a44b181`。
 - 训练镜像：`gcs/distill-trainer:0.9.3-cu124-x86_64`，ID `sha256:7f92fac4d0c2576f3ed21301b6bbcc1408bcd4a619f36982629fc5200fc4e89f`；PyTorch 2.6.0 / CUDA 12.4。
 - 二进制、镜像归档、依赖锁文件的最终校验值以离线包 `manifest.json` 和 `SHA256SUMS` 为准。worker 使用原生 Linux amd64、CGO/NVML，glibc 最低 2.31；没有使用 Ascend 构建标签。
-- 三个仓库仅本地提交，未推送 GitHub。worker 发布只包含此次容器作业改动，不包含工作区已有的推理模块修改。
+- 三个仓库仅本地提交，未推送 GitHub。worker 发布增加 NVML 进程计数和采集时间，不包含工作区已有的推理模块修改。
 
 ## 实际通过的检查
 
@@ -44,6 +44,14 @@
 - 80：`/root/gcs-distill2-build-20261022/control-api-final.json`。
 - 80：`/root/gcs-distill2-build-20261022/student-gcs-gpu.json`、`student-gcs-ddp.json`。
 - 230：`/storage-md0/renyuan/gcs-distill2-build-20261022/offline-student-smoke.log`。
+
+### 固定页面接口与选卡更新验收
+
+此次同步升级控制端、manager 和 specialai-3090-0 worker。`frontend_contract_smoke.py` 在真实 HTTP 服务通过：11 个页面配方及 SFT/CoT/DPO/Agent 参数预览、输出长度/并发覆盖、数据字段映射、项目设置、教师测试、学生目录、分数轮数、可编辑复用配置且原任务不变、跨项目/用户拒绝、pending 取消。资源验收验证真实 NVML 显存/进程数，6、7 号卡空闲可选；繁忙卡、失效卡号、多节点、重复/空卡号及卡数不匹配被拒绝，校验不预留 GPU。
+
+更新后再跑四条真实 GCS 数据链路全部成功，双卡 SFT/DPO 均成功，下载的 adapter_model.safetensors 各为 17,640,136 字节。验证使用 Qwen2.5-0.5B-Instruct 和合成教师；GPU 0–5 原进程与其他 26 个容器保持运行。此次临时 fixture 已停止并清理。
+
+最新三份报告位于 230 的 `/storage-md0/renyuan/offline/gcs-api-build-20261022/reports/`：`frontend-contract.json`、`control.json`、`student-ddp.json`，同时纳入离线包 `tests/reports/`。现有其他节点采集器未升级时显示监控未知、卡禁选，纳入蒸馏前按离线说明升级 worker、导入镜像和预检；不会伪造其空闲状态。
 
 ## 清理与影响范围
 

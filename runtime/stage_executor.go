@@ -169,6 +169,11 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 	if req.ResourceMode == "cpu" {
 		xpuCount = 0
 	}
+	if req.ResourceMode != "cpu" && len(req.SelectedResources) > 0 {
+		if err := e.gcsClient.ValidateGPUSelection(ctx, selectedResourcesForGCS(req.SelectedResources), true); err != nil {
+			return "", fmt.Errorf("训练资源已变化，请重新选择: %w", err)
+		}
+	}
 	resp, err := e.gcsClient.CreateContainerTask(ctx, gcsclient.ContainerTaskRequest{
 		TaskUID:           req.TaskUID,
 		TaskID:            stableTaskID(containerName + "|" + workDir),

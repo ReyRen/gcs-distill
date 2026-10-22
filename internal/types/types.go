@@ -113,7 +113,7 @@ type PipelineSummary struct {
 type TrainingConfig struct {
 	// Each run owns its immutable workflow and model snapshot.
 	Distillation              *DistillationConfig `json:"distillation,omitempty"`
-	NumTrainEpochs            int                 `json:"num_train_epochs"`
+	NumTrainEpochs            float64             `json:"num_train_epochs"`
 	PerDeviceTrainBatchSize   int                 `json:"per_device_train_batch_size"`
 	GradientAccumulationSteps int                 `json:"gradient_accumulation_steps,omitempty"`
 	LearningRate              float64             `json:"learning_rate"`

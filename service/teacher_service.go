@@ -20,12 +20,19 @@ type TeacherService struct {
 	client  *http.Client
 }
 type Teacher struct {
-	ID          string `json:"id"`
-	UID         string `json:"uid"`
-	Name        string `json:"name"`
-	ModelName   string `json:"served_model_name"`
-	Status      string `json:"status"`
-	ServiceType string `json:"service_type"`
+	ID               string `json:"id"`
+	UID              string `json:"uid"`
+	Name             string `json:"name"`
+	ModelName        string `json:"served_model_name"`
+	Status           string `json:"status"`
+	ServiceType      string `json:"service_type"`
+	SupportsVision   *bool  `json:"supports_vision"`
+	CapabilitySource string `json:"capability_source"`
+}
+
+type teacherRecord struct {
+	Teacher
+	ModelPath string `json:"model_path"`
 }
 
 func NewTeacherService(baseURL string, timeout time.Duration) *TeacherService {
@@ -64,8 +71,8 @@ func (s *TeacherService) List(ctx context.Context, uid int) ([]Teacher, error) {
 	items := []Teacher{}
 	for page := 1; ; page++ {
 		var result struct {
-			Items []Teacher `json:"items"`
-			Total int       `json:"total"`
+			Items []teacherRecord `json:"items"`
+			Total int             `json:"total"`
 		}
 		path := fmt.Sprintf("/services?uid=%d&status=online&page=%d&page_size=100", uid, page)
 		if err := s.get(ctx, path, &result); err != nil {
@@ -73,7 +80,14 @@ func (s *TeacherService) List(ctx context.Context, uid int) ([]Teacher, error) {
 		}
 		for _, item := range result.Items {
 			if item.UID == strconv.Itoa(uid) && item.Status == "online" {
-				items = append(items, item)
+				item.CapabilitySource = "unknown"
+				if item.ServiceType == "local_inference" && item.ModelPath != "" {
+					if modelType, vision, _ := modelCapabilities(item.ModelPath); modelType != "" {
+						item.SupportsVision = &vision
+						item.CapabilitySource = "model_config"
+					}
+				}
+				items = append(items, item.Teacher)
 			}
 		}
 		if len(result.Items) < 100 || page*100 >= result.Total {

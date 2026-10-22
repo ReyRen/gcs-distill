@@ -225,11 +225,11 @@ Mock 覆盖核心主流程，可用于页面和交互交接；它不是已经接
 
 ### 复用及跳转训练
 
-`POST /pipelines/{id}/clone?uid=...`（可选 body：`{"name":"副本名称"}`）从服务端配置快照复制为新的 pending 任务，不启动；密钥不会经过前端。副本重新校验教师、数据和学生模型，不承诺复用已下线服务。
+`POST /pipelines/{id}/clone?uid=...` 从服务端配置快照复制为新的 pending 任务，不启动。先将详情中的脱敏配置放入创建表单，用户编辑后调用 clone；可选 body 包含 `name`、`dataset_id`、`training_config`、`resource_request`。training_config 对象递归合并，数组整体替换；resource_request 整体替换。未提交的配置保留原值；UID 和 project_id 固定继承原任务，不接受覆盖。教师连接未改变时，省略密钥或传原掩码都保留服务端密钥；更换教师连接须重新输入密钥。副本重新校验教师、数据和学生模型，不承诺复用已下线服务，原任务不修改。
 
 “去训练 / 使用此数据集训练”跳转现有模型训练页面，并携带 distill 数据集 ID。训练页面调用 `GET /datasets/{id}/training-config?uid=...`，获取 SFT/DPO stage 和 LLaMA-Factory dataset_info，加入现有训练创建流程。这个接口不创建训练任务、不复制数据、不注册模型。源数据仍在当前用户共享目录，训练模块挂载用户目录并复用已有调度。scored_records 和普通 records 返回 422，不能误作可训练数据。
 
-资源接口中的 available/enable_xpu_indices 表示平台允许调度，不代表当前物理显存空闲；卡占用与显存展示继续使用平台实时监控数据，不能把“启用”渲染为“无人使用”。
+资源接口中的 available/enable_xpu_indices 表示平台允许调度。新版 `/resources/available` 已接入 worker → Redis → gcs-v2 的现有监控链路，同时返回真实显存、利用率、进程数和卡级 selectable；前端直接使用下述合同。
 
 服务重启会恢复尚未执行的 scheduled 任务；已经运行且中断的任务标记失败、回收容器，保留成功的数据资产。没有断点续跑。
 
@@ -240,3 +240,50 @@ Mock 覆盖核心主流程，可用于页面和交互交接；它不是已经接
 `GET /pipelines/{id}/quality` 每个指标提供 histogram 和 histogram_bin_width=0.1，可绘制全量评分分布；桶标签为区间下界，other 表示超出桶数上限的长尾。count/min/max/mean 为精确聚合，不把直方图区间当作精确任意阈值过滤结果。DPO 的 candidate_score、chosen_score、rejected_score、preference_margin 分开显示。每个中间产物独立汇总，不能把同一批样本的多个产物累计当作总样本数。
 
 “全部”筛选不发送对应 status/job_type/source_type 值，不传字面字符串 all。
+
+## 固定页面接口细节（单机多卡）
+
+此次不修改 mock 布局。下面是正式前端逐项对接依据，统一省略 `/api/v1` 前缀。
+
+| 页面位置/控件 | 读取和写入合同 |
+|---|---|
+| 项目首页、创建、设置 | `/projects` GET/POST、`/projects/{id}` GET/PUT/DELETE；名称去首尾空格，默认教师可空；统计读 `/{id}/summary` |
+| 项目工作区、任务搜索 | `/pipelines?uid=...&project_id=...`；name/status/job_type 可选；详情及所有子接口可附 project_id，错误项目上下文返回 404 |
+| 两种产出、配方 | `/workflows` 读取 job_type、input_fields、output_format、default_parameters；选择写 train_student、job_type；records/scored_records 禁止接学生训练 |
+| 学生、训练参数、运行环境 | `/models/student`、`/runtime`；train_student=true 才校验基模和训练参数；trainer_image 可省略沿用配置镜像，指定值必须在 runtime 目录中；模板省略时尝试使用基模 suggested_template |
+| 数据选择、上传、候选登记 | `/datasets` GET/POST、`/datasets/upload` POST、`/datasets/candidates` GET；上传及候选文件实际计数，空文件/非法 JSON 返回 400；不能信任客户端 record_count |
+| 字段映射、预览 | `/datasets/{id}/preview`；field_mapping 键为规范字段、值为源列名；原始 metadata、messages、images 不丢弃 |
+| 教师选择与测试 | `/teachers`、`/teachers/test`；supports_vision 可为 null，capability_source=model_config/unknown；配置识别不等于已做视觉推理验收；连接测试仍返回 vision_verified=false |
+| 输出长度、并发 | teacher_model.max_tokens、concurrency 为正数时覆盖配方生成配置和已有阶段对应设置；省略/0 保留配方默认，负数拒绝；timeout_seconds 控制教师请求超时 |
+| CPU 数据节点 | `/runtime.data_workers` 与 `/resources/available.nodes[].data_supported`；executor_nodes 最多一个，可省略沿用默认；不申请 GPU |
+| 训练节点及卡号 | `/resources/available`；单节点 radio + devices 复选；POST `/resources/validate` 做提交前实时校验，不预留 GPU |
+| 确认、创建、启动 | `/workflows/preview` 返回脱敏执行配置、四/五阶段、归一化 resource_request；POST `/pipelines` 创建 pending；POST `/{id}/start` 单独启动 |
+| 复用、取消 | POST `/{id}/clone` 提交编辑结果；POST `/{id}/cancel` 后以查询状态为准；无原地重试/续跑 API |
+| 运行、样本、日志 | `/{id}/stages`、`/artifacts`、`/artifacts/preview`、`/quality`、阶段 logs/httpstream/ws/download；读取真实状态，数据和模型独立判断可用性 |
+| 下载、去训练 | `/datasets/{id}/download`、任务 `/artifacts/download`、`/model/download`、数据集 `/training-config`；保留已有共享存储和训练模块接口 |
+
+资源 `devices[]` 包含 index、name、uuid、memory_total_mib/memory_used_mib/memory_free_mib、utilization_percent、process_count、hardware_enabled、software_enabled、scheduler_available、selectable、state。显存单位 MiB，展示 GiB 时除以 1024；节点 node_memory 单位 GiB。未知测量值为 null，不能显示为 0。observed_at 为采集时间，超过两分钟禁止选择；没有 NVML 进程测量也禁止选择。
+
+| state | 展示与操作 |
+|---|---|
+| available | 空闲，可勾选，唯一 selectable=true 的状态 |
+| in_use | 有进程或利用率大于 0，显示占用并禁选 |
+| reserved | 平台已分配或软件禁用，禁选 |
+| telemetry_unknown / telemetry_stale | 监控未知/过期，显示重试入口并禁选 |
+| node_unavailable / hardware_unavailable / unsupported_runtime | 节点不可用/卡异常/当前 x86 NVIDIA 运行时不支持，禁选 |
+
+提交前调用 `POST /resources/validate`，body 直接为 resource_request，成功返回 `valid=true`、`reserves_resources=false` 和归一化资源。空卡号、重复/负数、卡数不符、多节点返回 400；节点/卡当前不可用返回 409。只提交一个 selected_resources，gpu_count 可省略，由卡号数组长度推导。创建 pending 允许保留当前繁忙卡的选择，但页面正常仅允许勾选 selectable 卡；开始任务及真正进入 student_train 前再次检查。数据阶段不预占 GPU，实际资源仍由 GCS 原有分配器最终分配。实际分配失败时保留已导出的数据和阶段错误。
+
+### 配方控件写入位置
+
+所有配方设置写入 `training_config.distillation.parameters`，以 `/workflows.default_parameters` 初始化后编辑完整对象。以下为具体位置；pipeline 数组必须保留其余算子及顺序。
+
+| 配方设置 | 原生配置位置 |
+|---|---|
+| 高质量 SFT 的各项最低分、保留比例 | pipeline 中 quality_filter.config.min_scores、keep_top_ratio |
+| CoT 逻辑正确性、难度分组、RV 策略 | advanced_cot_distill 的 cot_mix_by_rv_cd.config.min_correctness、cd_bins、rv_target；rv_target 用 matched/low/medium/high 或数值，不能把它描述成精确 token 长度 |
+| DPO 候选数、评分差 | generate_candidates.config.n、build_preference_pairs.config.min_margin |
+| Agent 步骤/轨迹 | agent_trajectory.config.max_steps、repeat_times；保留配方工具模式，默认模拟工具；不声称接入真实业务系统 |
+| 多模态 | images 数组非空、视觉教师/学生能力检查；附件必须对运行节点可读，不能把浏览器本地文件名当成已上传附件 |
+
+后端生成阶段执行配置会固化这些值。新增契约验收脚本 `tests/integration/frontend_contract_smoke.py` 覆盖页面 11 个配方预览、真实资源、错误选择、参数编辑复用、项目/用户隔离；已有 control/student 脚本覆盖实际数据生产及双卡训练。

@@ -21,7 +21,7 @@ import (
 
 var (
 	configPath = flag.String("config", "config.toml", "config file path")
-	version    = "v2.0.0-x86-offline"
+	version    = "v2.0.1-x86-offline"
 )
 
 func main() {
@@ -82,7 +82,8 @@ func main() {
 	defer func() { execCancel(); executorSvc.Stop() }()
 
 	teachers := service.NewTeacherService(cfg.ModelCenter.BaseURL, time.Duration(cfg.ModelCenter.TimeoutSeconds)*time.Second)
-	pipelineSvc := service.NewPipelineService(pipelineRepo, stageRepo, projectRepo, datasetRepo, executorSvc, modelSvc, teachers)
+	resources := service.NewResourceService(gcsClient, cfg.Executor.DataWorkers)
+	pipelineSvc := service.NewPipelineService(pipelineRepo, stageRepo, projectRepo, datasetRepo, executorSvc, modelSvc, teachers, service.PipelineOptions{Resources: resources, TrainerImage: cfg.Executor.TrainerImage})
 	router := server.NewRouter(projectSvc, datasetSvc, pipelineSvc, modelSvc, gcsClient, cfg, teachers)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)

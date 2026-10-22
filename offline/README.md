@@ -36,6 +36,8 @@ worker 构建基线为 Ubuntu 20.04/glibc 2.31，保留 CGO/NVML，未启用 Asc
 
 新装 distill 使用 `config.example.toml`，填写实际内网地址和目录；systemd 模板指向独立的受保护配置。旧安装只调整新 runtime_image、trainer_image、data_workers 及模型中心地址。`GET /runtime` 是配置目录，不代表已验证所有节点镜像库存。缺少本地镜像会快速失败。
 
+资源选择需要同时升级本包 manager 和每个拟参与训练的 x86 worker，沿用原 Redis 采集配置。新版 worker 上报采集时间与 NVML 进程数；未升级、监控缺失或过期的节点仍可展示，但训练卡禁选，不会将未知占用当空闲。当前现场已升级 `specialai-3090-0`，其他节点纳入蒸馏前也要升级 worker、离线导入两份镜像并完成预检。训练只允许单台服务器上的一张或多张 NVIDIA GPU；不能跨节点，数据阶段不预留 GPU。控制端和 worker 时钟需要同步。
+
 Swagger UI 的脚本和样式已内置，不依赖公网 CDN。包内验收脚本需要 requests，可直接放入数据镜像运行，无需给客户宿主机安装 pip 依赖，命令见包内 `tests/README.md`（源码中为 `tests/integration/README.md`）。
 
 ```sh

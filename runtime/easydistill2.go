@@ -119,6 +119,9 @@ func NormalizeDistillation(p *types.PipelineRun, project *types.Project) error {
 		w.TeacherModel = &teacher
 	}
 	teacher := w.TeacherModel
+	if teacher.MaxTokens < 0 || teacher.Concurrency < 0 || teacher.TimeoutSeconds < 0 {
+		return fmt.Errorf("教师生成长度、并发数和超时时间不能为负数")
+	}
 	if teacher.ModelName == "" {
 		return fmt.Errorf("教师模型名称不能为空")
 	}
@@ -129,10 +132,10 @@ func NormalizeDistillation(p *types.PipelineRun, project *types.Project) error {
 	if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") {
 		return fmt.Errorf("教师 endpoint 必须是有效的 HTTP 或 HTTPS 服务地址")
 	}
+	if err := types.NormalizeResourceRequest(&p.ResourceRequest, w.TrainStudent); err != nil {
+		return err
+	}
 	if w.TrainStudent {
-		if len(p.ResourceRequest.SelectedResources) > 1 {
-			return fmt.Errorf("当前学生训练支持单节点多 GPU，请只选择一个训练节点")
-		}
 		if w.StudentModel == nil {
 			return fmt.Errorf("训练学生模型时必须选择本次任务的学生基模")
 		}
@@ -151,9 +154,11 @@ func NormalizeDistillation(p *types.PipelineRun, project *types.Project) error {
 		if w.FinetuningType != "lora" && w.FinetuningType != "full" {
 			return fmt.Errorf("finetuning_type 必须是 lora 或 full")
 		}
-		if p.ResourceRequest.GPUCount <= 0 && len(p.ResourceRequest.SelectedResources) == 0 {
-			return fmt.Errorf("训练学生模型需要选择 GPU 资源")
-		}
+	} else {
+		w.StudentModel = nil
+		w.TrainerImage = ""
+		w.ModelTemplate = ""
+		w.FinetuningType = ""
 	}
 	return nil
 }
@@ -251,8 +256,29 @@ func (g *ConfigGenerator) GenerateDistill2Config(project *types.Project, p *type
 			stage["output_path"] = filepath.Join(root, "data", "intermediate", fmt.Sprintf("%02d_%s.jsonl", i+1, name))
 		}
 	}
+	applyTeacherGenerationControls(cfg, teacher.MaxTokens, teacher.Concurrency)
 	fixRecipePaths(cfg)
 	return cfg, nil
+}
+
+func applyTeacherGenerationControls(value any, maxTokens, workers int) {
+	switch node := value.(type) {
+	case map[string]interface{}:
+		for key, child := range node {
+			switch {
+			case key == "max_tokens" && maxTokens > 0:
+				node[key] = maxTokens
+			case key == "max_workers" && workers > 0:
+				node[key] = workers
+			default:
+				applyTeacherGenerationControls(child, maxTokens, workers)
+			}
+		}
+	case []interface{}:
+		for _, child := range node {
+			applyTeacherGenerationControls(child, maxTokens, workers)
+		}
+	}
 }
 
 func mergeConfig(dst, src map[string]interface{}) {

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/ReyRen/gcs-distill/internal/types"
+	"encoding/json"
 	"github.com/ReyRen/gcs-distill/runtime"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -16,20 +16,19 @@ func (h *PipelineHandler) ClonePipeline(c *gin.Context) {
 		c.JSON(400, gin.H{"code": 400, "message": "只能复用 2.0 任务配置"})
 		return
 	}
-	var req struct {
-		Name string `json:"name"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil && err != io.EOF {
-		c.JSON(400, gin.H{"code": 400, "message": "无效的任务名称"})
+	var req cloneRequest
+	decoder := json.NewDecoder(c.Request.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil && err != io.EOF {
+		c.JSON(400, gin.H{"code": 400, "message": "复用配置格式无效，不能更改用户或所属项目"})
 		return
 	}
-	w := p.TrainingConfig.Distillation
-	if strings.TrimSpace(req.Name) != "" {
-		w.Name = req.Name
-	} else {
-		w.Name = string([]rune(w.Name)[:min(len([]rune(w.Name)), 250)]) + "（副本）"
+	copy, err := clonedConfiguration(p, req)
+	if err != nil {
+		c.JSON(400, gin.H{"code": 400, "message": err.Error()})
+		return
 	}
-	copy := &types.PipelineRun{ID: uuid.NewString(), UID: p.UID, ProjectID: p.ProjectID, DatasetID: p.DatasetID, TrainingConfig: p.TrainingConfig, ResourceRequest: p.ResourceRequest}
+	copy.ID = uuid.NewString()
 	if err := h.pipelineSvc.CreatePipeline(c.Request.Context(), copy); err != nil {
 		c.JSON(400, gin.H{"code": 400, "message": err.Error()})
 		return
