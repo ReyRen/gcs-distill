@@ -21,7 +21,7 @@ import (
 
 var (
 	configPath = flag.String("config", "config.toml", "config file path")
-	version    = "v2.0.1-x86-offline"
+	version    = "v2.0.2-x86-offline"
 )
 
 func main() {

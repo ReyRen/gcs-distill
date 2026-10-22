@@ -52,3 +52,7 @@ python3 scripts/cleanup-legacy.py --apply --include-previous-v2
 预检镜像烟测使用 `--network none`。`--container-network NAME_OR_ID` 可额外核对实际 worker 网络；`--model /absolute/shared/model` 验证断网加载 tokenizer/config；`--gpu-device 0` 在指定 GPU 进行最小张量检查。真实训练必须使用已分配且显存充足的 GPU。当前交付已经完成平台单卡和双卡的 SFT、DPO LoRA 验收，具体边界见 `docs/easydistill2-x86-verification-20261022.md`。
 
 Agent 模拟工具可离线运行，真实外部搜索以及未安装的图像/视频生成后端未开放。数据质量和学生模型效果分别验收，不伪造 token、成本和模型效果。没有通用断点续跑接口；服务重启后排队任务继续调度，已中断的运行任务标记失败并清理容器，需克隆或新建任务重新执行。
+
+Agent、图文指令、图文 CoT 已使用真实教师完成数据生产到学生 LoRA 的小样本验收。训练镜像为 `gcs/distill-trainer:0.9.3-cu124-vl-x86_64`，内置 qwen-vl-utils，运行时不安装视觉依赖。图文图片需提前上传到当前用户 JFS，数据导出会把附件保存在独立生成数据集目录。
+
+模型权重不包含在程序/镜像包中，交付时需另外复制模型池及 MODEL_PROVENANCE.json；视觉模型为 Qwen2-VL-2B-Instruct，约 4.43 GB。教师服务也应在客户内网提前部署，验收临时服务不能直接当生产服务。模型准备脚本 `x86/prepare-vision-model.py` 只在有网络的构建环境使用，客户现场使用完整模型目录。新包不会联网下载模型、图片或 Python 依赖。

@@ -61,8 +61,18 @@ func MapSeedRecord(row map[string]interface{}, w *types.DistillationConfig) erro
 		if !text("instruction") {
 			return fmt.Errorf("multimodal input requires instruction")
 		}
-		if images, ok := row["images"].([]interface{}); !ok || len(images) == 0 {
+		images, ok := row["images"].([]interface{})
+		if !ok || len(images) == 0 {
 			return fmt.Errorf("multimodal input requires a nonempty images array")
+		}
+		for _, raw := range images {
+			reference, ok := raw.(string)
+			if !ok || strings.TrimSpace(reference) == "" {
+				return fmt.Errorf("图片引用必须是共享目录中的路径或内嵌图片")
+			}
+			if strings.HasPrefix(reference, "http://") || strings.HasPrefix(reference, "https://") {
+				return fmt.Errorf("离线图文蒸馏请先将图片上传到当前用户共享目录，不支持外链图片")
+			}
 		}
 	default:
 		if !text("instruction") {

@@ -193,7 +193,7 @@ Mock 覆盖核心主流程，可用于页面和交互交接；它不是已经接
 - 不丢失 messages、images、工具轨迹、偏好对及 metadata，不能一律压成 instruction/output 两列。
 - 无产物不能显示成功；数据生成失败不叫“模型训练失败”。
 - 预览最多 100 条，不能据此推算全量评分分布。`/quality` 提供按中间产物全量扫描的评分统计；token 和成本返回 null，禁止填演示数字。
-- Agent 默认模拟工具，不标注为已接真实业务系统。多模态须验证视觉服务、附件和挂载。
+- Agent 默认模拟工具，不标注为已接真实业务系统。Agent、图文指令和图文 CoT 已完成真实教师到学生 LoRA 的小样本验收；业务质量仍需单独评估。
 - 图像/视频生成等尚未安装额外依赖的能力不能直接开放为“已可运行”。
 - 当前保留中间及恢复文件，没有通用断点续跑 API，不提供无效续跑按钮。
 - 目录内 15 个配方经过配置编译检查。基础指令、CoT、质量筛选和 DPO 进行镜像及实际 GCS 验收，其余需逐项做模型效果验收。
@@ -285,5 +285,13 @@ Mock 覆盖核心主流程，可用于页面和交互交接；它不是已经接
 | DPO 候选数、评分差 | generate_candidates.config.n、build_preference_pairs.config.min_margin |
 | Agent 步骤/轨迹 | agent_trajectory.config.max_steps、repeat_times；保留配方工具模式，默认模拟工具；不声称接入真实业务系统 |
 | 多模态 | images 数组非空、视觉教师/学生能力检查；附件必须对运行节点可读，不能把浏览器本地文件名当成已上传附件 |
+
+### Agent 与图文执行补充
+
+- Agent 的全局 generation.system_prompt 会应用到任务生成、任务改写、工具检查和 rubric 等提示阶段，并补充 XML/JSON 数组输出约束。保留各阶段明确指定的 system_prompt。无法解析的教师输出仍由原生算子过滤，最终无有效数据则任务失败，不制造样本。
+- Agent 和图文训练未指定 `training_config.max_length` 时保存为 4096；明确传入的值保持不变，避免沿用短文本默认长度而截掉工具提示或图片后的监督内容。Mock 布局无需变动。
+- 图文输入 images 使用当前用户 JFS 图片路径或 data:image 内嵌图片。HTTP 外链在任务创建校验时拒绝；前端文件选择后应使用平台文件机制对应的共享路径，不能提交临时浏览器 URL。
+- 原生图文输出保留在 `data/intermediate/mm_native_sft.jsonl`；正式导出将 messages 的图文数组转换为带 `<image>` 的文本，images 为有序附件路径。附件写入该用户 `datasets/generated/{dataset_id}/images/`，不依赖任务目录；元数据保留。预览按图片标记顺序渲染，图片展示继续走现有用户文件访问与鉴权。
+- 学生视觉基模 `Qwen2-VL-2B-Instruct` 已完整入库、实际训练验收；模板为 qwen2_vl。运行镜像从 `/runtime.trainer_images` 读取，不在前端写死旧 tag。
 
 后端生成阶段执行配置会固化这些值。新增契约验收脚本 `tests/integration/frontend_contract_smoke.py` 覆盖页面 11 个配方预览、真实资源、错误选择、参数编辑复用、项目/用户隔离；已有 control/student 脚本覆盖实际数据生产及双卡训练。

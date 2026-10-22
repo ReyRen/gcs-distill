@@ -159,7 +159,7 @@ func Default() *Config {
 			Compress: true,
 		},
 		Executor: ExecutorConfig{
-			TrainerImage:  "gcs/distill-trainer:0.9.3-cu124-x86_64",
+			TrainerImage:  "gcs/distill-trainer:0.9.3-cu124-vl-x86_64",
 			MaxConcurrent: 5,
 			RuntimeImage:  "gcs/distill-data:2.0.0-aeb8ca3-x86_64",
 		},

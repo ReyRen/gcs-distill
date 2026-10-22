@@ -4,13 +4,13 @@
 
 ## 版本与部署
 
-- 控制服务：`172.18.29.80`，`gcs-distill.service`，版本 `v2.0.1-x86-offline`。
+- 控制服务：`172.18.29.80`，`gcs-distill.service`，版本 `v2.0.2-x86-offline`。
 - GCS manager：`172.18.29.80`，`gcs-V2.service`。
 - GCS worker：`172.18.36.230`，节点 `specialai-3090-0`，`gcs-info-catch-V2.service`。
 - 生产 distill 配置单独保存在 `/etc/gcs-distill/config.toml`，权限 0600；交付模板不含数据库密码。
 - 官方 EasyDistill 源码固定为 `aeb8ca3eab8b2a82f754c01c3d1f59ad276268c3`，15 份配方与官方文件逐字节核对。官方 LLaMA-Factory 固定为 v0.9.3 的 `ca75f1edf3cb50343ed1c98605141c3e22075b5f`。
 - 数据镜像：`gcs/distill-data:2.0.0-aeb8ca3-x86_64`，ID `sha256:3ea860dcd708835a18b81d1a7d3d9f38e94f57e1ca6b3217a5aef0127a44b181`。
-- 训练镜像：`gcs/distill-trainer:0.9.3-cu124-x86_64`，ID `sha256:7f92fac4d0c2576f3ed21301b6bbcc1408bcd4a619f36982629fc5200fc4e89f`；PyTorch 2.6.0 / CUDA 12.4。
+- 训练镜像：`gcs/distill-trainer:0.9.3-cu124-vl-x86_64`，ID `sha256:7f92fac4d0c2576f3ed21301b6bbcc1408bcd4a619f36982629fc5200fc4e89f`；PyTorch 2.6.0 / CUDA 12.4。
 - 二进制、镜像归档、依赖锁文件的最终校验值以离线包 `manifest.json` 和 `SHA256SUMS` 为准。worker 使用原生 Linux amd64、CGO/NVML，glibc 最低 2.31；没有使用 Ascend 构建标签。
 - 三个仓库发布到 GitHub `main`：`ReyRen/gcs-distill`、`ReyRen/gcs-v2`、`ReyRen/gcs-info-catch-v2`。worker 发布增加 NVML 进程计数和采集时间，不包含工作区已有的推理模块修改。
 
@@ -61,6 +61,24 @@
 
 ## 验收边界
 
-教师使用带认证的确定性合成 API，用于核对执行、状态和文件合同，不证明真实教师质量。学生验收验证 LoRA 训练和导出功能，尚未评估模型效果；全量微调、真实 Agent、视觉/视频模型效果没有做 GPU 实测。15 份官方配方的配置接入通过，不等同于上述模型效果通过。
+基础四配方验收使用带认证的确定性合成 API。后续 Agent、图文指令及图文 CoT 使用真实教师模型，记录见下节。学生验收验证 LoRA 训练和导出功能，尚未评估业务效果；全量微调、真实外部工具执行、视频及大规模训练尚未验收。15 份官方配方的配置接入通过，不等同于模型效果通过。
+
+## Agent 与多模态真实链路验收
+
+| 配方 | 真实教师 | 学生基模 | 导出条数 | 优化步数 | train_loss | LoRA 权重字节 |
+|---|---|---|---:|---:|---:|---:|
+| agent_distill | 现有 Ollama qwen2.5:7b-instruct | Qwen2.5-0.5B-Instruct | 1 | 1 | 0.6527773 | 17,640,136 |
+| mm_instruct_distill | 本地 Qwen2-VL-2B-Instruct | Qwen2-VL-2B-Instruct | 2 | 2 | 0.2615265 | 36,986,952 |
+| mm_cot_distill | 本地 Qwen2-VL-2B-Instruct | Qwen2-VL-2B-Instruct | 2 | 2 | 0.2683285 | 36,986,952 |
+
+三条均通过真实 GCS 五阶段、资产登记/预览和权重 ZIP 下载。验收脚本确认 Agent 样本含工具调用及返回；图文样本含匹配的图片字段与标记。进一步读取 checkpoint：Agent 的 336 个适配器张量、图文各 392 个张量均无 NaN/Inf，lora_B 存在实际非零更新。
+
+Agent 使用原生六步算子及模型模拟工具。首次真实 7B 教师因 XML 输出不完整产生空数据，导出阶段正确失败；修复了全局系统提示未传给 Agent 提示阶段的问题，并补充机器可解析格式约束后重跑通过。没有伪造教师数据或跳过算子。
+
+视觉模型由官方 ModelScope Qwen 仓库下载，完整文件约 4.43 GB，位于 `/storage-root-jfs/train-base-models/Qwen2-VL-2B-Instruct`，逐文件 SHA256 和来源保存在 MODEL_PROVENANCE.json。教师实际加载本地权重，分别正确识别红色方形和蓝色圆形。GPU 6 用于临时视觉教师，GPU 7 用于三次学生训练；没有使用其他卡。
+
+补齐 qwen-vl-utils==0.0.8，增量训练镜像 `gcs/distill-trainer:0.9.3-cu124-vl-x86_64`，ID `sha256:cd028009fe9bef713dcbe7cb41629086458cecbda5833d3c49695506df688e04`，断网构建与 pip check 通过，原数据镜像未变。修复图文导出对训练格式的适配及独立附件保存。所有官方配方文件保持原样，适配发生在生成的执行配置和导出层。
+
+报告位于 230 的 `/storage-md0/renyuan/offline/gcs-agent-mm-20261022/reports/`：agent-real-v2.json、mm-real.json、mm-cot-real.json、finite-training-weights.json、vision-image-probe.json。图文教师与学生使用同一 2B 模型，仅验证执行链路，不作为压缩收益或效果提升的证据。完整业务样本、OCR/复杂视觉、模型效果和生产工具接入仍需单独验收。
 
 前端 mock 是交互示意，正式实现须按最新 `easydistill2-frontend-handoff.md` 和 OpenAPI 接入。平台基础环境要求见离线说明：共享挂载、Docker/网络、GPU 驱动及 Toolkit、内网教师服务、完整学生基模和认证 UID 网关需要由平台提前准备。

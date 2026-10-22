@@ -39,7 +39,7 @@ max_age = 7
 compress = true
 
 [executor]
-trainer_image = "gcs/distill-trainer:0.9.3-cu124-x86_64"
+trainer_image = "gcs/distill-trainer:0.9.3-cu124-vl-x86_64"
 max_concurrent = 5
 # External EasyDistill runtime image. gcs-distill only passes this reference to gcs-v2.
 runtime_image = "gcs/distill-data:2.0.0-aeb8ca3-x86_64"

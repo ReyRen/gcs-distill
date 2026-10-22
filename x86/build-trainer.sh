@@ -11,6 +11,6 @@ mkdir -p "$context/trainer" "$context/wheels"
 git -C "$source_dir" archive HEAD | tar -x -C "$context/trainer"
 cp "$repo_dir/x86/image/trainer.Dockerfile" "$context/Dockerfile"
 cp "$repo_dir/x86/image/trainer-constraints.txt" "$context/trainer-constraints.txt"
-image=gcs/distill-trainer:0.9.3-cu124-x86_64
+image=gcs/distill-trainer:0.9.3-cu124-vl-x86_64
 docker build --platform linux/amd64 --build-arg TRAINER_REVISION="$revision" -t "$image" "$context"
 docker run --rm --network none "$image" llamafactory-cli version

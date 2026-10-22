@@ -21,7 +21,7 @@ if a.container_network:
     if net.get('Driver') == 'overlay' and not net.get('Attachable'):
         raise RuntimeError('worker overlay network must allow containers to attach')
 data = 'gcs/distill-data:2.0.0-aeb8ca3-x86_64'
-trainer = 'gcs/distill-trainer:0.9.3-cu124-x86_64'
+trainer = 'gcs/distill-trainer:0.9.3-cu124-vl-x86_64'
 tests = [(data, ['easydistill', '--list-jobs'])]
 if not a.data_only:
     tests.append((trainer, ['llamafactory-cli', 'version']))

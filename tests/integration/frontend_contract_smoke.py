@@ -62,7 +62,7 @@ def main():
         call('POST', '/datasets/upload', expected=400, data={'uid': args.uid, 'name': 'invalid'}, files={'file': (filename, content)})
     row = {'question': 'What is 2+2?', 'problem': 'What is 2+2?', 'response': 'Four.',
            'persona': 'A helpful assistant', 'background': 'Synthetic arithmetic',
-           'images': ['https://example.invalid/synthetic.png'], 'metadata': {'synthetic': True}}
+           'images': ['data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aGZYAAAAASUVORK5CYII='], 'metadata': {'synthetic': True}}
     dataset = call('POST', '/datasets/upload', data={'uid': args.uid, 'name': '固定页面字段映射验收'},
                    files={'file': ('seed.jsonl', json.dumps(row))})
     dataset_id = dataset['id']

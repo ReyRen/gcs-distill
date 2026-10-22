@@ -27,3 +27,16 @@ python frontend_contract_smoke.py --base-url http://CONTROL:8080 --uid UID --tea
 ```
 
 教师 fixture 沿用上文数据验收脚本的 `serve` 子命令；脚本可在已交付数据镜像内运行，宿主机无需安装 Python 依赖。节点/卡号必须替换为已授权且空闲的实际资源。
+
+## Agent 和图文真实模型验收
+
+`easydistill2_agent_mm_smoke.py` 的 `--mode agent/mm/mm-cot` 分别验证原生 Agent 六步、图文指令和图文 CoT。通过真实 GCS 生成数据、登记资产、预览、学生 LoRA 及下载权重；Agent 要求生成样本含工具调用/返回，图文要求附件与标记均存在。使用合成种子及真实教师，成功后只清理本次创建的数据库记录，失败时保留以供诊断。
+
+```sh
+python easydistill2_agent_mm_smoke.py --mode agent --base-url http://CONTROL:8080 --uid UID --worker NODE --student Qwen2.5-0.5B-Instruct --gpu 7 --teacher-service-id OWNED_TEACHER_ID --report /reports/agent.json
+python easydistill2_agent_mm_smoke.py --mode mm --base-url http://CONTROL:8080 --uid UID --worker NODE --student Qwen2-VL-2B-Instruct --gpu 7 --teacher-url http://TEACHER:18883/v1 --teacher-model Qwen2-VL-2B-Instruct --image /absolute/user/path/red-square.png --image /absolute/user/path/blue-circle.png --report /reports/mm.json
+```
+
+测试图片可由 `easydistill2_vision_teacher.py --model-path /model --image-dir /fixtures` 创建；该脚本使用真实本地 Qwen2-VL 权重，提供仅验收用的 OpenAI 接口，默认端口 18883、测试密钥 acceptance。请放在隔离验收网络中，限定一张已授权的 GPU；完成后停止临时教师。生产服务应通过模型中心管理。教师使用一张卡，训练另用一张，不同时抢占同一卡。
+
+`verify_distill_checkpoints.py REPORT... --report OUTPUT` 在训练镜像内以 CPU、断网运行，需只读挂载报告对应的用户任务目录；验证优化步数、有限正 loss、所有适配器张量无 NaN/Inf 且 lora_B 有实际非零更新。教师/学生同为 2B 的图文案例只验证功能，不证明压缩或效果提升。

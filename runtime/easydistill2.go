@@ -154,6 +154,9 @@ func NormalizeDistillation(p *types.PipelineRun, project *types.Project) error {
 		if w.FinetuningType != "lora" && w.FinetuningType != "full" {
 			return fmt.Errorf("finetuning_type 必须是 lora 或 full")
 		}
+		if p.TrainingConfig.MaxLength == 0 && (w.JobType == "agent_distill" || strings.HasPrefix(w.JobType, "mm_")) {
+			p.TrainingConfig.MaxLength = 4096
+		}
 	} else {
 		w.StudentModel = nil
 		w.TrainerImage = ""
@@ -230,6 +233,10 @@ func (g *ConfigGenerator) GenerateDistill2Config(project *types.Project, p *type
 	dataset["output_path"] = distill2OutputPath(root, w.JobType)
 	cfg["dataset"] = dataset
 	if generation, ok := cfg["generation"].(map[string]interface{}); ok {
+		if w.JobType == "agent_distill" {
+			system, _ := generation["system_prompt"].(string)
+			generation["system_prompt"] = strings.TrimSpace(system) + "\nReturn only the XML tags requested by the task prompt. Do not use Markdown fences, headings, or prose outside those tags. When tools are requested, put a valid JSON array of tool objects inside <tools>...</tools>."
+		}
 		if teacher.Temperature > 0 {
 			generation["temperature"] = teacher.Temperature
 		}
@@ -250,6 +257,13 @@ func (g *ConfigGenerator) GenerateDistill2Config(project *types.Project, p *type
 				return nil, fmt.Errorf("pipeline stage %d must be an object", i+1)
 			}
 			name, _ := stage["stage"].(string)
+			if w.JobType == "agent_distill" && strings.HasPrefix(name, "agent_") && name != "agent_trajectory" {
+				if generation, ok := cfg["generation"].(map[string]interface{}); ok {
+					if config, ok := stage["config"].(map[string]interface{}); ok && config["system_prompt"] == nil {
+						config["system_prompt"] = generation["system_prompt"]
+					}
+				}
+			}
 			if name == "" || filepath.Base(name) != name || strings.ContainsAny(name, `/\\`) {
 				return nil, fmt.Errorf("invalid pipeline stage name")
 			}
@@ -468,6 +482,18 @@ func (e *StageExecutor) executeExport2(ctx context.Context, stage *types.StageRu
 	w := p.TrainingConfig.Distillation
 	path := distill2OutputPath(root, w.JobType)
 	recipe, _ := FindWorkflow(w.JobType)
+	assetID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("gcs-distill2:%d:%s", p.UID, p.ID))).String()
+	assetDir := filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", p.UID), "train-center", "model-distill", "datasets", "generated", assetID)
+	if strings.HasPrefix(w.JobType, "mm_") {
+		if _, err := CopyRecords(path, filepath.Join(root, "data", "intermediate", "mm_native_sft.jsonl"), nil); err != nil {
+			return err
+		}
+		if _, err := CopyRecords(path, path, func(row map[string]interface{}) error {
+			return normalizeMultimodalRecord(row, filepath.Join(assetDir, "images"), filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", p.UID)))
+		}); err != nil {
+			return fmt.Errorf("normalize multimodal training data: %w", err)
+		}
+	}
 	count, err := WalkRecords(path, func(row map[string]interface{}) error {
 		if recipe.OutputFormat == "sft_messages" {
 			if messages, ok := row["messages"].([]interface{}); !ok || len(messages) == 0 {
@@ -489,8 +515,8 @@ func (e *StageExecutor) executeExport2(ctx context.Context, stage *types.StageRu
 	stage.OutputManifest = map[string]string{"dataset_path": path, "format": recipe.OutputFormat, "record_count": fmt.Sprint(count), "bytes": fmt.Sprint(info.Size()), "upstream_revision": EasyDistill2Revision}
 	stage.Metrics = map[string]interface{}{"output_records": count, "output_bytes": info.Size()}
 	if e.datasetRepo != nil {
-		id := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("gcs-distill2:%d:%s", p.UID, p.ID))).String()
-		assetPath := filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", p.UID), "train-center", "model-distill", "datasets", "generated", id, "dataset.jsonl")
+		id := assetID
+		assetPath := filepath.Join(assetDir, "dataset.jsonl")
 		existing, err := e.datasetRepo.GetByID(ctx, id)
 		if err != nil && !errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("check generated dataset: %w", err)

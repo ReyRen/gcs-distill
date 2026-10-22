@@ -10,6 +10,7 @@ RUN --mount=type=bind,source=wheels,target=/wheels --mount=type=cache,target=/ro
       torch==2.6.0 torchvision==0.21.0 \
       transformers==4.52.4 datasets==3.6.0 accelerate==1.7.0 \
       peft==0.15.2 trl==0.9.6 tokenizers==0.21.1 \
+      qwen-vl-utils==0.0.8 \
       numpy==1.26.4 pydantic==2.10.6 gradio==5.31.0 imageio-ffmpeg . \
     && python -m pip check \
     && python -m pip freeze > /opt/llamafactory/runtime-requirements.lock
@@ -17,7 +18,7 @@ ENV HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 \
     HF_HUB_DISABLE_TELEMETRY=1 DO_NOT_TRACK=1 WANDB_DISABLED=true \
     PIP_NO_INDEX=1 TOKENIZERS_PARALLELISM=false
 LABEL org.opencontainers.image.title="GCS Distill offline student trainer" \
-      org.opencontainers.image.version="0.9.3-torch2.6-cu124" \
+      org.opencontainers.image.version="0.9.3-torch2.6-cu124-vl1" \
       org.opencontainers.image.source="https://github.com/hiyouga/LLaMA-Factory" \
       org.opencontainers.image.revision="${TRAINER_REVISION}" \
       gcs.application="gcs-distill" gcs.role="student-trainer"

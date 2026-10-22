@@ -53,7 +53,7 @@ for role, src in [('distill', a.distill), ('manager', a.manager), ('worker', a.w
     dest.chmod(0o755)
     manifest['binaries'][role] = {'path': 'bin/' + name, 'sha256': sha(dest)}
 for role, src, tag in [('data', a.data_image, 'gcs/distill-data:2.0.0-aeb8ca3-x86_64'),
-                       ('trainer', a.trainer_image, 'gcs/distill-trainer:0.9.3-cu124-x86_64')]:
+                       ('trainer', a.trainer_image, 'gcs/distill-trainer:0.9.3-cu124-vl-x86_64')]:
     info = json.loads(subprocess.check_output(['docker', 'image', 'inspect', tag]))[0]
     if info['Architecture'] != 'amd64':
         raise RuntimeError('incorrect image architecture')

@@ -1295,6 +1295,7 @@
             "type": "string"
           },
           "max_length": {
+            "description": "Maximum training sequence length. If omitted: 4096 for Agent and multimodal workflows, 512 for other workflows. Explicit values are preserved.",
             "example": 4096,
             "type": "integer"
           },
@@ -1845,7 +1846,7 @@
         ]
       },
       "post": {
-        "description": "Create a pipeline run. Request body must include uid; backend verifies project.uid and dataset.uid match pipeline.uid.",
+        "description": "Create a pipeline run. Request body must include uid; backend verifies project.uid and dataset.uid match pipeline.uid. Multimodal seed images must be current-user shared-file paths or embedded data:image values; HTTP image links are rejected before creation. Agent and multimodal student training defaults max_length to 4096.",
         "requestBody": {
           "content": {
             "application/json": {
@@ -3099,7 +3100,7 @@
     },
     "/api/v1/workflows/preview": {
       "post": {
-        "description": "Returns redacted execution config, stages, train_student, training_scope and normalized resource_request without creating or reserving anything. Data-only previews clear GPU selection.",
+        "description": "Returns redacted execution config, stages, train_student, training_scope and normalized resource_request without creating or reserving anything. Data-only previews clear GPU selection. Multimodal seed images must be current-user shared-file paths or embedded data:image values; HTTP image links are rejected before creation. Agent and multimodal student training defaults max_length to 4096.",
         "requestBody": {
           "content": {
             "application/json": {

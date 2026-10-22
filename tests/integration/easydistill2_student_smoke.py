@@ -32,7 +32,6 @@ for job in ['instruct_distill', 'dpo_data_build']:
                                 'learning_rate': 0.0001, 'max_length': 128, 'logging_steps': 1, 'save_steps': 100,
                                 'distillation': {'version': '2.0', 'job_type': job, 'train_student': True,
                                                  'student_model': {'model_id': a.model_id},
-                                                 'trainer_image': 'gcs/distill-trainer:0.9.3-cu124-x86_64',
                                                  'model_template': 'qwen', 'finetuning_type': 'lora'}},
             'resource_request': {'executor_nodes': [a.worker], 'selected_resources': [{'node_name': a.worker, 'xpu_indices': indices}]}}
     preview = req('POST', '/workflows/preview', json=body)
