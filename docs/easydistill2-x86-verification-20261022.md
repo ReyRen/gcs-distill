@@ -4,7 +4,7 @@
 
 ## 版本与部署
 
-- 控制服务：`172.18.29.80`，`gcs-distill.service`，版本 `v2.0.2-x86-offline`。
+- 控制服务：`172.18.29.80`，`gcs-distill.service`，版本 `v2.0.3-x86-offline`。
 - GCS manager：`172.18.29.80`，`gcs-V2.service`。
 - GCS worker：`172.18.36.230`，节点 `specialai-3090-0`，`gcs-info-catch-V2.service`。
 - 生产 distill 配置单独保存在 `/etc/gcs-distill/config.toml`，权限 0600；交付模板不含数据库密码。
@@ -75,10 +75,22 @@
 
 Agent 使用原生六步算子及模型模拟工具。首次真实 7B 教师因 XML 输出不完整产生空数据，导出阶段正确失败；修复了全局系统提示未传给 Agent 提示阶段的问题，并补充机器可解析格式约束后重跑通过。没有伪造教师数据或跳过算子。
 
-视觉模型由官方 ModelScope Qwen 仓库下载，完整文件约 4.43 GB，位于 `/storage-root-jfs/train-base-models/Qwen2-VL-2B-Instruct`，逐文件 SHA256 和来源保存在 MODEL_PROVENANCE.json。教师实际加载本地权重，分别正确识别红色方形和蓝色圆形。GPU 6 用于临时视觉教师，GPU 7 用于三次学生训练；没有使用其他卡。
+视觉模型由官方 ModelScope Qwen 仓库下载，完整文件约 4.43 GB；当前已导入 `/storage-root-jfs/user-369/train-center/model-distill/models/base/Qwen2-VL-2B-Instruct`，逐文件 SHA256 和来源保存在 MODEL_PROVENANCE.json，导入记录为 MODEL_IMPORT.json。此前教师实际加载本地权重，分别正确识别红色方形和蓝色圆形。GPU 6 用于临时视觉教师，GPU 7 用于三次学生训练；没有使用其他卡。
 
 补齐 qwen-vl-utils==0.0.8，增量训练镜像 `gcs/distill-trainer:0.9.3-cu124-vl-x86_64`，ID `sha256:cd028009fe9bef713dcbe7cb41629086458cecbda5833d3c49695506df688e04`，断网构建与 pip check 通过，原数据镜像未变。修复图文导出对训练格式的适配及独立附件保存。所有官方配方文件保持原样，适配发生在生成的执行配置和导出层。
 
 报告位于 230 的 `/storage-md0/renyuan/offline/gcs-agent-mm-20261022/reports/`：agent-real-v2.json、mm-real.json、mm-cot-real.json、finite-training-weights.json、vision-image-probe.json。图文教师与学生使用同一 2B 模型，仅验证执行链路，不作为压缩收益或效果提升的证据。完整业务样本、OCR/复杂视觉、模型效果和生产工具接入仍需单独验收。
 
 前端 mock 是交互示意，正式实现须按最新 `easydistill2-frontend-handoff.md` 和 OpenAPI 接入。平台基础环境要求见离线说明：共享挂载、Docker/网络、GPU 驱动及 Toolkit、内网教师服务、完整学生基模和认证 UID 网关需要由平台提前准备。
+
+## 2026-10-23 用户存储与配额验收
+
+学生模型目录改为用户私有 `models/base`，列表及详情要求 uid；没有公共池回退。配置、种子/中间/最终数据、权重、五阶段持久日志、HF/Torch 缓存和临时目录均位于该用户的蒸馏目录，布局见 `storage-layout.md`。不移动或删除其他项目使用的原公共模型池。
+
+四个真实基模已完整导入 user-369。Go 测试、go vet、OpenAPI/diff 检查通过；目录越界、跨用户基模/运行、符号链接、无容器阶段日志下载都有覆盖。冻结 mock 文件未变化。
+
+在新部署上重跑前端契约通过，并使用私有 Qwen2.5-0.5B-Instruct、GPU 7 完成五阶段 SFT 与 17,640,136 字节 LoRA 下载。这次定向目录回归使用合成教师 API，不作为真实教师质量验收。`storage_layout_smoke.py` 实读 JFS 和 HTTP，验证私有基模路径、输入/中间/输出目录、独立数据资产、缓存/tmp、五阶段日志下载及跨用户拒绝，结果 USER_STORAGE_LAYOUT_OK。此次验收元数据已清理，运行文件与日志保留。
+
+报告位于 `/storage-root-jfs/user-369/train-center/model-distill/reports/20261023/`：frontend-private-storage.json、student-private-storage.json、storage-layout.json。
+
+按用户授权，gcs-s3 新用户默认容量改为 1TiB，现有 169 个用户目录（126 个 user-*、43 个历史数字目录）全部核验为 1024GiB，文件数限制维持原值。未删除用户文件，未部署 ARM 二进制。管理端完整前后记录位于 80 的 `/root/gcs-user-quota-20261022/`。
