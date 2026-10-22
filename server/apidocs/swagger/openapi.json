@@ -192,6 +192,12 @@
             "example": "uuid-dataset",
             "type": "string"
           },
+          "lineage": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
           "name": {
             "example": "训练数据集",
             "type": "string"
@@ -384,6 +390,67 @@
         ],
         "type": "object"
       },
+      "DistillationConfig": {
+        "description": "EasyDistill 2 workflow. New runs default to data-only instruct_distill. Stored in training_config.distillation.",
+        "properties": {
+          "field_mapping": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Canonical target field to source field. Entire dataset is validated before creating a run.",
+            "type": "object"
+          },
+          "finetuning_type": {
+            "default": "lora",
+            "enum": [
+              "lora",
+              "full"
+            ],
+            "type": "string"
+          },
+          "job_type": {
+            "default": "instruct_distill",
+            "description": "Select from GET /api/v1/workflows",
+            "type": "string"
+          },
+          "model_template": {
+            "description": "Required for student training, for example qwen",
+            "type": "string"
+          },
+          "name": {
+            "description": "Persisted business task name",
+            "maxLength": 255,
+            "type": "string"
+          },
+          "parameters": {
+            "additionalProperties": true,
+            "description": "Native EasyDistill 2 config overrides; input/output paths and selected teacher are managed by GCS",
+            "type": "object"
+          },
+          "student_model": {
+            "$ref": "#/components/schemas/StudentModelConfig"
+          },
+          "teacher_model": {
+            "$ref": "#/components/schemas/TeacherModelConfig"
+          },
+          "train_student": {
+            "default": false,
+            "type": "boolean"
+          },
+          "trainer_image": {
+            "description": "Required for student training; existing LLaMA-Factory runtime",
+            "type": "string"
+          },
+          "version": {
+            "default": "2.0",
+            "enum": [
+              "2.0"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "ErrorResponse": {
         "properties": {
           "code": {
@@ -393,37 +460,6 @@
           "message": {
             "example": "请求参数错误",
             "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "EvaluationConfig": {
-        "properties": {
-          "extra_params": {
-            "additionalProperties": true,
-            "description": "EasyDistill evaluation inference params. Provide base_url, api_key, and optional max_new_tokens for the OpenAI-compatible judge API.",
-            "example": {
-              "api_key": "DASHSCOPE_API_KEY",
-              "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-              "max_new_tokens": 8196
-            },
-            "type": "object"
-          },
-          "metrics": {
-            "example": [
-              "bleu",
-              "rouge",
-              "accuracy"
-            ],
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "test_set_ratio": {
-            "example": 0.2,
-            "format": "double",
-            "type": "number"
           }
         },
         "type": "object"
@@ -623,6 +659,9 @@
             "example": "uuid-pipeline",
             "type": "string"
           },
+          "name": {
+            "type": "string"
+          },
           "project_id": {
             "example": "uuid-project",
             "type": "string"
@@ -637,6 +676,10 @@
           "status": {
             "example": "pending",
             "type": "string"
+          },
+          "summary": {
+            "description": "Actual job type, input/output counts, output dataset ID, model weights availability and retired flag.",
+            "type": "object"
           },
           "training_config": {
             "$ref": "#/components/schemas/TrainingConfig"
@@ -672,9 +715,6 @@
             "example": "将教师模型蒸馏到轻量学生模型",
             "type": "string"
           },
-          "evaluation_config": {
-            "$ref": "#/components/schemas/EvaluationConfig"
-          },
           "id": {
             "example": "uuid-project",
             "type": "string"
@@ -682,9 +722,6 @@
           "name": {
             "example": "客服问答蒸馏",
             "type": "string"
-          },
-          "student_model_config": {
-            "$ref": "#/components/schemas/StudentModelConfig"
           },
           "teacher_model_config": {
             "$ref": "#/components/schemas/TeacherModelConfig"
@@ -756,29 +793,16 @@
       },
       "ResourceRequest": {
         "properties": {
-          "cpu_cores": {
-            "description": "Number of CPU cores",
-            "example": 8,
-            "type": "integer"
+          "executor_nodes": {
+            "description": "Optional CPU data-generation workers. GPU selected_resources are used only for optional student training.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "gpu_count": {
-            "description": "Number of GPUs to use. Set to -1 for all available GPUs.",
+            "description": "GPU count for optional student training. Data production uses CPU workers and the selected teacher endpoint.",
             "example": 1,
-            "type": "integer"
-          },
-          "gpu_device_ids": {
-            "description": "Comma-separated GPU device IDs. This field only carries card IDs; use selected_resources when node identity is required.",
-            "example": "0,1,2",
-            "type": "string"
-          },
-          "gpu_type": {
-            "description": "GPU type",
-            "example": "RTX 4090",
-            "type": "string"
-          },
-          "memory_gb": {
-            "description": "Memory in GB",
-            "example": 32,
             "type": "integer"
           },
           "selected_resources": {
@@ -892,7 +916,7 @@
             "type": "integer"
           },
           "stage_type": {
-            "example": "teacher_infer",
+            "example": "distill_data",
             "type": "string"
           },
           "started_at": {
@@ -922,6 +946,9 @@
             "example": "Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
+          "model_type": {
+            "type": "string"
+          },
           "name": {
             "description": "Model name",
             "example": "Qwen2.5-0.5B-Instruct",
@@ -932,10 +959,22 @@
             "example": "/storage-root-jfs/train-base-models/Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
+          "readiness_error": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
           "size": {
             "description": "Model size in bytes",
             "example": 1073741824,
             "type": "integer"
+          },
+          "suggested_template": {
+            "type": "string"
+          },
+          "supports_vision": {
+            "type": "boolean"
           }
         },
         "type": "object"
@@ -952,7 +991,7 @@
             "type": "integer"
           },
           "model_id": {
-            "description": "Preferred for local student models. Use the id returned by GET /api/v1/models/student; the backend resolves and stores model_path.",
+            "description": "ID from GET /models/student with ready=true; backend resolves the local pool path.",
             "example": "Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
@@ -978,7 +1017,7 @@
           }
         },
         "required": [
-          "provider_type"
+          "model_id"
         ],
         "type": "object"
       },
@@ -1017,40 +1056,23 @@
         },
         "type": "object"
       },
-      "TeacherModel": {
-        "properties": {
-          "description": {
-            "description": "Model description",
-            "example": "",
-            "type": "string"
-          },
-          "id": {
-            "description": "Model ID (directory name)",
-            "example": "Qwen2.5-7B-Instruct",
-            "type": "string"
-          },
-          "name": {
-            "description": "Model name",
-            "example": "Qwen2.5-7B-Instruct",
-            "type": "string"
-          },
-          "path": {
-            "description": "Full path to model directory",
-            "example": "/storage-root-jfs/train-base-models/Qwen2.5-7B-Instruct",
-            "type": "string"
-          },
-          "size": {
-            "description": "Model size in bytes",
-            "example": 7516192768,
-            "type": "integer"
-          }
-        },
-        "type": "object"
-      },
       "TeacherModelConfig": {
+        "anyOf": [
+          {
+            "required": [
+              "service_id"
+            ]
+          },
+          {
+            "required": [
+              "endpoint",
+              "model_name"
+            ]
+          }
+        ],
         "properties": {
           "api_secret_ref": {
-            "description": "API key or API secret reference for api provider. Current EasyDistill runtime needs a directly usable key string unless the runtime image resolves the reference itself.",
+            "description": "API key value; stored privately and redacted in responses. Do not resubmit the masked value.",
             "example": "openai_key",
             "type": "string"
           },
@@ -1059,7 +1081,7 @@
             "type": "integer"
           },
           "endpoint": {
-            "description": "API endpoint (for api provider)",
+            "description": "Worker-reachable OpenAI-compatible base URL including /v1.",
             "example": "https://api.openai.com/v1/chat/completions",
             "type": "string"
           },
@@ -1072,24 +1094,20 @@
             "example": 2048,
             "type": "integer"
           },
-          "model_id": {
-            "description": "Preferred for local teacher models. Use the id returned by GET /api/v1/models/teacher; the backend resolves and stores model_path.",
-            "example": "Qwen2.5-7B-Instruct",
-            "type": "string"
-          },
           "model_name": {
             "description": "Model name. Required for api provider; optional for local provider when model_id is provided.",
             "example": "gpt-4",
             "type": "string"
           },
-          "model_path": {
-            "description": "Resolved local teacher model path. Frontend should not hand-type it; backend fills it from model_id. Kept for backward compatibility.",
-            "example": "/storage-root-jfs/train-base-models/Qwen2.5-7B-Instruct",
+          "provider_type": {
+            "default": "api",
+            "enum": [
+              "api"
+            ],
             "type": "string"
           },
-          "provider_type": {
-            "description": "Provider type: api or local",
-            "example": "api",
+          "service_id": {
+            "description": "Owned online model-center service; backend resolves endpoint, model and credentials.",
             "type": "string"
           },
           "temperature": {
@@ -1104,43 +1122,11 @@
         },
         "type": "object"
       },
-      "TeacherModelListResponse": {
-        "properties": {
-          "code": {
-            "example": 200,
-            "type": "integer"
-          },
-          "data": {
-            "items": {
-              "$ref": "#/components/schemas/TeacherModel"
-            },
-            "type": "array"
-          },
-          "message": {
-            "example": "获取教师模型列表成功",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
-      "TeacherModelResponse": {
-        "properties": {
-          "code": {
-            "example": 200,
-            "type": "integer"
-          },
-          "data": {
-            "$ref": "#/components/schemas/TeacherModel"
-          },
-          "message": {
-            "example": "获取模型信息成功",
-            "type": "string"
-          }
-        },
-        "type": "object"
-      },
       "TrainingConfig": {
         "properties": {
+          "distillation": {
+            "$ref": "#/components/schemas/DistillationConfig"
+          },
           "gradient_accumulation_steps": {
             "example": 1,
             "type": "integer"
@@ -1190,9 +1176,9 @@
     }
   },
   "info": {
-    "description": "GCS-Distill control plane HTTP API documentation.",
+    "description": "Offline x86 EasyDistill 2 data workflows and optional local student training. UID must be injected by the trusted platform gateway. Legacy local teacher inference is removed.",
     "title": "GCS-Distill API",
-    "version": "v0.1.0"
+    "version": "2.0.0"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -1221,6 +1207,20 @@
             "schema": {
               "example": 20,
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source_type",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -1421,6 +1421,147 @@
         ]
       }
     },
+    "/api/v1/datasets/{id}/download": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Resource unavailable or not owned"
+          },
+          "422": {
+            "description": "Validation or connectivity failure"
+          }
+        },
+        "summary": "Download an owned source/generated dataset",
+        "tags": [
+          "EasyDistill 2"
+        ]
+      }
+    },
+    "/api/v1/datasets/{id}/preview": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          }
+        },
+        "summary": "Preview independent UID-scoped dataset records"
+      }
+    },
+    "/api/v1/datasets/{id}/training-config": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Unavailable or not owned"
+          },
+          "422": {
+            "description": "Not a training dataset"
+          }
+        },
+        "summary": "SFT/DPO dataset handoff for the existing training page; does not create a training task"
+      }
+    },
     "/api/v1/models/student": {
       "get": {
         "description": "Get all available student models from the configured models directory",
@@ -1496,70 +1637,6 @@
         }
       ]
     },
-    "/api/v1/models/teacher": {
-      "get": {
-        "description": "Get all local teacher model candidates from storage.models_base_path. Use this endpoint only when teacher_model_config.provider_type is local.",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TeacherModelListResponse"
-                }
-              }
-            },
-            "description": "Teacher model list"
-          }
-        },
-        "summary": "List local teacher models",
-        "tags": [
-          "models"
-        ]
-      }
-    },
-    "/api/v1/models/teacher/{id}": {
-      "get": {
-        "description": "Get details of a specific local teacher model by directory ID",
-        "parameters": [
-          {
-            "description": "Model directory name under storage.models_base_path",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "example": "Qwen2.5-7B-Instruct",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TeacherModelResponse"
-                }
-              }
-            },
-            "description": "Teacher model details"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Model not found"
-          }
-        },
-        "summary": "Get local teacher model",
-        "tags": [
-          "models"
-        ]
-      }
-    },
     "/api/v1/pipelines": {
       "get": {
         "description": "List pipeline runs for one uid and project_id.",
@@ -1575,6 +1652,27 @@
           },
           {
             "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "job_type",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1626,6 +1724,18 @@
     },
     "/api/v1/pipelines/{id}": {
       "get": {
+        "parameters": [
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1649,11 +1759,177 @@
         }
       ]
     },
+    "/api/v1/pipelines/{id}/artifacts": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          }
+        },
+        "summary": "List run data artifacts"
+      }
+    },
+    "/api/v1/pipelines/{id}/artifacts/download": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Resource unavailable or not owned"
+          },
+          "422": {
+            "description": "Validation or connectivity failure"
+          }
+        },
+        "summary": "Download an allowlisted artifact",
+        "tags": [
+          "EasyDistill 2"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}/artifacts/preview": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "download",
+            "schema": {
+              "default": false,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          }
+        },
+        "summary": "Preview or download an allowlisted run artifact"
+      }
+    },
     "/api/v1/pipelines/{id}/cancel": {
       "post": {
         "parameters": [
           {
             "$ref": "#/components/parameters/PipelineId"
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -1666,6 +1942,9 @@
               }
             },
             "description": "Pipeline cancelled"
+          },
+          "409": {
+            "description": "State does not allow this action"
           }
         },
         "summary": "Cancel pipeline",
@@ -1674,11 +1953,181 @@
         ]
       }
     },
+    "/api/v1/pipelines/{id}/clone": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "name": {
+                    "maxLength": 255,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Unavailable or not owned"
+          },
+          "422": {
+            "description": "Not a training dataset"
+          }
+        },
+        "summary": "Copy private run snapshot as a new pending task; does not start"
+      }
+    },
+    "/api/v1/pipelines/{id}/model/download": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Resource unavailable or not owned"
+          },
+          "422": {
+            "description": "Validation or connectivity failure"
+          }
+        },
+        "summary": "Download student weights and metadata as ZIP; LoRA requires its base model",
+        "tags": [
+          "EasyDistill 2"
+        ]
+      }
+    },
+    "/api/v1/pipelines/{id}/quality": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Resource unavailable or not owned"
+          },
+          "422": {
+            "description": "Validation or connectivity failure"
+          }
+        },
+        "summary": "Full-record score aggregates per intermediate artifact; no student-effect or cost estimates",
+        "tags": [
+          "EasyDistill 2"
+        ]
+      }
+    },
     "/api/v1/pipelines/{id}/stages": {
       "get": {
         "parameters": [
           {
             "$ref": "#/components/parameters/PipelineId"
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -1717,6 +2166,16 @@
             "schema": {
               "default": 100,
               "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
               "minimum": 1,
               "type": "integer"
             }
@@ -1782,6 +2241,16 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -1831,6 +2300,16 @@
             "schema": {
               "default": 100,
               "maximum": 10000,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
               "minimum": 1,
               "type": "integer"
             }
@@ -1896,6 +2375,16 @@
               "minimum": 1,
               "type": "integer"
             }
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -1934,6 +2423,16 @@
         "parameters": [
           {
             "$ref": "#/components/parameters/PipelineId"
+          },
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -1946,6 +2445,9 @@
               }
             },
             "description": "Pipeline started"
+          },
+          "409": {
+            "description": "State does not allow this action"
           }
         },
         "summary": "Start pipeline",
@@ -1966,6 +2468,13 @@
           },
           {
             "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2116,6 +2625,42 @@
         ]
       }
     },
+    "/api/v1/projects/{id}/summary": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          }
+        },
+        "summary": "Read actual pipeline counts by status"
+      }
+    },
     "/api/v1/resources/available": {
       "get": {
         "description": "Aggregate gcs-v2 brain and nodes into frontend resource selection data, matching gcs-model-center-v2.",
@@ -2197,6 +2742,168 @@
         "tags": [
           "resources"
         ]
+      }
+    },
+    "/api/v1/runtime": {
+      "get": {
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Resource unavailable or not owned"
+          },
+          "422": {
+            "description": "Validation or connectivity failure"
+          }
+        },
+        "summary": "Offline images, data workers, trainer templates and supported modes",
+        "tags": [
+          "EasyDistill 2"
+        ]
+      }
+    },
+    "/api/v1/teachers": {
+      "get": {
+        "parameters": [
+          {
+            "description": "Trusted platform identity; obtain from login state.",
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Resource unavailable or not owned"
+          },
+          "422": {
+            "description": "Validation or connectivity failure"
+          }
+        },
+        "summary": "List owned online teacher services; never return credentials",
+        "tags": [
+          "EasyDistill 2"
+        ]
+      }
+    },
+    "/api/v1/teachers/test": {
+      "post": {
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "teacher_model": {
+                    "$ref": "#/components/schemas/TeacherModelConfig"
+                  },
+                  "uid": {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "uid",
+                  "teacher_model"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "404": {
+            "description": "Resource unavailable or not owned"
+          },
+          "422": {
+            "description": "Validation or connectivity failure"
+          }
+        },
+        "summary": "Resolve teacher and probe authenticated model discovery and chat inference",
+        "tags": [
+          "EasyDistill 2"
+        ]
+      }
+    },
+    "/api/v1/workflows": {
+      "get": {
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          }
+        },
+        "summary": "List EasyDistill 2 recipes and runtime contract"
+      }
+    },
+    "/api/v1/workflows/preview": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PipelineRun"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Compiled config and stage plan"
+          }
+        },
+        "summary": "Preview a managed workflow config with credentials redacted"
       }
     },
     "/health": {

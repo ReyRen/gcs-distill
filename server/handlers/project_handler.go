@@ -31,6 +31,7 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		return
 	}
 
+	redactProjectCredentials(&req)
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "项目创建成功", "data": req})
 }
 
@@ -50,6 +51,7 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"code": http.StatusNotFound, "message": err.Error()})
 		return
 	}
+	redactProjectCredentials(project)
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "获取项目成功", "data": project})
 }
 
@@ -61,10 +63,13 @@ func (h *ProjectHandler) ListProjects(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	projects, total, err := h.projectSvc.ListProjects(c.Request.Context(), uid, page, pageSize)
+	projects, total, err := h.projectSvc.ListProjects(c.Request.Context(), uid, page, pageSize, types.ListFilter{Name: c.Query("name")})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
 		return
+	}
+	for _, p := range projects {
+		redactProjectCredentials(p)
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,
@@ -96,6 +101,7 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
 		return
 	}
+	redactProjectCredentials(&req)
 	c.JSON(http.StatusOK, gin.H{"code": http.StatusOK, "message": "项目更新成功", "data": req})
 }
 

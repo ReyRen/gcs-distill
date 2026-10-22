@@ -5,6 +5,7 @@ import (
 )
 
 // swaggerFiles contains the embedded Swagger UI entrypoint and OpenAPI spec.
+//
 //go:embed swagger/*
 var swaggerFiles embed.FS
 

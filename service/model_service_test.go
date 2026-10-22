@@ -17,7 +17,7 @@ func init() {
 	})
 }
 
-func TestModelServiceListsTeacherAndStudentFromSharedBasePath(t *testing.T) {
+func TestModelServiceListsStudentsFromSharedBasePath(t *testing.T) {
 	ctx := context.Background()
 	basePath := t.TempDir()
 	validPath := filepath.Join(basePath, "Qwen2.5-0.5B-Instruct")
@@ -29,28 +29,22 @@ func TestModelServiceListsTeacherAndStudentFromSharedBasePath(t *testing.T) {
 
 	svc := NewModelService(&config.StorageConfig{ModelsBasePath: basePath})
 
-	teacherModels, err := svc.ListTeacherModels(ctx)
-	if err != nil {
-		t.Fatalf("ListTeacherModels() error = %v", err)
-	}
-	assertSingleModel(t, teacherModels, "Qwen2.5-0.5B-Instruct", validPath)
-
 	studentModels, err := svc.ListStudentModels(ctx)
 	if err != nil {
 		t.Fatalf("ListStudentModels() error = %v", err)
 	}
 	assertSingleModel(t, studentModels, "Qwen2.5-0.5B-Instruct", validPath)
 
-	teacherModel, err := svc.GetTeacherModel(ctx, "Qwen2.5-0.5B-Instruct")
+	studentModel, err := svc.GetStudentModel(ctx, "Qwen2.5-0.5B-Instruct")
 	if err != nil {
-		t.Fatalf("GetTeacherModel() error = %v", err)
+		t.Fatalf("GetStudentModel() error = %v", err)
 	}
-	if teacherModel.Path != validPath {
-		t.Fatalf("GetTeacherModel() path = %q, want %q", teacherModel.Path, validPath)
+	if studentModel.Path != validPath {
+		t.Fatalf("GetStudentModel() path = %q, want %q", studentModel.Path, validPath)
 	}
 
-	if _, err := svc.GetTeacherModel(ctx, "../Qwen2.5-0.5B-Instruct"); err == nil {
-		t.Fatalf("GetTeacherModel() expected path traversal error")
+	if _, err := svc.GetStudentModel(ctx, "../Qwen2.5-0.5B-Instruct"); err == nil {
+		t.Fatalf("GetStudentModel() expected path traversal error")
 	}
 }
 
@@ -63,6 +57,9 @@ func TestModelServiceValidateStudentModelRejectsSiblingPrefixPath(t *testing.T) 
 
 	mustMkdirAll(t, validPath)
 	mustWriteModelFile(t, filepath.Join(validPath, "config.json"), []byte(`{}`))
+	mustWriteModelFile(t, filepath.Join(validPath, "tokenizer_config.json"), []byte(`{}`))
+	mustWriteModelFile(t, filepath.Join(validPath, "tokenizer.json"), []byte(`{}`))
+	mustWriteModelFile(t, filepath.Join(validPath, "model.safetensors"), []byte("fixture"))
 	mustMkdirAll(t, siblingPath)
 	mustWriteModelFile(t, filepath.Join(siblingPath, "config.json"), []byte(`{}`))
 

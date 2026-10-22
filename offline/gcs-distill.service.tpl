@@ -1,16 +1,15 @@
 [Unit]
-Description=gcs-distill control plane
+Description=GCS Distill 2 offline control service
 Wants=network-online.target
-After=network-online.target docker.service
+After=network-online.target
 
 [Service]
 Type=simple
-User=root
 WorkingDirectory=@@PACKAGE_DIR@@
-ExecStart=@@PACKAGE_DIR@@/bin/gcs-distill-server --config @@PACKAGE_DIR@@/config.toml
+EnvironmentFile=-/etc/gcs-distill/environment
+ExecStart=@@PACKAGE_DIR@@/bin/gcs-distill-server --config /etc/gcs-distill/config.toml
 Restart=on-failure
 RestartSec=5
-LimitNOFILE=65536
 TimeoutStopSec=45
 
 [Install]

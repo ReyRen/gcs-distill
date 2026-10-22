@@ -13,6 +13,7 @@ import (
 	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
+	"github.com/ReyRen/gcs-distill/runtime"
 	"github.com/ReyRen/gcs-distill/server"
 	"github.com/ReyRen/gcs-distill/service"
 	"go.uber.org/zap"
@@ -20,7 +21,7 @@ import (
 
 var (
 	configPath = flag.String("config", "config.toml", "config file path")
-	version    = "v0.1.0"
+	version    = "v2.0.0-x86-offline"
 )
 
 func main() {
@@ -60,7 +61,7 @@ func main() {
 	stageRepo := mysqlrepo.NewStageRepository(db)
 
 	modelSvc := service.NewModelService(&cfg.Storage)
-	projectSvc := service.NewProjectService(projectRepo, modelSvc)
+	projectSvc := service.NewProjectService(projectRepo)
 	datasetSvc := service.NewDatasetService(datasetRepo, &cfg.Storage)
 	gcsClient := gcsclient.NewClient(cfg.GCS.BaseURL, time.Duration(cfg.GCS.TimeoutSeconds)*time.Second)
 
@@ -73,15 +74,16 @@ func main() {
 		cfg.Executor.MaxConcurrent,
 		gcsClient,
 		cfg.Executor.RuntimeImage,
+		runtime.StageExecutorOptions{DataWorkers: cfg.Executor.DataWorkers},
 	)
 
 	execCtx, execCancel := context.WithCancel(context.Background())
-	defer execCancel()
 	executorSvc.Start(execCtx)
-	defer executorSvc.Stop()
+	defer func() { execCancel(); executorSvc.Stop() }()
 
-	pipelineSvc := service.NewPipelineService(pipelineRepo, stageRepo, projectRepo, datasetRepo, executorSvc)
-	router := server.NewRouter(projectSvc, datasetSvc, pipelineSvc, modelSvc, gcsClient)
+	teachers := service.NewTeacherService(cfg.ModelCenter.BaseURL, time.Duration(cfg.ModelCenter.TimeoutSeconds)*time.Second)
+	pipelineSvc := service.NewPipelineService(pipelineRepo, stageRepo, projectRepo, datasetRepo, executorSvc, modelSvc, teachers)
+	router := server.NewRouter(projectSvc, datasetSvc, pipelineSvc, modelSvc, gcsClient, cfg, teachers)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
 	logger.Info("HTTP server starting", zap.String("address", addr))

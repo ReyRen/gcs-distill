@@ -1,0 +1,14 @@
+# Compatible transitive dependency baseline for LLaMA-Factory 0.9.3.
+huggingface-hub==0.32.4
+pyarrow==20.0.0
+pandas==2.2.3
+scipy==1.15.3
+matplotlib==3.10.3
+pillow==11.2.1
+protobuf==5.29.4
+av==14.2.0
+librosa==0.11.0
+numba==0.61.2
+llvmlite==0.44.0
+scikit-learn==1.6.1
+imageio-ffmpeg==0.6.0

@@ -1,0 +1,2779 @@
+<!doctype html>
+<html lang="en" data-visualize-standalone>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Gcs Distill2 Workspace</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+
+</head>
+<body>
+<iframe id="codex-visualization" sandbox="allow-scripts" referrerpolicy="no-referrer" title="Gcs Distill2 Workspace" data-srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;en&quot; data-visualize-standalone&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Gcs Distill2 Workspace&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 16px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans:
+    -apple-system-body, ui-sans-serif, -apple-system, system-ui, &quot;Segoe UI&quot;,
+    Helvetica, &quot;Apple Color Emoji&quot;, Arial, sans-serif, &quot;Segoe UI Emoji&quot;,
+    &quot;Segoe UI Symbol&quot;;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --icon-size: 16px;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --corner-shape: round;
+  --radius: var(--border-radius-lg, 8px);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 2);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: var(--visualize-paint-gutter, 0px);
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  -webkit-font-smoothing: antialiased;
+  font-size: var(--font-size-base);
+  line-height: calc(var(--font-size-base) * 1.625);
+  font-weight: var(--font-weight-normal);
+}
+
+.cursor-interaction {
+  cursor: var(--cursor-interaction, pointer);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+  text-underline-offset: 2px;
+  font-weight: inherit;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+.table {
+  font-family: var(--font-sans);
+}
+
+h1 {
+  font-size: calc(var(--font-size-base) * 1.5);
+  line-height: 1.3333333333;
+}
+
+h2 {
+  font-size: calc(var(--font-size-base) * 1.25);
+  line-height: 1.4;
+}
+h3 {
+  font-size: calc(var(--font-size-base) * 1.125);
+  line-height: 1.5555555556;
+}
+h4 {
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+h5,
+h6 {
+  font-size: var(--font-size-base);
+  line-height: calc(var(--font-size-base) * 1.625);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+b,
+strong,
+th {
+  font-weight: 600;
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: var(--corner-shape);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+pre,
+pre code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: calc(var(--font-size-base) * 0.875);
+  line-height: calc(var(--font-size-base) * 1.625);
+  font-family: var(--font-sans);
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 5%, transparent);
+}
+.table :is(th, td):not(:last-child) {
+  padding-inline-end: calc(var(--font-size-base) * 1.5);
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead :is(th, td) {
+  border-bottom-color: var(--border-strong, var(--input));
+  padding-block: calc(var(--font-size-base) / 2);
+  line-height: var(--font-size-base);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+.table tbody :is(th, td) {
+  padding-block: calc(var(--font-size-base) * 0.625);
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 8px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: var(--corner-shape);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+.widget {
+  min-width: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-lg);
+  corner-shape: var(--corner-shape);
+  box-shadow: 0 0 0 0.5px var(--border-strong, var(--border));
+  color: var(--foreground);
+  background: var(--background);
+}
+
+#widget &gt; :not(.card, .widget, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  border: 1px solid var(--border);
+  corner-shape: var(--corner-shape);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-sans);
+  padding: 5px 12px;
+  border-color: color-mix(
+    in oklab,
+    light-dark(var(--primary-foreground), var(--foreground)) 5%,
+    transparent
+  );
+  border-radius: var(--radius-2xl);
+  color: light-dark(var(--primary-foreground), var(--foreground));
+  background: light-dark(var(--foreground), var(--popover));
+  box-shadow: 0 8px 18px rgb(15 23 42 / 20%);
+  letter-spacing: -0.15px;
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+hr {
+  width: 100%;
+  height: 1px;
+  margin-block: 6px;
+  border: 0;
+  background: var(--border);
+}
+
+.nav {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress {
+  display: flex;
+  height: 8px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 8px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar:only-child {
+  border-radius: var(--radius-full);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: color-mix(in srgb, var(--foreground) 40%, var(--muted-foreground));
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  font-family: var(--font-sans);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 1;
+}
+
+small,
+.text-small {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.nav-link,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+/* Match inline alignment without overriding a containing flex or grid layout. */
+.btn,
+.nav-link,
+.form-control,
+.form-select,
+.form-range,
+.form-check {
+  vertical-align: middle;
+}
+
+.btn,
+.nav-link {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  corner-shape: var(--corner-shape);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: inherit;
+  font-family: var(--font-sans);
+  height: fit-content;
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  padding-inline: var(--control-spacing, 12px);
+  border-color: transparent;
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+}
+
+.btn {
+  border-color: var(--border);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: var(--cursor-interaction, pointer);
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.nav-link:not(:disabled):not([aria-disabled=&quot;true&quot;]):hover {
+  background: color-mix(in srgb, var(--foreground) 10%, transparent);
+}
+
+.btn-primary {
+  border-color: var(--border);
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: border-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: border-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--muted-foreground);
+  background: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.nav-pills .nav-link {
+  min-width: 0;
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.nav-justified .nav-link {
+  flex: 1 1 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.nav-pills .nav-link.active {
+  color: var(--foreground);
+  background: var(--muted);
+}
+
+/* Shared preview chrome; product styles stay inside each variant. */
+.viz-dotted-background {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--foreground) 14%, transparent) 0.8px,
+    transparent 0.8px
+  );
+  background-position: center;
+  background-size: 16px 16px;
+}
+
+.viz-carousel {
+  position: relative;
+  min-width: 0;
+}
+
+.viz-carousel:has(&gt; .viz-carousel-controls) {
+  min-height: calc(60px + var(--viz-carousel-picker-height, 0px));
+  padding-bottom: 60px;
+}
+
+.viz-carousel &gt; [data-variant][hidden] {
+  display: none !important;
+}
+
+.viz-carousel &gt; [data-variant] {
+  isolation: isolate;
+}
+
+.viz-carousel-controls {
+  --viz-carousel-hover: light-dark(
+    color-mix(in srgb, var(--foreground) 5.4%, transparent),
+    color-mix(in srgb, var(--foreground) 7.8%, transparent)
+  );
+  position: absolute;
+  z-index: 2;
+  bottom: 8px;
+  left: 50%;
+  display: flex;
+  width: max-content;
+  /* Leave room for the host&#x27;s design-controls launcher at the trailing edge. */
+  max-width: calc(100% - 96px);
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans);
+  /* Match the settings dropdown chrome independently of the content font size. */
+  font-size: 13px;
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+  transform: translateX(-50%);
+  user-select: none;
+}
+
+/* Keep authored mockup button styles out of the shared carousel chrome. */
+.viz-carousel-controls button,
+.viz-carousel-picker &gt; summary {
+  display: flex !important;
+  height: auto !important;
+  min-height: 30px;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px;
+  padding: 0 6px !important;
+  -webkit-app-region: no-drag;
+  border: 0 !important;
+  border-radius: 14px !important;
+  color: inherit !important;
+  background: transparent !important;
+  font: inherit !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.viz-carousel-controls &gt; button,
+.viz-carousel-picker &gt; summary {
+  position: relative;
+  isolation: isolate;
+}
+
+.viz-carousel-controls &gt; button {
+  --icon-size: 16px;
+  width: 30px !important;
+  padding: 0 !important;
+}
+
+.viz-carousel-picker &gt; summary {
+  padding-inline: 12px !important;
+}
+
+.viz-carousel-controls .viz-carousel-caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  margin: 0;
+  color: inherit;
+  transform: rotate(180deg);
+}
+
+.viz-carousel-controls &gt; button &gt; svg,
+.viz-carousel-controls .viz-carousel-caret,
+.viz-carousel-count {
+  opacity: 0.5;
+}
+
+.viz-carousel-controls &gt; button::before,
+.viz-carousel-picker &gt; summary::before {
+  position: absolute;
+  z-index: -1;
+  inset: 3px;
+  border-radius: 12px;
+  content: &quot;&quot;;
+  pointer-events: none;
+}
+
+.viz-carousel-controls &gt; button:hover::before,
+.viz-carousel-picker &gt; summary:hover::before {
+  background: var(--viz-carousel-hover);
+}
+
+.viz-carousel-controls &gt; button,
+.viz-carousel-controls [data-lucide],
+.viz-carousel-controls .lucide {
+  flex-shrink: 0;
+}
+
+.viz-carousel-picker {
+  min-width: 0;
+}
+
+.viz-carousel-picker &gt; summary {
+  min-width: 0;
+  list-style: none;
+}
+
+.viz-carousel-picker &gt; summary::-webkit-details-marker {
+  display: none;
+}
+
+.viz-carousel-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.viz-carousel-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viz-carousel-options {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  max-height: 240px;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  box-shadow: 0 4px 12px light-dark(rgb(0 0 0 / 6%), rgb(0 0 0 / 25%));
+}
+
+.viz-carousel-options &gt; button {
+  border-radius: max(0px, calc(var(--radius-lg) - 5px)) !important;
+  width: 100% !important;
+  min-height: 28px;
+  justify-content: flex-start !important;
+  padding: 4px 8px !important;
+  font-size: var(--font-size-small) !important;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.viz-carousel-options &gt; [aria-current=&quot;true&quot;],
+.viz-carousel-options &gt; button:hover {
+  background: var(--viz-carousel-hover) !important;
+}
+
+.btn:disabled,
+.nav-link:disabled,
+.nav-link[aria-disabled=&quot;true&quot;] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  padding-inline: calc(4px + var(--control-spacing, 12px) / 2);
+  border-color: var(--input);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--popover) 96%, transparent);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.4285714286;
+}
+.form-control:is(
+  [type=&quot;file&quot;],
+  [type=&quot;date&quot;],
+  [type=&quot;datetime-local&quot;],
+  [type=&quot;month&quot;],
+  [type=&quot;week&quot;],
+  [type=&quot;color&quot;]
+) {
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  line-height: 18px;
+}
+.form-control:is(
+  [type=&quot;date&quot;],
+  [type=&quot;datetime-local&quot;],
+  [type=&quot;month&quot;],
+  [type=&quot;week&quot;]
+) {
+  padding-inline: var(--control-spacing, 12px);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+  padding: 0;
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+  min-height: calc(10px + 2 * var(--control-spacing, 12px));
+  padding-inline: var(--control-spacing, 12px);
+  margin-inline-end: var(--control-spacing, 12px);
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: var(--corner-shape);
+}
+
+textarea.form-control {
+  height: auto;
+  resize: vertical;
+  min-height: 96px;
+  padding: 8px 10px;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: none;
+}
+.form-control:disabled {
+  color: var(--muted-foreground);
+  background: color-mix(in srgb, var(--foreground) 5%, transparent);
+  opacity: 1;
+}
+.form-control[aria-invalid=&quot;true&quot;] {
+  border-color: var(--red);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 20%, transparent);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: fit-content;
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  margin: 0;
+  /* The secondary icon role is 14px at compact density and 16px at web density. */
+  --icon-size: calc(10px + var(--control-spacing, 12px) / 2);
+  /* Settings dropdowns retain a 12px inset and a 4px text-to-chevron gap. */
+  padding: 0 calc(16px + var(--icon-size)) 0 12px;
+  outline: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  corner-shape: var(--corner-shape);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(
+      45deg,
+      transparent calc(50% - 0.6px),
+      var(--muted-foreground) calc(50% - 0.6px) calc(50% + 0.6px),
+      transparent calc(50% + 0.6px)
+    ),
+    linear-gradient(
+      135deg,
+      transparent calc(50% - 0.6px),
+      var(--muted-foreground) calc(50% - 0.6px) calc(50% + 0.6px),
+      transparent calc(50% + 0.6px)
+    );
+  background-position:
+    calc(100% - 12px - var(--icon-size) / 2) 50%,
+    calc(100% - 12px - var(--icon-size) * 0.18) 50%;
+  background-repeat: no-repeat;
+  background-size: calc(var(--icon-size) * 0.32) calc(var(--icon-size) * 0.32);
+  cursor: var(--cursor-interaction, default);
+  font-size: calc(var(--font-size-base) * 14 / 16);
+  font-size: round(nearest, calc(var(--font-size-base) * 14 / 16), 1px);
+  font-weight: var(--font-weight-normal);
+  line-height: 18px;
+}
+
+.form-select option {
+  color: var(--popover-foreground);
+  background-color: var(--popover);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: light-dark(
+    color-mix(in srgb, var(--foreground) 5.5%, transparent),
+    color-mix(in srgb, var(--foreground) 8%, transparent)
+  );
+}
+
+.form-select:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+.form-select:disabled {
+  opacity: 0.4;
+}
+
+.form-check {
+  display: flex;
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  corner-shape: round;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  width: calc(10px + var(--control-spacing, 12px) / 2);
+  height: calc(10px + var(--control-spacing, 12px) / 2);
+  border-color: var(--border-strong, var(--input));
+  border-radius: calc(var(--radius-sm) / 2);
+  background-color: transparent;
+  color: var(--foreground);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:is(:checked, :indeterminate) {
+  border-color: var(--border-strong, var(--input));
+  background-color: color-mix(in srgb, var(--popover) 96%, transparent);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+  background-color: var(--foreground);
+}
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:indeterminate::before {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 65%;
+  height: 6.65%;
+  margin: auto;
+  border-radius: var(--radius-full);
+  background: var(--foreground);
+  mask: none;
+  content: &quot;&quot;;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  border-radius: var(--radius-full);
+  width: 16px;
+  height: 16px;
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--input);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 0;
+  background: radial-gradient(
+    circle,
+    var(--primary-foreground) 0 3px,
+    var(--foreground) 3px
+  );
+  box-shadow: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:focus-visible {
+  border-color: var(--ring);
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+.form-check:not(.form-switch) .form-check-input[type=&quot;radio&quot;]:disabled,
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;radio&quot;]:disabled
+  + .form-check-label {
+  opacity: 0.5;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+  border-color: #fff;
+  background: #fff;
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--blue);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+  outline: none;
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  accent-color: var(--primary);
+  height: calc(12px + 2 * var(--control-spacing, 12px));
+  min-height: calc(12px + 2 * var(--control-spacing, 12px));
+  outline: none;
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+  background: transparent;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  background: var(--form-range-track, var(--border));
+  height: 2px;
+  border-radius: var(--radius-full);
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  margin-top: -9px;
+  border-color: transparent;
+  background: currentColor;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Outline the native track and thumb, preserving the larger input hit area. */
+.form-range:focus-visible::-webkit-slider-runnable-track {
+  outline: 2px auto Highlight;
+  outline-color: -webkit-focus-ring-color;
+}
+
+.form-range::-moz-range-track {
+  background: var(--form-range-track, var(--border));
+  height: 2px;
+  border-radius: var(--radius-full);
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  border-color: transparent;
+  background: currentColor;
+  box-shadow: var(--shadow-sm);
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  outline: 2px solid Highlight;
+  outline-offset: 2px;
+}
+
+.form-range:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--blue);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible,
+.nav-link:focus-visible {
+  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.viz-carousel-controls :is(button, summary):focus-visible {
+  outline: 2px solid var(--ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* Web recipes are the default, including on renderers without inline style queries. */
+@supports (border-radius: if(style(--corner-shape: round): 1px; else: 2px)) {
+  /* Match the host&#x27;s proportional text-sm scale at every text preference. */
+  .tooltip,
+  .viz-badge,
+  .btn,
+  .nav-link,
+  .form-control,
+  .form-select {
+    font-size: if(
+      style(--corner-shape: round): round(
+          nearest,
+          calc(var(--font-size-base) * 14 / 16),
+          1px
+        );
+        else: round(nearest, calc(var(--font-size-base) * 13 / 14), 1px)
+    );
+  }
+
+  .btn,
+  .nav-link,
+  .form-select {
+    border-radius: if(
+      style(--corner-shape: round): var(--radius-full); else: var(--radius-lg)
+    );
+  }
+
+  .form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+    border-radius: if(
+      style(--corner-shape: round): calc(var(--radius-sm) / 2);
+        else: calc(var(--radius-lg) * 0.4)
+    );
+  }
+
+  .tooltip {
+    font-weight: if(
+      style(--corner-shape: round): 600; else: var(--font-weight-normal)
+    );
+  }
+}
+
+@media (pointer: coarse) {
+  .viz-carousel:has(&gt; .viz-carousel-controls) {
+    min-height: calc(76px + var(--viz-carousel-picker-height, 0px));
+    padding-bottom: 76px;
+  }
+
+  .btn,
+  .nav-link,
+  .viz-carousel-controls button,
+  .viz-carousel-picker &gt; summary,
+  .form-control,
+  .form-select {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Keep small-screen WebKit from zooming when a text field receives focus. */
+  .form-control,
+  .form-select {
+    font-size: max(16px, calc(var(--font-size-base) * 14 / 16));
+    font-size: max(
+      16px,
+      round(nearest, calc(var(--font-size-base) * 14 / 16), 1px)
+    );
+  }
+  .form-control:is(
+    [type=&quot;file&quot;],
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;week&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;color&quot;]
+  ) {
+    height: 44px;
+    min-height: 44px;
+    font-size: max(16px, calc(var(--font-size-base) * 14 / 16));
+    font-size: max(
+      16px,
+      round(nearest, calc(var(--font-size-base) * 14 / 16), 1px)
+    );
+  }
+
+  .form-control[type=&quot;file&quot;]::file-selector-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .form-control-color[type=&quot;color&quot;] {
+    width: 44px;
+    height: 44px;
+  }
+
+  .form-control:is(
+    [type=&quot;date&quot;],
+    [type=&quot;datetime-local&quot;],
+    [type=&quot;month&quot;],
+    [type=&quot;time&quot;],
+    [type=&quot;week&quot;]
+  ) {
+    min-width: 0;
+    max-width: 100%;
+    padding-block: 8px;
+  }
+
+  .form-check {
+    min-height: 44px;
+    padding-inline: 15px;
+  }
+
+  .form-check-input {
+    position: relative;
+  }
+
+  .form-check-input::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 44px;
+    height: 44px;
+    content: &quot;&quot;;
+    transform: translate(-50%, -50%);
+  }
+
+  .form-check-label {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .form-range {
+    height: 44px;
+    touch-action: pan-y;
+  }
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: var(--icon-size) !important;
+  height: var(--icon-size) !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;script type=&quot;application/json&quot; id=&quot;codex-visualization-widget-state&quot;&gt;__CODEX_VISUALIZATION_WIDGET_STATE__&lt;/script&gt;
+&lt;script&gt;(() =&gt; {
+  const root = document.documentElement;
+  const mediaQuery = globalThis.matchMedia(&quot;(prefers-color-scheme: dark)&quot;);
+  const apply = Reflect.apply;
+  const isArray = Array.isArray;
+  const hasOwn = Object.hasOwn;
+  const parentWindow = globalThis.parent;
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  const encode = TextEncoder.prototype.encode.bind(new TextEncoder());
+  const initialStateElement = document.getElementById(
+    &quot;codex-visualization-widget-state&quot;,
+  );
+  const initialGlobals = parse(initialStateElement?.textContent ?? &quot;{}&quot;);
+  initialStateElement?.remove();
+  /** @type {Record&lt;string, unknown&gt; | null} */
+  let state = initialGlobals.widgetState ?? null;
+  const statePersistence = initialGlobals.statePersistence ?? &quot;none&quot;;
+  let nextStateRequestId = 0;
+  /** @type {Map&lt;number, { resolve: () =&gt; void; reject: (error: Error) =&gt; void; timeout: ReturnType&lt;typeof globalThis.setTimeout&gt;; serializedState: string }&gt;} */
+  const pendingStateWrites = new Map();
+  const persistenceError = () =&gt;
+    Object.assign(
+      new Error(&quot;The host could not persist the widget state update&quot;),
+      {
+        code: -32000,
+        data: { code: &quot;widget_state_persistence_failed&quot;, retryable: false },
+      },
+    );
+  /**
+   * @param {object} prototype
+   * @param {string} property
+   */
+  const getPrototypeGetter = (prototype, property) =&gt; {
+    // oxlint-disable-next-line typescript/unbound-method -- invoked through captured Reflect.apply
+    const getter = Object.getOwnPropertyDescriptor(prototype, property)?.get;
+    if (getter == null) {
+      throw new Error(`Missing ${property} getter`);
+    }
+    return getter;
+  };
+  const getMessageData = getPrototypeGetter(MessageEvent.prototype, &quot;data&quot;);
+  const getMessagePorts = getPrototypeGetter(MessageEvent.prototype, &quot;ports&quot;);
+  const getMessageSource = getPrototypeGetter(MessageEvent.prototype, &quot;source&quot;);
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const addHostMessageListener = MessagePort.prototype.addEventListener;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const postHostMessage = MessagePort.prototype.postMessage;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const startHostPort = MessagePort.prototype.start;
+  // oxlint-disable-next-line typescript/unbound-method -- captured before the untrusted fragment runs
+  const stopMessagePropagation = Event.prototype.stopImmediatePropagation;
+  /** @type {MessagePort | null} */
+  let hostPort = null;
+  const postToHost = (type, payload) =&gt; {
+    if (hostPort != null) {
+      apply(postHostMessage, hostPort, [{ type, ...payload }]);
+    }
+  };
+  const openExternal = ({ href }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;open-external&quot;, { href });
+    }
+  };
+  const sendFollowUpMessage = ({ context, prompt, title }) =&gt; {
+    if (globalThis.navigator.userActivation?.isActive === true) {
+      postToHost(&quot;follow-up&quot;, { context, prompt, title });
+    }
+    return Promise.resolve();
+  };
+  /**
+   * @param {Record&lt;string, unknown&gt; | ((previous: Record&lt;string, unknown&gt; | null) =&gt; Record&lt;string, unknown&gt;)} next
+   * @returns {Promise&lt;void&gt;}
+   */
+  const setWidgetState = async (next) =&gt; {
+    const nextState = typeof next === &quot;function&quot; ? next(state) : next;
+    if (
+      nextState == null ||
+      typeof nextState !== &quot;object&quot; ||
+      isArray(nextState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const inputState = stringify(
+      nextState,
+      (_key, /** @type {unknown} */ value) =&gt; {
+        if (
+          typeof value === &quot;undefined&quot; ||
+          typeof value === &quot;function&quot; ||
+          typeof value === &quot;symbol&quot; ||
+          (typeof value === &quot;number&quot; &amp;&amp; !Number.isFinite(value))
+        ) {
+          throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+        }
+        return value;
+      },
+    );
+    const parsedState = parse(inputState);
+    if (
+      parsedState == null ||
+      typeof parsedState !== &quot;object&quot; ||
+      isArray(parsedState)
+    ) {
+      throw new TypeError(&quot;Widget state must be a JSON object&quot;);
+    }
+    const storedState = {
+      modelContent: null,
+      privateContent: null,
+      ...parsedState,
+    };
+    const serializedState = stringify(storedState);
+    if (encode(serializedState).length &gt; 16 * 1024) {
+      throw new TypeError(
+        &quot;Widget state must be a JSON object of at most 16 KiB&quot;,
+      );
+    }
+    if (
+      hasOwn(storedState, &quot;imageIds&quot;) &amp;&amp;
+      (!isArray(storedState.imageIds) ||
+        storedState.imageIds.some(
+          (/** @type {unknown} */ id) =&gt; typeof id !== &quot;string&quot;,
+        ))
+    ) {
+      throw new TypeError(&quot;Widget state imageIds must be an array of strings&quot;);
+    }
+    if (storedState.imageIds?.length &gt; 0) {
+      throw Object.assign(
+        new TypeError(&quot;Visualization state does not support image attachments&quot;),
+        { code: -32602, data: { code: &quot;images_unsupported&quot; } },
+      );
+    }
+    state = storedState;
+    globalThis.openai.widgetState = state;
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: { widgetState: state } },
+      }),
+    );
+    if (statePersistence === &quot;none&quot;) {
+      throw persistenceError();
+    }
+    const id = ++nextStateRequestId;
+    return new Promise((resolve, reject) =&gt; {
+      const timeout = globalThis.setTimeout(() =&gt; {
+        pendingStateWrites.delete(id);
+        reject(persistenceError());
+      }, 30_000);
+      pendingStateWrites.set(id, { resolve, reject, timeout, serializedState });
+      postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+    });
+  };
+  const syncTheme = () =&gt; {
+    const theme = mediaQuery.matches ? &quot;dark&quot; : &quot;light&quot;;
+    root.dataset.theme = theme;
+    globalThis.openai = {
+      ...globalThis.openai,
+      openExternal,
+      sendFollowUpMessage,
+      setWidgetState,
+      theme,
+      visualizationStyleVariables: {},
+      visualizationTheme: theme,
+      widgetState: state,
+      statePersistence,
+      stateModelContext: &quot;none&quot;,
+    };
+    globalThis.dispatchEvent(
+      new CustomEvent(&quot;openai:set_globals&quot;, {
+        detail: { globals: globalThis.openai },
+      }),
+    );
+  };
+  const sendHeight = () =&gt; {
+    postToHost(&quot;height&quot;, {
+      height: Math.ceil(
+        Math.max(
+          document.body.scrollHeight,
+          document.body.getBoundingClientRect().height,
+        ),
+      ),
+    });
+  };
+
+  globalThis.addEventListener(
+    &quot;message&quot;,
+    (event) =&gt; {
+      const data = apply(getMessageData, event, []);
+      const ports = apply(getMessagePorts, event, []);
+      const source = apply(getMessageSource, event, []);
+      if (
+        hostPort != null ||
+        source !== parentWindow ||
+        typeof data !== &quot;object&quot; ||
+        data?.type !== &quot;codex-visualization-initialize&quot; ||
+        !isArray(ports) ||
+        ports.length !== 1
+      ) {
+        return;
+      }
+      apply(stopMessagePropagation, event, []);
+      const nextHostPort = ports[0];
+      try {
+        apply(addHostMessageListener, nextHostPort, [
+          &quot;message&quot;,
+          (event) =&gt; {
+            const data = apply(getMessageData, event, []);
+            if (typeof data === &quot;object&quot; &amp;&amp; data?.type === &quot;measure&quot;) {
+              sendHeight();
+            } else if (
+              typeof data === &quot;object&quot; &amp;&amp;
+              data?.type === &quot;widget-state-result&quot;
+            ) {
+              /** @type {unknown} */
+              const id = data.id;
+              if (typeof id !== &quot;number&quot;) {
+                return;
+              }
+              const pending = pendingStateWrites.get(id);
+              if (pending != null) {
+                pendingStateWrites.delete(id);
+                globalThis.clearTimeout(pending.timeout);
+                if (data.ok === true) {
+                  pending.resolve();
+                } else {
+                  pending.reject(persistenceError());
+                }
+              }
+            }
+          },
+        ]);
+        apply(startHostPort, nextHostPort, []);
+      } catch {
+        return;
+      }
+      hostPort = nextHostPort;
+      for (const [id, { serializedState }] of pendingStateWrites) {
+        postToHost(&quot;widget-state-write&quot;, { id, state: serializedState });
+      }
+      sendHeight();
+    },
+    { capture: true },
+  );
+  document.currentScript?.remove();
+  mediaQuery.addEventListener(&quot;change&quot;, syncTheme);
+  globalThis.addEventListener(&quot;click&quot;, (event) =&gt; {
+    if (event.defaultPrevented) {
+      return;
+    }
+    let element = null;
+    if (event.target instanceof globalThis.Element) {
+      element = event.target;
+    } else if (event.target instanceof globalThis.Node) {
+      element = event.target.parentElement;
+    }
+    const link = element?.closest(&quot;a[href]&quot;);
+    const href = link?.getAttribute(&quot;href&quot;);
+    if (href == null) {
+      return;
+    }
+    if (href.startsWith(&quot;#&quot;)) {
+      let id;
+      try {
+        id = decodeURIComponent(href.slice(1));
+      } catch {
+        return;
+      }
+      const target = id.length === 0 ? root : document.getElementById(id);
+      if (
+        target == null ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      event.preventDefault();
+      postToHost(&quot;scroll-to&quot;, {
+        top: target.getBoundingClientRect().top + globalThis.scrollY,
+      });
+      return;
+    }
+    event.preventDefault();
+    openExternal({ href });
+  });
+  new ResizeObserver(sendHeight).observe(document.body);
+  syncTheme();
+})();
+&lt;/script&gt;
+&lt;div id=&quot;gcs-distill2-mock&quot; aria-label=&quot;智援大模型平台模型蒸馏交互设计&quot;&gt;
+  &lt;header class=&quot;gd-top&quot;&gt;&lt;span class=&quot;gd-logo&quot;&gt;智&lt;/span&gt;&lt;span&gt;智援大模型平台&lt;/span&gt;&lt;span class=&quot;gd-top-right&quot;&gt;值班电话　　用户手册　　其他平台　　&lt;span class=&quot;gd-avatar&quot;&gt;R&lt;/span&gt;&lt;/span&gt;&lt;/header&gt;
+  &lt;div class=&quot;gd-shell&quot;&gt;
+    &lt;aside class=&quot;gd-sidebar&quot;&gt;&lt;div&gt;⌂　系统首页&lt;/div&gt;&lt;div&gt;◇　应用中心&lt;/div&gt;&lt;div&gt;▱　推理中心&lt;/div&gt;&lt;div&gt;▤　数据中心&lt;/div&gt;&lt;div&gt;◎　智能测评中心&lt;/div&gt;&lt;div class=&quot;gd-expanded&quot;&gt;▧　训练中心　⌄&lt;/div&gt;&lt;div class=&quot;gd-sub&quot;&gt;模型训练&lt;/div&gt;&lt;div class=&quot;gd-sub gd-current&quot;&gt;模型蒸馏&lt;/div&gt;&lt;div class=&quot;gd-sub&quot;&gt;可视化训练&lt;/div&gt;&lt;div&gt;▥　知识中心&lt;/div&gt;&lt;div&gt;⚙　系统管理&lt;/div&gt;&lt;span class=&quot;gd-sidebar-foot&quot;&gt;统一算力 · 共享数据&lt;/span&gt;&lt;/aside&gt;
+    &lt;main class=&quot;gd-main&quot;&gt;&lt;div class=&quot;gd-browser-tabs&quot;&gt;&lt;span&gt;系统首页&lt;/span&gt;&lt;span class=&quot;gd-current-tab&quot;&gt;模型蒸馏 ×&lt;/span&gt;&lt;span class=&quot;gd-demo&quot;&gt;交互设计 · 示例数据&lt;/span&gt;&lt;/div&gt;&lt;div id=&quot;gd-content&quot;&gt;&lt;/div&gt;&lt;/main&gt;
+  &lt;/div&gt;
+  &lt;div id=&quot;gd-overlay&quot; hidden&gt;&lt;/div&gt;&lt;div id=&quot;gd-toast&quot; role=&quot;status&quot; hidden&gt;&lt;/div&gt;
+&lt;/div&gt;
+&lt;style&gt;
+#gcs-distill2-mock{--gd-bg:light-dark(#f3f5f9,#111a29);--gd-surface:light-dark(#fff,#1a2638);--gd-text:light-dark(#263347,#e5edf8);--gd-muted:light-dark(#718097,#a6b5c9);--gd-line:light-dark(#e5eaf1,#324057);--gd-blue:light-dark(#0757d7,#73aaff);--gd-soft:light-dark(#edf4ff,#213a5a);--gd-green:light-dark(#168059,#6bd8ac);--gd-amber:light-dark(#a96713,#f0be73);--gd-red:light-dark(#c14b54,#ff939e);--gd-radius:6px;color-scheme:light dark;color:var(--gd-text);background:var(--gd-bg);font:400 14px/1.6 -apple-system,BlinkMacSystemFont,&quot;Segoe UI&quot;,&quot;Microsoft YaHei&quot;,sans-serif;border:1px solid var(--gd-line);border-radius:8px;overflow:hidden;position:relative;min-height:800px;isolation:isolate;text-align:left}
+#gcs-distill2-mock *{box-sizing:border-box}#gcs-distill2-mock button,#gcs-distill2-mock input,#gcs-distill2-mock select,#gcs-distill2-mock textarea{font:inherit}#gcs-distill2-mock button:focus-visible,#gcs-distill2-mock input:focus-visible,#gcs-distill2-mock select:focus-visible{outline:2px solid var(--gd-blue);outline-offset:2px}#gcs-distill2-mock button:disabled{opacity:.45;cursor:default}#gcs-distill2-mock [hidden]{display:none!important}.gd-top{height:56px;background:light-dark(#063675,#08264c);color:#fff;display:flex;align-items:center;gap:10px;padding:0 22px;font-size:18px;font-weight:500}.gd-logo{background:#fff;color:#063675;width:29px;height:29px;border-radius:5px;display:grid;place-items:center;font-size:18px}.gd-top-right{margin-left:auto;font-size:12px;font-weight:400;display:flex;align-items:center;gap:12px}.gd-avatar{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#d9e7ff;color:#16437a}.gd-shell{display:grid;grid-template-columns:164px minmax(0,1fr);min-height:744px}.gd-sidebar{background:light-dark(#0b3470,#0b223f);color:#d2def1;padding:14px 0;position:relative;font-size:13px}.gd-sidebar&gt;div{padding:12px 17px}.gd-sidebar .gd-expanded{color:#fff;padding-bottom:5px}.gd-sidebar .gd-sub{padding:9px 0 9px 43px}.gd-sidebar .gd-current{background:#0757d7;color:#fff;border-left:3px solid #8ebdff;padding-left:40px}.gd-sidebar-foot{position:absolute;bottom:22px;left:18px;font-size:11px;color:#adbed9}.gd-main{min-width:0}.gd-browser-tabs{height:42px;background:var(--gd-surface);border-bottom:1px solid var(--gd-line);display:flex;align-items:center;gap:7px;padding:0 16px;font-size:12px}.gd-browser-tabs&gt;span:not(.gd-demo){border:1px solid var(--gd-line);border-radius:4px;padding:3px 11px}.gd-browser-tabs .gd-current-tab{color:var(--gd-blue);background:var(--gd-soft);border-color:var(--gd-blue)!important}.gd-demo{margin-left:auto;color:var(--gd-muted);font-size:11px}#gd-content{padding:22px;min-height:700px}.gd-heading{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:18px}.gd-title{font-size:22px;font-weight:500;margin:0 0 3px}.gd-subtitle{color:var(--gd-muted);font-size:12px}.gd-engine{font-size:12px;background:var(--gd-surface);border:1px solid var(--gd-line);border-radius:4px;padding:5px 9px;white-space:nowrap}.gd-tabs{display:flex;gap:25px;border-bottom:1px solid var(--gd-line);margin-bottom:20px}.gd-tab{border:0;background:none;color:var(--gd-muted);padding:0 0 12px}.gd-tab.active{color:var(--gd-blue);border-bottom:2px solid var(--gd-blue);font-weight:500}.gd-toolbar{display:flex;gap:10px;margin:15px 0;align-items:center;flex-wrap:wrap}.gd-toolbar .gd-push{margin-left:auto}.gd-btn{border:1px solid var(--gd-line);background:var(--gd-surface);color:var(--gd-text);border-radius:4px;padding:7px 13px;white-space:nowrap}.gd-btn:hover{border-color:var(--gd-blue);color:var(--gd-blue)}.gd-btn.primary{background:var(--gd-blue);color:light-dark(#fff,#0c2346);border-color:var(--gd-blue)}.gd-btn.link{border:0;padding:2px 6px;background:transparent;color:var(--gd-blue)}.gd-btn.small{font-size:12px;padding:4px 9px}.gd-input{border:1px solid var(--gd-line);background:var(--gd-surface);color:var(--gd-text);border-radius:4px;padding:8px 10px;width:100%;min-width:0}.gd-toolbar .gd-input{width:190px}.gd-panel{background:var(--gd-surface);border:1px solid var(--gd-line);border-radius:var(--gd-radius);overflow:hidden}.gd-panel-header{padding:15px 18px;border-bottom:1px solid var(--gd-line);display:flex;align-items:center;justify-content:space-between;font-weight:500}.gd-table{width:100%;border-collapse:collapse;font-size:12px}.gd-table th{background:var(--gd-bg);color:var(--gd-muted);text-align:left;font-weight:400;padding:12px 14px;border-bottom:1px solid var(--gd-line)}.gd-table td{padding:15px 14px;border-bottom:1px solid var(--gd-line);vertical-align:middle}.gd-table tr:last-child td{border-bottom:0}.gd-name{font-weight:500;color:var(--gd-text);font-size:13px}.gd-secondary{font-size:11px;color:var(--gd-muted);margin-top:4px}.gd-status{font-size:11px;border-radius:4px;padding:3px 7px;display:inline-block;background:var(--gd-bg);color:var(--gd-muted);white-space:nowrap}.gd-status.success{color:var(--gd-green);background:color-mix(in srgb,var(--gd-green) 9%,var(--gd-surface))}.gd-status.pending{color:var(--gd-amber);background:color-mix(in srgb,var(--gd-amber) 9%,var(--gd-surface))}.gd-status.error{color:var(--gd-red);background:color-mix(in srgb,var(--gd-red) 9%,var(--gd-surface))}.gd-foot{display:flex;justify-content:space-between;padding:13px 16px;color:var(--gd-muted);font-size:12px;border-top:1px solid var(--gd-line)}.gd-intro{background:var(--gd-soft);border-radius:4px;color:var(--gd-text);padding:13px 16px;margin:14px 0;font-size:12px}.gd-intro strong{font-weight:500;color:var(--gd-blue)}.gd-tag{font-size:11px;background:var(--gd-bg);border:1px solid var(--gd-line);padding:2px 6px;border-radius:4px;display:inline-block;margin-right:4px}.gd-empty{padding:30px;color:var(--gd-muted);text-align:center}.gd-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.gd-project{padding:20px}.gd-project h3{margin:0;font-size:16px;font-weight:500}.gd-project p{font-size:12px;color:var(--gd-muted);margin:8px 0 16px}.gd-divider{border-top:1px solid var(--gd-line);margin:17px 0}.gd-row{display:flex;justify-content:space-between;gap:14px;align-items:center}.gd-label{font-size:12px;color:var(--gd-muted)}.gd-detail-top{display:flex;align-items:center;justify-content:space-between;margin:10px 0 18px}.gd-back{background:none;border:0;color:var(--gd-blue);padding:0}.gd-detail-title{font-weight:500;font-size:18px;margin:0 0 4px}.gd-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:18px 0}.gd-metric{padding:16px;background:var(--gd-surface);border:1px solid var(--gd-line);border-radius:var(--gd-radius)}.gd-metric strong{display:block;font-weight:500;font-size:23px;margin-top:4px}.gd-timeline{display:flex;align-items:flex-start;gap:0;padding:24px 10px}.gd-phase{flex:1;text-align:center;position:relative;font-size:11px;min-width:0}.gd-phase:after{content:&quot;&quot;;position:absolute;top:12px;left:60%;width:80%;height:2px;background:var(--gd-line)}.gd-phase:last-child:after{display:none}.gd-dot{margin:0 auto 7px;width:25px;height:25px;border-radius:50%;display:grid;place-items:center;background:var(--gd-soft);color:var(--gd-blue);position:relative;z-index:1;font-size:12px}.gd-phase.done .gd-dot{background:color-mix(in srgb,var(--gd-green) 12%,var(--gd-surface));color:var(--gd-green)}.gd-layout{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:16px}.gd-properties{padding:16px;font-size:12px}.gd-properties&gt;div{margin-bottom:15px}.gd-properties strong{display:block;font-weight:400;color:var(--gd-text);margin-top:4px}.gd-sample{padding:18px;border-bottom:1px solid var(--gd-line);font-size:12px}.gd-sample p{margin:7px 0}.gd-sample:last-child{border:0}.gd-sample-question{font-weight:500}.gd-sample-answer{color:var(--gd-muted)}.gd-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}.gd-pair&gt;div{padding:12px;background:var(--gd-bg);border-radius:4px}.gd-pair strong{font-weight:500}.gd-code{padding:16px;margin:0;background:var(--gd-bg);border-radius:4px;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--gd-text)}.gd-filter{padding:15px 18px;display:flex;align-items:center;gap:12px;background:var(--gd-surface);border:1px solid var(--gd-line);border-radius:var(--gd-radius);margin-bottom:13px;font-size:12px}.gd-filter input{accent-color:var(--gd-blue);width:130px}.gd-muted{color:var(--gd-muted)}.gd-flow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-size:12px;padding:16px;background:var(--gd-bg);border-radius:4px}.gd-flow span{background:var(--gd-surface);border:1px solid var(--gd-line);border-radius:4px;padding:6px 9px}.gd-form{max-width:700px;margin:auto}.gd-form-label{display:block;font-weight:500;font-size:13px;margin:18px 0 7px}.gd-form-help{font-size:11px;color:var(--gd-muted);margin-top:5px}.gd-options{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.gd-option{padding:15px 13px;background:var(--gd-surface);border:1px solid var(--gd-line);color:var(--gd-text);border-radius:var(--gd-radius);text-align:left}.gd-option strong{display:block;font-weight:500;font-size:13px;margin-bottom:5px}.gd-option span{font-size:11px;color:var(--gd-muted)}.gd-option.selected{border-color:var(--gd-blue);background:var(--gd-soft)}.gd-check{display:flex;align-items:flex-start;gap:10px;padding:15px;margin-top:18px;border:1px solid var(--gd-line);border-radius:var(--gd-radius);font-size:12px}.gd-check input{accent-color:var(--gd-blue);margin-top:4px}.gd-check strong{font-weight:500;display:block;margin-bottom:4px}.gd-wizard{position:absolute;inset:56px 0 0 164px;background:var(--gd-bg);z-index:10;display:flex;flex-direction:column;min-height:744px}.gd-wiz-header{padding:17px 24px;border-bottom:1px solid var(--gd-line);background:var(--gd-surface);display:flex;align-items:center;justify-content:space-between}.gd-wiz-header strong{font-weight:500;font-size:17px}.gd-steps{display:flex;gap:0;padding:18px 24px;background:var(--gd-surface);border-bottom:1px solid var(--gd-line)}.gd-step{flex:1;background:none;border:0;text-align:left;color:var(--gd-muted);font-size:12px;display:flex;align-items:center;gap:7px}.gd-step b{font-weight:400;border:1px solid var(--gd-line);width:23px;height:23px;border-radius:50%;display:grid;place-items:center}.gd-step.active{color:var(--gd-blue)}.gd-step.active b{color:#fff;background:#0757d7;border-color:#0757d7}.gd-wiz-body{padding:14px 24px 28px;flex:1;overflow:auto;max-height:560px}.gd-wiz-footer{padding:14px 24px;border-top:1px solid var(--gd-line);background:var(--gd-surface);display:flex;align-items:center;gap:10px}.gd-wiz-footer .gd-muted{margin-right:auto;font-size:11px}.gd-review{margin-top:20px;border:1px solid var(--gd-line);background:var(--gd-surface);border-radius:var(--gd-radius);padding:17px;font-size:12px}.gd-review h3{font-size:14px;font-weight:500;margin:0 0 13px}.gd-review .gd-row{padding:6px 0}.gd-advanced{margin-top:18px;font-size:12px}.gd-advanced summary{color:var(--gd-blue);margin-bottom:12px}.gd-advanced textarea{height:150px;font:12px/1.7 ui-monospace,Consolas,monospace}.gd-hint{font-size:12px;color:var(--gd-muted);padding:12px 0}.gd-preview-box{border:1px solid var(--gd-line);border-radius:4px;background:var(--gd-surface);margin-top:13px}.gd-preview-box .gd-sample{padding:12px 14px}#gd-toast{position:absolute;z-index:30;top:112px;left:50%;transform:translateX(-40%);background:var(--gd-surface);border:1px solid var(--gd-line);border-radius:6px;box-shadow:0 6px 25px #0002;padding:12px 20px;color:var(--gd-text);max-width:80%;font-size:12px}.gd-compact .gd-table td{padding:10px 14px}
+@media(max-width:800px){.gd-shell{grid-template-columns:132px minmax(0,1fr)}.gd-sidebar{font-size:12px}.gd-sidebar&gt;div{padding-left:12px}.gd-sidebar .gd-sub{padding-left:33px}.gd-sidebar .gd-current{padding-left:30px}.gd-sidebar-foot{left:10px;font-size:10px}.gd-wizard{left:132px}#gd-content{padding:17px}.gd-top{padding:0 15px;font-size:16px}.gd-top-right{font-size:11px}.gd-layout{grid-template-columns:minmax(0,1fr)}.gd-layout&gt;.gd-panel:last-child{display:none}.gd-options{grid-template-columns:repeat(2,1fr)}.gd-table .gd-hide-small{display:none}.gd-wiz-body{padding:12px 18px}.gd-steps{padding:15px 14px}.gd-step{font-size:11px;gap:4px}.gd-toolbar .gd-input{width:150px}.gd-demo{font-size:10px}.gd-title{font-size:20px}}
+@media(max-width:580px){.gd-shell{grid-template-columns:1fr}.gd-sidebar{display:none}.gd-wizard{left:0}.gd-top-right{display:none}.gd-grid{grid-template-columns:1fr}.gd-metrics{gap:7px}.gd-metric{padding:11px}.gd-metric strong{font-size:20px}.gd-toolbar .gd-input{width:140px}.gd-table th,.gd-table td{padding:11px 9px}.gd-table .gd-hide-mobile{display:none}.gd-pair{grid-template-columns:1fr}.gd-heading{gap:7px}.gd-engine{font-size:10px}.gd-browser-tabs{padding:0 9px}.gd-tabs{gap:20px}}
+&lt;/style&gt;
+&lt;script&gt;
+(()=&gt;{
+const root=document.getElementById(&#x27;gcs-distill2-mock&#x27;);
+const content=root.querySelector(&#x27;#gd-content&#x27;),overlay=root.querySelector(&#x27;#gd-overlay&#x27;),toastBox=root.querySelector(&#x27;#gd-toast&#x27;);
+const esc=s=&gt;String(s??&#x27;&#x27;).replace(/[&amp;&lt;&gt;&quot;&#x27;]/g,c=&gt;({&#x27;&amp;&#x27;:&#x27;&amp;amp;&#x27;,&#x27;&lt;&#x27;:&#x27;&amp;lt;&#x27;,&#x27;&gt;&#x27;:&#x27;&amp;gt;&#x27;,&#x27;&quot;&#x27;:&#x27;&amp;quot;&#x27;,&quot;&#x27;&quot;:&#x27;&amp;#39;&#x27;}[c]));
+const recipes={sft:{label:&#x27;指令 SFT&#x27;,job:&#x27;advanced_instruct_distill&#x27;,name:&#x27;高质量指令蒸馏&#x27;,desc:&#x27;生成回答、质量评分、筛选并导出对话数据&#x27;,steps:[&#x27;种子准备&#x27;,&#x27;教师生成&#x27;,&#x27;质量评分&#x27;,&#x27;规则筛选&#x27;,&#x27;数据导出&#x27;]},cot:{label:&#x27;思维链 SFT&#x27;,job:&#x27;advanced_cot_distill&#x27;,name:&#x27;思维链评分与难度混合&#x27;,desc:&#x27;保留推理过程，按正确性与难度组织数据&#x27;,steps:[&#x27;问题准备&#x27;,&#x27;思维链生成&#x27;,&#x27;推理评分&#x27;,&#x27;难度混合&#x27;,&#x27;数据导出&#x27;]},dpo:{label:&#x27;DPO 偏好对&#x27;,job:&#x27;dpo_data_build&#x27;,name:&#x27;DPO 偏好数据&#x27;,desc:&#x27;生成多个候选，评分并构建优选与差选对&#x27;,steps:[&#x27;种子准备&#x27;,&#x27;候选生成&#x27;,&#x27;候选评分&#x27;,&#x27;偏好配对&#x27;,&#x27;数据导出&#x27;]},agent:{label:&#x27;Agent 轨迹&#x27;,job:&#x27;agent_distill&#x27;,name:&#x27;Agent 工具轨迹蒸馏&#x27;,desc:&#x27;从角色种子合成任务与工具交互轨迹&#x27;,steps:[&#x27;角色准备&#x27;,&#x27;任务合成&#x27;,&#x27;工具轨迹&#x27;,&#x27;轨迹评估&#x27;,&#x27;数据导出&#x27;]},mm:{label:&#x27;多模态 SFT&#x27;,job:&#x27;mm_instruct_distill&#x27;,name:&#x27;多模态指令蒸馏&#x27;,desc:&#x27;保留图片与指令，输出多模态对话样本&#x27;,steps:[&#x27;图文准备&#x27;,&#x27;教师生成&#x27;,&#x27;样本检查&#x27;,&#x27;数据导出&#x27;]}};
+const samples=[{q:&#x27;忘记密码时，用户应该如何处理？&#x27;,a:&#x27;在登录页选择“忘记密码”，通过绑定邮箱验证身份后设置新密码。&#x27;,score:9,chosen:&#x27;引导用户通过绑定邮箱验证身份，并在安全页面重置密码。&#x27;,rejected:&#x27;直接把现有密码发送给用户。&#x27;},{q:&#x27;退款申请提交后如何查看进度？&#x27;,a:&#x27;进入订单详情，选择退款记录，查看当前审核状态与预计处理时间。&#x27;,score:8,chosen:&#x27;在订单详情中打开退款记录，查看状态；超时可联系人工客服。&#x27;,rejected:&#x27;不知道，等通知。&#x27;},{q:&#x27;是否支持开具企业发票？&#x27;,a:&#x27;可在订单完成后提交开票申请，填写企业名称及统一社会信用代码。&#x27;,score:7,chosen:&#x27;支持。请在已完成订单中提交企业抬头及税号，确认后申请开票。&#x27;,rejected:&#x27;联系客服。&#x27;},{q:&#x27;账号被锁定后怎么办？&#x27;,a:&#x27;关闭页面再试。&#x27;,score:3,chosen:&#x27;先查看锁定原因，按身份验证流程解锁，或联系人工客服核验。&#x27;,rejected:&#x27;重新注册一个账号。&#x27;}];
+const state={view:&#x27;tasks&#x27;,detail:null,detailTab:&#x27;overview&#x27;,threshold:7,project:&#x27;客服管理项目&#x27;,tasks:[{id:&#x27;demo-sft&#x27;,name:&#x27;客服问答 · 质量增强&#x27;,type:&#x27;sft&#x27;,status:&#x27;success&#x27;,count:3,when:&#x27;今天 09:30&#x27;,train:false},{id:&#x27;demo-dpo&#x27;,name:&#x27;客服偏好对 · 首次生成&#x27;,type:&#x27;dpo&#x27;,status:&#x27;success&#x27;,count:3,when:&#x27;今天 10:05&#x27;,train:false}],wizard:null};
+const saved=window.openai?.widgetState?.modelContent;if(saved?.view&amp;&amp;[&#x27;tasks&#x27;,&#x27;projects&#x27;,&#x27;datasets&#x27;].includes(saved.view))state.view=saved.view;
+function remember(){window.openai?.setWidgetState?.({modelContent:{view:state.view,selectedRecipe:state.wizard?.type||state.tasks.find(t=&gt;t.id===state.detail)?.type||&#x27;sft&#x27;,qualityThreshold:state.threshold},privateContent:{detail:state.detail}})?.catch(()=&gt;{});}
+function toast(text){toastBox.textContent=text;toastBox.hidden=false;setTimeout(()=&gt;{toastBox.hidden=true},3500)}
+function status(t){const labels={success:[&#x27;success&#x27;,&#x27;● 已完成&#x27;],succeeded:[&#x27;success&#x27;,&#x27;● 已完成&#x27;],pending:[&#x27;pending&#x27;,&#x27;○ 待启动&#x27;],scheduled:[&#x27;pending&#x27;,&#x27;◌ 排队中&#x27;],preparing:[&#x27;pending&#x27;,&#x27;◌ 准备中&#x27;],running:[&#x27;pending&#x27;,&#x27;◌ 运行中&#x27;],failed:[&#x27;error&#x27;,&#x27;! 失败&#x27;],canceled:[&#x27;&#x27;,&#x27;— 已取消&#x27;]},s=labels[t.status]||[&#x27;&#x27;,&#x27;未知状态&#x27;];return `&lt;span class=&quot;gd-status ${s[0]}&quot;&gt;${s[1]}&lt;/span&gt;`}
+function tabs(){return &#x27;&lt;div class=&quot;gd-tabs&quot; role=&quot;tablist&quot; aria-label=&quot;蒸馏管理&quot;&gt;&#x27;+[[&#x27;projects&#x27;,&#x27;项目管理&#x27;],[&#x27;tasks&#x27;,&#x27;蒸馏任务&#x27;],[&#x27;datasets&#x27;,&#x27;数据集管理&#x27;]].map(([v,n])=&gt;`&lt;button role=&quot;tab&quot; aria-selected=&quot;${state.view===v}&quot; class=&quot;gd-tab ${state.view===v?&#x27;active&#x27;:&#x27;&#x27;}&quot; data-action=&quot;view&quot; data-value=&quot;${v}&quot;&gt;${n}&lt;/button&gt;`).join(&#x27;&#x27;)+&#x27;&lt;/div&gt;&#x27;}
+function heading(){return &#x27;&lt;div class=&quot;gd-heading&quot;&gt;&lt;div&gt;&lt;h2 class=&quot;gd-title&quot;&gt;模型蒸馏&lt;/h2&gt;&lt;div class=&quot;gd-subtitle&quot;&gt;生产高质量训练数据，并按需训练学生模型&lt;/div&gt;&lt;/div&gt;&lt;span class=&quot;gd-engine&quot;&gt;EasyDistill 2&lt;/span&gt;&lt;/div&gt;&#x27;+tabs()}
+function render(){content.innerHTML=heading()+(state.detail?detail():state.view===&#x27;projects&#x27;?projects():state.view===&#x27;datasets&#x27;?datasets():tasks());if(state.wizard)wizard();}
+function tasks(){return `&lt;div class=&quot;gd-toolbar&quot;&gt;&lt;select class=&quot;gd-input&quot; aria-label=&quot;筛选项目&quot;&gt;&lt;option&gt;客服管理项目&lt;/option&gt;&lt;option&gt;全部项目&lt;/option&gt;&lt;/select&gt;&lt;select class=&quot;gd-input&quot; aria-label=&quot;筛选任务状态&quot; id=&quot;gd-status-filter&quot;&gt;&lt;option value=&quot;all&quot;&gt;全部状态&lt;/option&gt;&lt;option value=&quot;success&quot;&gt;已完成&lt;/option&gt;&lt;option value=&quot;pending&quot;&gt;待提交&lt;/option&gt;&lt;/select&gt;&lt;button class=&quot;gd-btn primary gd-push&quot; data-action=&quot;new&quot;&gt;＋ 新建蒸馏任务&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;gd-panel&quot;&gt;&lt;table class=&quot;gd-table&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;任务名称 / 目标&lt;/th&gt;&lt;th class=&quot;gd-hide-small&quot;&gt;配方&lt;/th&gt;&lt;th&gt;状态&lt;/th&gt;&lt;th&gt;数据产物&lt;/th&gt;&lt;th class=&quot;gd-hide-mobile&quot;&gt;创建时间&lt;/th&gt;&lt;th&gt;操作&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody id=&quot;gd-task-rows&quot;&gt;${taskRows(state.tasks)}&lt;/tbody&gt;&lt;/table&gt;&lt;div class=&quot;gd-foot&quot;&gt;&lt;span&gt;共 ${state.tasks.length} 个示例任务&lt;/span&gt;&lt;span&gt;〈　1　〉&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;gd-intro&quot;&gt;&lt;strong&gt;先生产数据，再决定如何训练。&lt;/strong&gt; 已部署的教师服务负责推理；蒸馏任务按配方生成 SFT、偏好对或工具轨迹，产物可在数据集管理中复用。&lt;/div&gt;`}
+function taskRows(list){return list.map(t=&gt;`&lt;tr&gt;&lt;td&gt;&lt;div class=&quot;gd-name&quot;&gt;${esc(t.name)}&lt;/div&gt;&lt;div class=&quot;gd-secondary&quot;&gt;${recipes[t.type].label}${t.train?&#x27; · 完成后训练学生&#x27;:&#x27; · 仅生产数据&#x27;}&lt;/div&gt;&lt;/td&gt;&lt;td class=&quot;gd-hide-small&quot;&gt;${t.recipeName||recipes[t.type].name}&lt;/td&gt;&lt;td&gt;${status(t)}&lt;/td&gt;&lt;td&gt;${t.count?`&lt;span class=&quot;gd-name&quot;&gt;${t.count} 条&lt;/span&gt;&lt;div class=&quot;gd-secondary&quot;&gt;${t.type===&#x27;dpo&#x27;?&#x27;偏好对&#x27;:&#x27;对话样本&#x27;}&lt;/div&gt;`:&#x27;&lt;span class=&quot;gd-muted&quot;&gt;尚未生成&lt;/span&gt;&#x27;}&lt;/td&gt;&lt;td class=&quot;gd-hide-mobile&quot;&gt;${t.when}&lt;/td&gt;&lt;td&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;detail&quot; data-id=&quot;${t.id}&quot;&gt;查看&lt;/button&gt;&lt;/td&gt;&lt;/tr&gt;`).join(&#x27;&#x27;)||&#x27;&lt;tr&gt;&lt;td colspan=&quot;6&quot; class=&quot;gd-empty&quot;&gt;暂无符合条件的任务&lt;/td&gt;&lt;/tr&gt;&#x27;}
+function projects(){return `&lt;div class=&quot;gd-toolbar&quot;&gt;&lt;input class=&quot;gd-input&quot; placeholder=&quot;搜索项目名称&quot; aria-label=&quot;搜索项目名称&quot;&gt;&lt;button class=&quot;gd-btn primary gd-push&quot; data-action=&quot;project-new&quot;&gt;＋ 新建项目&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;gd-grid&quot;&gt;&lt;section class=&quot;gd-panel gd-project&quot;&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;h3&gt;客服管理项目&lt;/h3&gt;&lt;span class=&quot;gd-tag&quot;&gt;业务项目&lt;/span&gt;&lt;/div&gt;&lt;p&gt;统一管理客服领域的教师配置与蒸馏任务&lt;/p&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span class=&quot;gd-label&quot;&gt;默认教师&lt;/span&gt;&lt;span&gt;DeepSeek-R1 · 服务示例&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span class=&quot;gd-label&quot;&gt;学生模型&lt;/span&gt;&lt;span&gt;按训练任务选择&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gd-divider&quot;&gt;&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span class=&quot;gd-label&quot;&gt;${state.tasks.length} 个示例任务 · ${state.tasks.filter(t=&gt;t.status===&#x27;success&#x27;).length} 个已完成&lt;/span&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;view&quot; data-value=&quot;tasks&quot;&gt;进入工作区 →&lt;/button&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class=&quot;gd-panel gd-project&quot;&gt;&lt;h3&gt;项目负责组织业务&lt;/h3&gt;&lt;p&gt;教师配置可在项目内复用，配方和训练参数保存到每次任务。数据集属于当前用户，可被多个项目引用。&lt;/p&gt;&lt;button class=&quot;gd-btn&quot; data-action=&quot;new&quot;&gt;为项目新建任务&lt;/button&gt;&lt;/section&gt;&lt;/div&gt;`}
+function datasets(){return `&lt;div class=&quot;gd-toolbar&quot;&gt;&lt;select class=&quot;gd-input&quot; id=&quot;gd-dataset-filter&quot; aria-label=&quot;筛选数据来源&quot;&gt;&lt;option value=&quot;all&quot;&gt;全部来源&lt;/option&gt;&lt;option value=&quot;upload&quot;&gt;上传&lt;/option&gt;&lt;option value=&quot;import&quot;&gt;候选登记&lt;/option&gt;&lt;option value=&quot;generated&quot;&gt;蒸馏生成&lt;/option&gt;&lt;/select&gt;&lt;button class=&quot;gd-btn gd-push&quot; data-action=&quot;candidate&quot;&gt;登记候选数据&lt;/button&gt;&lt;button class=&quot;gd-btn primary&quot; data-action=&quot;upload&quot;&gt;＋ 上传数据集&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;gd-panel&quot;&gt;&lt;table class=&quot;gd-table&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;数据集名称&lt;/th&gt;&lt;th&gt;来源&lt;/th&gt;&lt;th&gt;格式 / 条数&lt;/th&gt;&lt;th class=&quot;gd-hide-small&quot;&gt;来源任务&lt;/th&gt;&lt;th&gt;操作&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody id=&quot;gd-dataset-rows&quot;&gt;${datasetRows(&#x27;all&#x27;)}&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;&lt;div class=&quot;gd-intro&quot;&gt;&lt;strong&gt;数据集独立于项目。&lt;/strong&gt; 上传、候选登记和蒸馏生成使用统一的数据资产入口；新建任务时选择已有数据，不重复上传。&lt;/div&gt;`}
+function datasetRows(filter){const list=[{name:&#x27;客服种子集 · 示例&#x27;,source:&#x27;upload&#x27;,label:&#x27;上传&#x27;,format:&#x27;JSONL · 4 条&#x27;,task:&#x27;—&#x27;,kind:&#x27;seed&#x27;},{name:&#x27;业务知识问答 · 示例&#x27;,source:&#x27;import&#x27;,label:&#x27;候选登记&#x27;,format:&#x27;JSONL · 4 条&#x27;,task:&#x27;—&#x27;,kind:&#x27;seed&#x27;},...state.tasks.filter(t=&gt;t.count&gt;0).map(t=&gt;({name:t.name+&#x27; · 数据集&#x27;,source:&#x27;generated&#x27;,label:&#x27;蒸馏生成&#x27;,format:(t.type===&#x27;dpo&#x27;?&#x27;DPO&#x27;:&#x27;SFT&#x27;)+&#x27; · &#x27;+t.count+&#x27; 条&#x27;,task:t.name,kind:t.type}))];return list.filter(d=&gt;filter===&#x27;all&#x27;||filter===d.source).map(d=&gt;`&lt;tr&gt;&lt;td&gt;&lt;div class=&quot;gd-name&quot;&gt;${esc(d.name)}&lt;/div&gt;&lt;div class=&quot;gd-secondary&quot;&gt;当前用户可用 · 可跨项目复用&lt;/div&gt;&lt;/td&gt;&lt;td&gt;&lt;span class=&quot;gd-tag&quot;&gt;${d.label}&lt;/span&gt;&lt;/td&gt;&lt;td&gt;${d.format}&lt;/td&gt;&lt;td class=&quot;gd-hide-small&quot;&gt;${esc(d.task)}&lt;/td&gt;&lt;td&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;asset-preview&quot; data-kind=&quot;${d.kind}&quot;&gt;预览&lt;/button&gt;${d.source===&#x27;generated&#x27;?&#x27;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;train&quot;&gt;去训练&lt;/button&gt;&#x27;:&#x27;&#x27;}&lt;/td&gt;&lt;/tr&gt;`).join(&#x27;&#x27;)}
+function detail(){const t=state.tasks.find(t=&gt;t.id===state.detail)||state.tasks[0],r=recipes[t.type];const steps=r.steps.concat(t.train?[&#x27;学生训练&#x27;]:[]);return `&lt;div class=&quot;gd-detail-top&quot;&gt;&lt;button class=&quot;gd-back&quot; data-action=&quot;back&quot;&gt;← 返回任务列表&lt;/button&gt;&lt;button class=&quot;gd-btn&quot; data-action=&quot;new&quot;&gt;复用配置&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;div&gt;&lt;h3 class=&quot;gd-detail-title&quot;&gt;${esc(t.name)}&lt;/h3&gt;&lt;div class=&quot;gd-subtitle&quot;&gt;客服管理项目　/　${r.name}　/　${t.when}&lt;/div&gt;&lt;/div&gt;${status(t)}&lt;/div&gt;&lt;div class=&quot;gd-tabs&quot; style=&quot;margin-top:20px&quot; role=&quot;tablist&quot; aria-label=&quot;任务详情&quot;&gt;${[[&#x27;overview&#x27;,&#x27;运行概览&#x27;],[&#x27;samples&#x27;,&#x27;样本与质量&#x27;],[&#x27;artifacts&#x27;,&#x27;日志与产物&#x27;]].map(([v,n])=&gt;`&lt;button role=&quot;tab&quot; aria-selected=&quot;${state.detailTab===v}&quot; class=&quot;gd-tab ${state.detailTab===v?&#x27;active&#x27;:&#x27;&#x27;}&quot; data-action=&quot;detail-tab&quot; data-value=&quot;${v}&quot;&gt;${n}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;${state.detailTab===&#x27;samples&#x27;?sampleView(t.type):state.detailTab===&#x27;artifacts&#x27;?artifactView(t):`&lt;div class=&quot;gd-metrics&quot;&gt;&lt;div class=&quot;gd-metric&quot;&gt;&lt;span class=&quot;gd-label&quot;&gt;输入种子&lt;/span&gt;&lt;strong&gt;4 &lt;span class=&quot;gd-label&quot;&gt;条&lt;/span&gt;&lt;/strong&gt;&lt;/div&gt;&lt;div class=&quot;gd-metric&quot;&gt;&lt;span class=&quot;gd-label&quot;&gt;${t.type===&#x27;dpo&#x27;?&#x27;有效偏好对&#x27;:&#x27;保留样本&#x27;}&lt;/span&gt;&lt;strong&gt;${t.count} &lt;span class=&quot;gd-label&quot;&gt;条&lt;/span&gt;&lt;/strong&gt;&lt;/div&gt;&lt;div class=&quot;gd-metric&quot;&gt;&lt;span class=&quot;gd-label&quot;&gt;产物类型&lt;/span&gt;&lt;strong style=&quot;font-size:19px&quot;&gt;${r.label}&lt;/strong&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;gd-layout&quot;&gt;&lt;section class=&quot;gd-panel&quot;&gt;&lt;div class=&quot;gd-panel-header&quot;&gt;运行流程&lt;span class=&quot;gd-label&quot;&gt;${t.train?&#x27;数据生产 → 学生训练&#x27;:&#x27;数据生产&#x27;}&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gd-timeline&quot;&gt;${steps.map((s,i)=&gt;`&lt;div class=&quot;gd-phase ${t.status===&#x27;success&#x27;?&#x27;done&#x27;:&#x27;&#x27;}&quot;&gt;&lt;div class=&quot;gd-dot&quot;&gt;${t.status===&#x27;success&#x27;?&#x27;✓&#x27;:i+1}&lt;/div&gt;${s}&lt;/div&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div style=&quot;padding:0 18px 18px&quot;&gt;&lt;div class=&quot;gd-flow&quot;&gt;&lt;span&gt;客服种子集&lt;/span&gt;→&lt;span&gt;${r.name}&lt;/span&gt;→&lt;span&gt;${r.label} 数据资产&lt;/span&gt;${t.train?&#x27;→&lt;span&gt;学生模型&lt;/span&gt;&#x27;:&#x27;&#x27;}&lt;/div&gt;&lt;div class=&quot;gd-hint&quot;&gt;${t.status===&#x27;success&#x27;?&#x27;阶段产物已保留，可检查中间样本与最终数据。&#x27;:&#x27;任务尚未执行。提交后会显示实际阶段、日志与产物。&#x27;}&lt;/div&gt;&lt;button class=&quot;gd-btn&quot; data-action=&quot;detail-tab&quot; data-value=&quot;samples&quot;&gt;检查样本与质量&lt;/button&gt;&lt;/div&gt;&lt;/section&gt;&lt;aside class=&quot;gd-panel gd-properties&quot;&gt;&lt;div class=&quot;gd-label&quot;&gt;任务配置&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;教师&lt;/span&gt;&lt;strong&gt;DeepSeek-R1 · 服务示例&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;执行方式&lt;/span&gt;&lt;strong&gt;调用已有推理服务&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;训练安排&lt;/span&gt;&lt;strong&gt;${t.train?&#x27;数据完成后训练学生模型&#x27;:&#x27;只生产数据&#x27;}&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;数据来源&lt;/span&gt;&lt;strong&gt;独立数据集 · 当前用户&lt;/strong&gt;&lt;/div&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;detail-tab&quot; data-value=&quot;artifacts&quot;&gt;查看产物与配置&lt;/button&gt;&lt;/aside&gt;&lt;/div&gt;`}`}
+function pairGap(s){return s.score-[2,4,6,3][samples.indexOf(s)]}
+function filteredSamples(type,threshold){return samples.filter(s=&gt;(type===&#x27;dpo&#x27;?pairGap(s):s.score)&gt;=threshold)}
+function thresholdLabel(type,value){return type===&#x27;dpo&#x27;?value+&#x27; 分&#x27;:value+&#x27; / 9&#x27;}
+function sampleView(type){const rows=filteredSamples(type,state.threshold);return `&lt;div class=&quot;gd-filter&quot;&gt;&lt;label for=&quot;gd-threshold&quot;&gt;${type===&#x27;dpo&#x27;?&#x27;最小优选/差选评分差&#x27;:&#x27;最低有用性评分&#x27;}&lt;/label&gt;&lt;input id=&quot;gd-threshold&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;9&quot; value=&quot;${state.threshold}&quot;&gt;&lt;strong id=&quot;gd-threshold-label&quot;&gt;${thresholdLabel(type,state.threshold)}&lt;/strong&gt;&lt;span class=&quot;gd-muted&quot; id=&quot;gd-filter-count&quot;&gt;示例保留 ${rows.length} / ${samples.length} 条&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gd-panel&quot; id=&quot;gd-sample-list&quot;&gt;${sampleRows(rows,type)}&lt;/div&gt;&lt;div class=&quot;gd-hint&quot;&gt;筛选只影响当前示例预览，不会修改已生成的数据集。示例分数不代表实际质量统计。&lt;/div&gt;`}
+function sampleRows(rows,type){return rows.map((s,i)=&gt;`&lt;article class=&quot;gd-sample&quot;&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span class=&quot;gd-tag&quot;&gt;样本 ${i+1}&lt;/span&gt;&lt;span class=&quot;gd-status success&quot;&gt;${type===&#x27;dpo&#x27;?&#x27;评分差 &#x27;+pairGap(s)+&#x27; 分&#x27;:&#x27;有用性 &#x27;+s.score+&#x27; / 9&#x27;}&lt;/span&gt;&lt;/div&gt;&lt;p class=&quot;gd-sample-question&quot;&gt;${s.q}&lt;/p&gt;${type===&#x27;dpo&#x27;?`&lt;div class=&quot;gd-pair&quot;&gt;&lt;div&gt;&lt;strong style=&quot;color:var(--gd-green)&quot;&gt;✓ 优选回答 · 示例分 ${s.score}&lt;/strong&gt;&lt;p&gt;${s.chosen}&lt;/p&gt;&lt;/div&gt;&lt;div&gt;&lt;strong style=&quot;color:var(--gd-red)&quot;&gt;差选回答 · 示例分 ${s.score-pairGap(s)}&lt;/strong&gt;&lt;p&gt;${s.rejected}&lt;/p&gt;&lt;/div&gt;&lt;/div&gt;`:`&lt;p class=&quot;gd-sample-answer&quot;&gt;${s.a}&lt;/p&gt;`}&lt;/article&gt;`).join(&#x27;&#x27;)||&#x27;&lt;div class=&quot;gd-empty&quot;&gt;当前阈值下没有样本，请调整筛选条件。&lt;/div&gt;&#x27;}
+function artifactView(t){return `&lt;div class=&quot;gd-layout&quot;&gt;&lt;section class=&quot;gd-panel&quot;&gt;&lt;div class=&quot;gd-panel-header&quot;&gt;数据产物&lt;span class=&quot;gd-label&quot;&gt;保留来源与运行记录&lt;/span&gt;&lt;/div&gt;&lt;table class=&quot;gd-table&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;产物&lt;/th&gt;&lt;th&gt;用途&lt;/th&gt;&lt;th&gt;操作&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;最终数据集&lt;div class=&quot;gd-secondary&quot;&gt;${recipes[t.type].label} · ${t.count} 条&lt;/div&gt;&lt;/td&gt;&lt;td&gt;可用于后续训练&lt;/td&gt;&lt;td&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;detail-tab&quot; data-value=&quot;samples&quot;&gt;预览&lt;/button&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;download&quot;&gt;下载&lt;/button&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;评分与筛选中间数据&lt;/td&gt;&lt;td&gt;检查质量与排查问题&lt;/td&gt;&lt;td&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;detail-tab&quot; data-value=&quot;samples&quot;&gt;检查&lt;/button&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;&lt;div style=&quot;padding:16px&quot;&gt;&lt;button class=&quot;gd-btn primary&quot; data-action=&quot;train&quot;&gt;使用此数据集训练&lt;/button&gt;&lt;details class=&quot;gd-advanced&quot;&gt;&lt;summary&gt;存储与版本信息&lt;/summary&gt;&lt;div class=&quot;gd-code&quot;&gt;引擎：EasyDistill 2.0.0\n来源：客服种子集 → 当前任务 → 生成数据集\n运行目录：用户工作区 / projects / 项目 / runs / 任务\n正式数据：用户数据集 / generated / 数据集版本\n模型基座：共享只读模型池&lt;/div&gt;&lt;/details&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class=&quot;gd-panel gd-properties&quot;&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;执行日志&lt;/span&gt;&lt;span class=&quot;gd-tag&quot;&gt;示例&lt;/span&gt;&lt;/div&gt;&lt;pre class=&quot;gd-code&quot;&gt;[数据准备] 输入 4 条\n[教师生成] 生成 4 条\n[质量评分] 完成 4 条\n[规则筛选] 保留 3 条\n[数据导出] 已登记数据资产&lt;/pre&gt;&lt;button class=&quot;gd-btn small&quot; data-action=&quot;log&quot;&gt;完整日志&lt;/button&gt;&lt;/section&gt;&lt;/div&gt;`}
+const studentModels=[{id:&#x27;demo-student-qwen-1.5b&#x27;,name:&#x27;DeepSeek-R1-Distill-Qwen-1.5B&#x27;,template:&#x27;qwen&#x27;}];
+function studentName(w){return studentModels.find(m=&gt;m.id===w.studentId)?.name||&#x27;尚未选择&#x27;}
+function studentPicker(w){return `&lt;label class=&quot;gd-form-label&quot; for=&quot;gd-student-model&quot;&gt;学生基模${w.train?&#x27; · 必选&#x27;:&#x27;&#x27;}&lt;/label&gt;&lt;select id=&quot;gd-student-model&quot; class=&quot;gd-input&quot; ${w.train?&#x27;&#x27;:&#x27;disabled&#x27;}&gt;&lt;option value=&quot;&quot;&gt;${w.train?&#x27;请选择本地学生基模&#x27;:&#x27;仅生成数据，无需选择学生基模&#x27;}&lt;/option&gt;${studentModels.map(m=&gt;`&lt;option value=&quot;${m.id}&quot; ${w.train&amp;&amp;w.studentId===m.id?&#x27;selected&#x27;:&#x27;&#x27;}&gt;${esc(m.name)} · 示例&lt;/option&gt;`).join(&#x27;&#x27;)}&lt;/select&gt;&lt;div class=&quot;gd-form-help&quot;&gt;来源：本地共享模型池。训练直接加载模型权重，无需部署推理服务；示例模型不代表服务器库存。&lt;/div&gt;`}
+function newWizard(){const from=state.tasks.find(t=&gt;t.id===state.detail);state.wizard={step:1,type:from?.type||&#x27;sft&#x27;,name:from?from.name+&#x27; · 副本&#x27;:&#x27;客服问答 · 新蒸馏任务&#x27;,train:from?.train||false,studentId:from?.studentId||&#x27;&#x27;,teacher:&#x27;service&#x27;,dataset:&#x27;客服种子集 · 示例&#x27;,endpoint:&#x27;&#x27;,model:&#x27;DeepSeek-R1&#x27;,threshold:7};overlay.hidden=false;wizard();remember()}
+function wizard(){
+ const w=state.wizard;
+ overlay.innerHTML=`&lt;section class=&quot;gd-wizard&quot; aria-label=&quot;新建蒸馏任务&quot;&gt;&lt;div class=&quot;gd-wiz-header&quot;&gt;&lt;strong&gt;新建蒸馏任务&lt;/strong&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;close&quot;&gt;关闭 ×&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;gd-steps&quot;&gt;${[&#x27;目标与学生&#x27;,&#x27;数据与教师&#x27;,w.train?&#x27;质量与训练&#x27;:&#x27;质量与产物&#x27;,&#x27;确认提交&#x27;].map((n,i)=&gt;`&lt;button class=&quot;gd-step ${w.step===i+1?&#x27;active&#x27;:&#x27;&#x27;}&quot; data-action=&quot;step&quot; data-value=&quot;${i+1}&quot;&gt;&lt;b&gt;${i+1}&lt;/b&gt;${n}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div class=&quot;gd-wiz-body&quot;&gt;&lt;div class=&quot;gd-form&quot;&gt;${w.step===1?step1(w):w.step===2?step2(w):w.step===3?step3(w):step4(w)}&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;gd-wiz-footer&quot;&gt;&lt;span class=&quot;gd-muted&quot;&gt;交互示例，不会创建真实任务&lt;/span&gt;${w.step&gt;1?&#x27;&lt;button class=&quot;gd-btn&quot; data-action=&quot;previous&quot;&gt;上一步&lt;/button&gt;&#x27;:&#x27;&#x27;}&lt;button class=&quot;gd-btn primary&quot; data-action=&quot;${w.step===4?&#x27;submit&#x27;:&#x27;next&#x27;}&quot;&gt;${w.step===4?&#x27;提交蒸馏任务&#x27;:&#x27;下一步&#x27;}&lt;/button&gt;&lt;/div&gt;&lt;/section&gt;`;
+ const recipe=overlay.querySelector(&#x27;#gd-recipe&#x27;);if(recipe&amp;&amp;w.recipeName)recipe.value=w.recipeName;
+}
+function step1(w){return `
+ &lt;label class=&quot;gd-form-label&quot; for=&quot;gd-job-name&quot;&gt;任务名称&lt;/label&gt;&lt;input id=&quot;gd-job-name&quot; class=&quot;gd-input&quot; value=&quot;${esc(w.name)}&quot;&gt;
+ &lt;div class=&quot;gd-form-label&quot;&gt;任务目标&lt;/div&gt;&lt;div class=&quot;gd-grid&quot;&gt;
+ &lt;button class=&quot;gd-option ${!w.train?&#x27;selected&#x27;:&#x27;&#x27;}&quot; aria-pressed=&quot;${!w.train}&quot; data-action=&quot;train-mode&quot; data-value=&quot;data&quot;&gt;&lt;strong&gt;仅生成蒸馏数据&lt;/strong&gt;&lt;span&gt;产出数据集，之后可用于训练&lt;/span&gt;&lt;/button&gt;
+ &lt;button class=&quot;gd-option ${w.train?&#x27;selected&#x27;:&#x27;&#x27;}&quot; aria-pressed=&quot;${w.train}&quot; data-action=&quot;train-mode&quot; data-value=&quot;train&quot;&gt;&lt;strong&gt;生成数据并训练学生&lt;/strong&gt;&lt;span&gt;选择本地基模，数据完成后接续训练&lt;/span&gt;&lt;/button&gt;&lt;/div&gt;
+ ${studentPicker(w)}
+ &lt;div class=&quot;gd-form-label&quot;&gt;希望得到什么数据？&lt;/div&gt;&lt;div class=&quot;gd-options&quot;&gt;${Object.entries(recipes).map(([k,r])=&gt;`&lt;button class=&quot;gd-option ${w.type===k?&#x27;selected&#x27;:&#x27;&#x27;}&quot; data-action=&quot;recipe&quot; data-value=&quot;${k}&quot;&gt;&lt;strong&gt;${r.label}&lt;/strong&gt;&lt;span&gt;${r.desc}&lt;/span&gt;&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;
+ &lt;label class=&quot;gd-form-label&quot; for=&quot;gd-recipe&quot;&gt;使用配方&lt;/label&gt;&lt;select class=&quot;gd-input&quot; id=&quot;gd-recipe&quot;&gt;&lt;option&gt;${recipes[w.type].name}&lt;/option&gt;${w.type===&#x27;sft&#x27;?&#x27;&lt;option&gt;基础指令蒸馏&lt;/option&gt;&lt;option&gt;指令增强蒸馏&lt;/option&gt;&lt;option&gt;类别均衡蒸馏&lt;/option&gt;&#x27;:&#x27;&#x27;}${w.type===&#x27;cot&#x27;?&#x27;&lt;option&gt;基础思维链蒸馏&lt;/option&gt;&lt;option&gt;思维链压缩&lt;/option&gt;&lt;option&gt;思维链扩展&lt;/option&gt;&#x27;:&#x27;&#x27;}&lt;/select&gt;`}
+function step2(w){return `&lt;label class=&quot;gd-form-label&quot; for=&quot;gd-seed&quot;&gt;选择种子数据集&lt;/label&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;select class=&quot;gd-input&quot; id=&quot;gd-seed&quot;&gt;&lt;option&gt;客服种子集 · 示例&lt;/option&gt;&lt;option&gt;业务知识问答 · 示例&lt;/option&gt;&lt;/select&gt;&lt;button class=&quot;gd-btn&quot; data-action=&quot;upload&quot;&gt;上传新数据&lt;/button&gt;&lt;/div&gt;&lt;div class=&quot;gd-form-help&quot;&gt;选择当前用户已登记的数据集，可在多个项目间复用。&lt;/div&gt;&lt;div class=&quot;gd-preview-box&quot;&gt;&lt;div class=&quot;gd-sample&quot;&gt;&lt;span class=&quot;gd-tag&quot;&gt;JSONL · 示例&lt;/span&gt;&lt;p&gt;${w.type===&#x27;agent&#x27;?&#x27;角色背景 → 工具使用任务&#x27;:w.type===&#x27;mm&#x27;?&#x27;图片 + 指令 → 多模态回答&#x27;:w.type===&#x27;cot&#x27;?&#x27;问题 → 推理过程与答案&#x27;:&#x27;instruction → 教师回答&#x27;}&lt;/p&gt;&lt;div class=&quot;gd-code&quot;&gt;${esc(JSON.stringify(w.type===&#x27;agent&#x27;?{background:&#x27;一位需要处理订单退款的客服人员&#x27;}:w.type===&#x27;mm&#x27;?{instruction:&#x27;描述凭证中的信息&#x27;,images:[&#x27;凭证图片&#x27;]}:w.type===&#x27;cot&#x27;?{problem:&#x27;解释如何计算订单退款金额&#x27;}:{instruction:&#x27;忘记密码时，用户应该如何处理？&#x27;},null,2))}&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;&lt;label class=&quot;gd-form-label&quot; for=&quot;gd-teacher-source&quot;&gt;教师来源&lt;/label&gt;&lt;select class=&quot;gd-input&quot; id=&quot;gd-teacher-source&quot;&gt;&lt;option value=&quot;service&quot; ${w.teacher===&#x27;service&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;已有推理服务&lt;/option&gt;&lt;option value=&quot;api&quot; ${w.teacher===&#x27;api&#x27;?&#x27;selected&#x27;:&#x27;&#x27;}&gt;OpenAI 兼容 API&lt;/option&gt;&lt;/select&gt;${w.teacher===&#x27;service&#x27;?&#x27;&lt;label class=&quot;gd-form-label&quot;&gt;推理服务&lt;/label&gt;&lt;select class=&quot;gd-input&quot; aria-label=&quot;选择教师推理服务&quot;&gt;&lt;option&gt;DeepSeek-R1 · 服务示例&lt;/option&gt;&lt;/select&gt;&lt;div class=&quot;gd-form-help&quot;&gt;本地基模需要先在模型中心部署为服务，不能直接作为 API 教师调用。&lt;/div&gt;&#x27;:`&lt;label class=&quot;gd-form-label&quot; for=&quot;gd-endpoint&quot;&gt;服务地址&lt;/label&gt;&lt;input id=&quot;gd-endpoint&quot; class=&quot;gd-input&quot; placeholder=&quot;https://模型服务地址/v1&quot; value=&quot;${esc(w.endpoint)}&quot;&gt;&lt;div class=&quot;gd-form-help&quot;&gt;填写服务基础地址，系统使用 OpenAI 兼容接口。&lt;/div&gt;&lt;div class=&quot;gd-grid&quot;&gt;&lt;label&gt;&lt;span class=&quot;gd-form-label&quot;&gt;模型名称&lt;/span&gt;&lt;input class=&quot;gd-input&quot; id=&quot;gd-teacher-model&quot; value=&quot;${esc(w.model)}&quot;&gt;&lt;/label&gt;&lt;label&gt;&lt;span class=&quot;gd-form-label&quot;&gt;API 密钥&lt;/span&gt;&lt;input class=&quot;gd-input&quot; type=&quot;password&quot; placeholder=&quot;按服务要求填写&quot; autocomplete=&quot;off&quot;&gt;&lt;/label&gt;&lt;/div&gt;`}&lt;details class=&quot;gd-advanced&quot;&gt;&lt;summary&gt;生成参数与字段映射&lt;/summary&gt;&lt;div class=&quot;gd-grid&quot;&gt;&lt;label&gt;最大输出长度&lt;input class=&quot;gd-input&quot; type=&quot;number&quot; value=&quot;2048&quot; min=&quot;1&quot;&gt;&lt;/label&gt;&lt;label&gt;并发数&lt;input class=&quot;gd-input&quot; type=&quot;number&quot; value=&quot;4&quot; min=&quot;1&quot;&gt;&lt;/label&gt;&lt;/div&gt;&lt;div class=&quot;gd-form-help&quot;&gt;保留原始图片、消息、元数据；字段按选定配方校验。&lt;/div&gt;&lt;/details&gt;`}
+function step3(w){return `&lt;div class=&quot;gd-form-label&quot;&gt;${w.type===&#x27;dpo&#x27;?&#x27;偏好对规则&#x27;:w.type===&#x27;cot&#x27;?&#x27;推理质量与难度&#x27;:&#x27;质量筛选&#x27;}&lt;/div&gt;&lt;div class=&quot;gd-review&quot;&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;${w.type===&#x27;dpo&#x27;?&#x27;优选与差选的最小评分差&#x27;:&#x27;最低有用性评分&#x27;}&lt;/span&gt;&lt;strong id=&quot;gd-rule-label&quot;&gt;${w.threshold} / 9&lt;/strong&gt;&lt;/div&gt;&lt;input type=&quot;range&quot; id=&quot;gd-rule&quot; min=&quot;0&quot; max=&quot;9&quot; value=&quot;${w.threshold}&quot; style=&quot;width:100%;accent-color:var(--gd-blue)&quot;&gt;&lt;label class=&quot;gd-check&quot; style=&quot;border:0;padding:8px 0;margin:0&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;要求回答正确&lt;/span&gt;&lt;/label&gt;&lt;div class=&quot;gd-form-help&quot; id=&quot;gd-rule-count&quot;&gt;以页面示例预览，保留 ${samples.filter(s=&gt;s.score&gt;=w.threshold).length} / 4 条。真实结果以执行后的评分为准。&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;gd-form-label&quot;&gt;数据产物&lt;/div&gt;&lt;div class=&quot;gd-review&quot;&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;输出类型&lt;/span&gt;&lt;strong&gt;${recipes[w.type].label}&lt;/strong&gt;&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;保存到&lt;/span&gt;&lt;span&gt;当前用户的数据集管理&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;来源记录&lt;/span&gt;&lt;span&gt;种子数据集 + 任务 + 配方版本&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;${w.train?&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;学生模型训练&lt;/div&gt;&lt;div class=&quot;gd-grid&quot;&gt;&lt;label&gt;学生基模&lt;select class=&quot;gd-input&quot;&gt;&lt;option&gt;从共享基模池选择&lt;/option&gt;&lt;option&gt;DeepSeek-R1-Distill-Qwen-1.5B&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;label&gt;训练方式&lt;select class=&quot;gd-input&quot;&gt;&lt;option&gt;LoRA 微调&lt;/option&gt;&lt;option&gt;全量微调&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;label&gt;训练镜像&lt;select class=&quot;gd-input&quot;&gt;&lt;option&gt;选择已有 LLaMA-Factory 镜像&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;label&gt;GPU 资源&lt;select class=&quot;gd-input&quot;&gt;&lt;option&gt;选择节点及可用卡&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;/div&gt;&lt;div class=&quot;gd-form-help&quot;&gt;数据生产与训练分别调度，训练不使用 EasyDistill 数据镜像。&lt;/div&gt;&#x27;:&#x27;&lt;div class=&quot;gd-intro&quot;&gt;本次仅生产数据，无需选择学生基模或预留训练 GPU。&lt;/div&gt;&#x27;}&lt;details class=&quot;gd-advanced&quot;&gt;&lt;summary&gt;高级配置 · 查看接口映射&lt;/summary&gt;&lt;pre class=&quot;gd-code&quot;&gt;${esc(JSON.stringify(payload(w),null,2))}&lt;/pre&gt;&lt;/details&gt;`}
+function payload(w){const job=w.job||recipes[w.type].job;const parameters={};if(job===&#x27;advanced_instruct_distill&#x27;){parameters.pipeline=[{stage:&#x27;generate&#x27;,config:{}},{stage:&#x27;instruct_eval&#x27;,config:{}},{stage:&#x27;quality_filter&#x27;,config:{min_scores:{helpfulness:w.threshold,correctness:true},require_all_metrics:true,keep_top_ratio:1}},{stage:&#x27;build_sft&#x27;,config:{}}]}if(job===&#x27;dpo_data_build&#x27;){parameters.pipeline=[{stage:&#x27;generate_candidates&#x27;,config:{n:2}},{stage:&#x27;score_candidates&#x27;,config:{scorer:&#x27;llm_judge&#x27;,metrics:[&#x27;helpfulness&#x27;,&#x27;correctness&#x27;]}},{stage:&#x27;build_preference_pairs&#x27;,config:{min_margin:w.threshold,max_pairs_per_prompt:1}},{stage:&#x27;build_preference_dataset&#x27;,config:{format:&#x27;llama_factory_alpaca&#x27;}}]}const distillation={name:w.name,version:&#x27;2.0&#x27;,job_type:job,train_student:w.train,parameters};if(w.train){distillation.student_model={provider_type:&#x27;local&#x27;,model_id:w.studentId||&#x27;请选择学生基模&#x27;,model_name:studentName(w)};distillation.trainer_image=&#x27;从平台镜像目录选择&#x27;;distillation.model_template=&#x27;qwen&#x27;;distillation.finetuning_type=&#x27;lora&#x27;}return {training_config:{distillation,...(w.train?{num_train_epochs:3,per_device_train_batch_size:1,learning_rate:0.00002}: {})},resource_request:{}}}
+function step4(w){const r={...recipes[w.type],name:w.recipeName||recipes[w.type].name};return `&lt;div class=&quot;gd-form-label&quot;&gt;确认任务&lt;/div&gt;&lt;div class=&quot;gd-review&quot;&gt;&lt;h3&gt;${esc(w.name)}&lt;/h3&gt;${[[&#x27;所属项目&#x27;,&#x27;客服管理项目&#x27;],[&#x27;数据目标&#x27;,r.label],[&#x27;所用配方&#x27;,r.name],[&#x27;种子数据&#x27;,w.dataset],[&#x27;教师来源&#x27;,w.teacher===&#x27;service&#x27;?&#x27;已有推理服务&#x27;:w.endpoint||&#x27;待填写 API 地址&#x27;],[&#x27;质量规则&#x27;,&#x27;要求正确，最低评分 &#x27;+w.threshold],[&#x27;任务产物&#x27;,&#x27;独立数据资产，保留来源记录&#x27;],[&#x27;训练安排&#x27;,w.train?&#x27;完成数据后继续训练学生模型&#x27;:&#x27;仅生产数据&#x27;]].map(([k,v])=&gt;`&lt;div class=&quot;gd-row&quot;&gt;&lt;span class=&quot;gd-muted&quot;&gt;${k}&lt;/span&gt;&lt;span&gt;${esc(v)}&lt;/span&gt;&lt;/div&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div class=&quot;gd-form-label&quot;&gt;执行流程&lt;/div&gt;&lt;div class=&quot;gd-flow&quot;&gt;${r.steps.concat(w.train?[&#x27;学生训练&#x27;]:[]).map((s,i)=&gt;`${i?&#x27;→&#x27;:&#x27;&#x27;}&lt;span&gt;${s}&lt;/span&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div class=&quot;gd-intro&quot;&gt;&lt;strong&gt;结果可以追溯。&lt;/strong&gt; 每次任务固定保存配方和参数，中间数据可检查，最终产物可下载或继续训练。&lt;/div&gt;`}
+function close(){state.wizard=null;overlay.hidden=true;overlay.innerHTML=&#x27;&#x27;}
+root.addEventListener(&#x27;click&#x27;,ev=&gt;{
+ const b=ev.target.closest(&#x27;[data-action]&#x27;);if(!b)return;const a=b.dataset.action,v=b.dataset.value;
+ if(a===&#x27;view&#x27;){state.view=v;state.detail=null;render();remember()}
+ else if(a===&#x27;new&#x27;){newWizard()}
+ else if(a===&#x27;detail&#x27;){state.detail=b.dataset.id;state.detailTab=&#x27;overview&#x27;;state.threshold=state.tasks.find(t=&gt;t.id===state.detail)?.type===&#x27;dpo&#x27;?1:7;render();remember()}
+ else if(a===&#x27;detail-tab&#x27;){state.detailTab=v;render()}
+ else if(a===&#x27;back&#x27;){state.detail=null;render()}
+ else if(a===&#x27;close&#x27;){close()}
+ else if(a===&#x27;recipe&#x27;){state.wizard.type=v;state.wizard.job=null;state.wizard.recipeName=null;state.wizard.threshold=v===&#x27;dpo&#x27;?1:7;wizard();remember()}
+ else if(a===&#x27;step&#x27;){state.wizard.step=Number(v);wizard()}
+ else if(a===&#x27;next&#x27;||a===&#x27;previous&#x27;){state.wizard.step+=a===&#x27;next&#x27;?1:-1;wizard()}
+ else if(a===&#x27;submit&#x27;){const w=state.wizard;state.tasks.unshift({id:&#x27;demo-&#x27;+Date.now(),name:w.name||&#x27;新蒸馏任务&#x27;,type:w.type,recipeName:w.recipeName,status:&#x27;pending&#x27;,count:0,when:&#x27;刚刚&#x27;,train:w.train,studentId:w.train?w.studentId:null});close();state.view=&#x27;tasks&#x27;;state.detail=null;render();remember();toast(&#x27;已添加到交互示例，未向服务器提交任务&#x27;)}
+ else if(a===&#x27;asset-preview&#x27;){state.detail=state.tasks.find(t=&gt;t.type===b.dataset.kind)?.id||&#x27;demo-sft&#x27;;state.detailTab=&#x27;samples&#x27;;render()}
+ else if(a===&#x27;train&#x27;){toast(&#x27;前端实现时携带已生成的数据集 ID，进入模型训练创建页&#x27;)}
+ else if(a===&#x27;upload&#x27;){toast(&#x27;上传文件后保存为独立数据集；先校验 JSON / JSONL 与配方所需字段&#x27;)}
+ else if(a===&#x27;candidate&#x27;){toast(&#x27;从当前用户候选目录选择文件并登记，不需要填写服务器绝对路径&#x27;)}
+ else if(a===&#x27;download&#x27;){toast(&#x27;前端实现时下载本次运行的指定产物&#x27;)}
+ else if(a===&#x27;project-new&#x27;){toast(&#x27;创建项目仅填写业务信息和默认教师；学生基模在需要训练时选择&#x27;)}
+ else if(a===&#x27;log&#x27;){toast(&#x27;前端实现时通过现有日志接口打开完整日志与实时日志&#x27;)}
+});
+root.addEventListener(&#x27;change&#x27;,ev=&gt;{const el=ev.target,w=state.wizard;if(el.id===&#x27;gd-auto-train&#x27;&amp;&amp;w){w.train=el.checked;wizard()}if(el.id===&#x27;gd-teacher-source&#x27;&amp;&amp;w){w.teacher=el.value;wizard()}if(el.id===&#x27;gd-seed&#x27;&amp;&amp;w)w.dataset=el.value;if(el.id===&#x27;gd-status-filter&#x27;)root.querySelector(&#x27;#gd-task-rows&#x27;).innerHTML=taskRows(state.tasks.filter(t=&gt;el.value===&#x27;all&#x27;||t.status===el.value));if(el.id===&#x27;gd-dataset-filter&#x27;)root.querySelector(&#x27;#gd-dataset-rows&#x27;).innerHTML=datasetRows(el.value);remember()});
+root.addEventListener(&#x27;input&#x27;,ev=&gt;{const el=ev.target,w=state.wizard;if(el.id===&#x27;gd-job-name&#x27;&amp;&amp;w)w.name=el.value;if(el.id===&#x27;gd-endpoint&#x27;&amp;&amp;w)w.endpoint=el.value;if(el.id===&#x27;gd-teacher-model&#x27;&amp;&amp;w)w.model=el.value;if(el.id===&#x27;gd-threshold&#x27;){state.threshold=Number(el.value);const type=state.tasks.find(t=&gt;t.id===state.detail)?.type||&#x27;sft&#x27;;root.querySelector(&#x27;#gd-threshold-label&#x27;).textContent=thresholdLabel(type,el.value);const rows=filteredSamples(type,state.threshold);root.querySelector(&#x27;#gd-filter-count&#x27;).textContent=&#x27;示例保留 &#x27;+rows.length+&#x27; / 4 条&#x27;;root.querySelector(&#x27;#gd-sample-list&#x27;).innerHTML=sampleRows(rows,type);remember()}if(el.id===&#x27;gd-rule&#x27;&amp;&amp;w){w.threshold=Number(el.value);root.querySelector(&#x27;#gd-rule-label&#x27;).textContent=thresholdLabel(w.type,el.value);root.querySelector(&#x27;#gd-rule-count&#x27;).textContent=&#x27;以页面示例预览，保留 &#x27;+filteredSamples(w.type,w.threshold).length+&#x27; / 4 条。真实结果以执行后的评分为准。&#x27;}});
+const defaultQualityStep=step3;
+step3=function(w){let html=defaultQualityStep(w);const end=html.indexOf(&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;数据产物&lt;/div&gt;&#x27;);let specific=&#x27;&#x27;;if(w.type===&#x27;cot&#x27;){specific=&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;推理质量与难度&lt;/div&gt;&lt;div class=&quot;gd-review&quot;&gt;&lt;label class=&quot;gd-check&quot; style=&quot;margin:0;border:0;padding:5px 0&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;仅保留逻辑正确的推理过程&lt;/span&gt;&lt;/label&gt;&lt;label class=&quot;gd-form-label&quot;&gt;难度区间&lt;/label&gt;&lt;input class=&quot;gd-input&quot; value=&quot;0–3，3–6，6–10&quot; aria-label=&quot;难度区间&quot;&gt;&lt;div class=&quot;gd-form-help&quot;&gt;按认知难度分组，控制各组样本数量。&lt;/div&gt;&lt;label class=&quot;gd-form-label&quot;&gt;推理长度策略&lt;/label&gt;&lt;select class=&quot;gd-input&quot;&gt;&lt;option&gt;推理长度匹配问题难度&lt;/option&gt;&lt;option&gt;固定目标长度&lt;/option&gt;&lt;/select&gt;&lt;/div&gt;&#x27;}else if(w.type===&#x27;agent&#x27;){specific=&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;工具轨迹与任务合成&lt;/div&gt;&lt;div class=&quot;gd-review&quot;&gt;&lt;div class=&quot;gd-grid&quot;&gt;&lt;label&gt;每个任务最大步骤&lt;input class=&quot;gd-input&quot; type=&quot;number&quot; value=&quot;10&quot; min=&quot;1&quot;&gt;&lt;/label&gt;&lt;label&gt;每个种子的轨迹数&lt;input class=&quot;gd-input&quot; type=&quot;number&quot; value=&quot;2&quot; min=&quot;1&quot;&gt;&lt;/label&gt;&lt;/div&gt;&lt;label class=&quot;gd-form-label&quot;&gt;工具执行模式&lt;/label&gt;&lt;select class=&quot;gd-input&quot;&gt;&lt;option&gt;模拟工具调用&lt;/option&gt;&lt;/select&gt;&lt;label class=&quot;gd-check&quot; style=&quot;border:0;padding:0&quot;&gt;&lt;input type=&quot;checkbox&quot; checked&gt;&lt;span&gt;使用评估规则比较轨迹，生成可训练的工具使用数据&lt;/span&gt;&lt;/label&gt;&lt;div class=&quot;gd-form-help&quot;&gt;当前配方按官方 Agent 蒸馏实现模拟工具返回，不默认访问真实业务系统。&lt;/div&gt;&lt;/div&gt;&#x27;}else if(w.type===&#x27;mm&#x27;){specific=&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;图文输入与产物检查&lt;/div&gt;&lt;div class=&quot;gd-review&quot;&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;输入校验&lt;/span&gt;&lt;span&gt;图片引用 + 指令字段&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;教师要求&lt;/span&gt;&lt;span&gt;支持图像输入的推理服务&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;产物格式&lt;/span&gt;&lt;span&gt;多模态 messages，保留图片引用&lt;/span&gt;&lt;/div&gt;&lt;div class=&quot;gd-form-help&quot;&gt;当前为基础多模态生成配方；数据质量评估应另行选择对应的多模态评估配方。&lt;/div&gt;&lt;/div&gt;&#x27;}else if(w.type===&#x27;sft&#x27;&amp;&amp;w.job===&#x27;instruct_distill&#x27;){specific=&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;基础生成&lt;/div&gt;&lt;div class=&quot;gd-review&quot;&gt;该配方直接生成教师回答并导出 SFT 数据。需要自动评分与过滤时，选择“高质量指令蒸馏”。&lt;/div&gt;&#x27;}if(specific&amp;&amp;end&gt;=0)html=specific+html.slice(end);return html;};
+const qualityWithTraining=step3;
+step3=function(w){let html=qualityWithTraining(w);if(w.train){html=html.replace(&#x27;&lt;label&gt;学生基模&lt;select class=&quot;gd-input&quot;&gt;&lt;option&gt;从共享基模池选择&lt;/option&gt;&lt;option&gt;DeepSeek-R1-Distill-Qwen-1.5B&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&#x27;,`&lt;div&gt;${studentPicker(w)}&lt;/div&gt;`);html=html.replace(&#x27;&lt;details class=&quot;gd-advanced&quot;&gt;&#x27;,&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;训练参数&lt;/div&gt;&lt;div class=&quot;gd-grid&quot;&gt;&lt;label&gt;对话模板&lt;select class=&quot;gd-input&quot;&gt;&lt;option&gt;Qwen&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;&lt;label&gt;训练轮数&lt;input class=&quot;gd-input&quot; type=&quot;number&quot; min=&quot;1&quot; value=&quot;3&quot;&gt;&lt;/label&gt;&lt;label&gt;学习率&lt;input class=&quot;gd-input&quot; value=&quot;0.00002&quot;&gt;&lt;/label&gt;&lt;label&gt;每卡批量&lt;input class=&quot;gd-input&quot; type=&quot;number&quot; min=&quot;1&quot; value=&quot;1&quot;&gt;&lt;/label&gt;&lt;/div&gt;&lt;details class=&quot;gd-advanced&quot;&gt;&#x27;)}return html;};
+const confirmTask=step4;
+step4=function(w){return confirmTask(w).replace(&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;执行流程&lt;/div&gt;&#x27;,`${w.train?`&lt;div class=&quot;gd-review&quot;&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span class=&quot;gd-muted&quot;&gt;学生基模&lt;/span&gt;&lt;strong&gt;${esc(studentName(w))}&lt;/strong&gt;&lt;/div&gt;&lt;div class=&quot;gd-form-help&quot;&gt;本地权重 · 按本次任务保存基模快照&lt;/div&gt;&lt;/div&gt;`:&#x27;&#x27;}&lt;div class=&quot;gd-form-label&quot;&gt;执行流程&lt;/div&gt;`)};
+const taskDetail=detail;
+function hasData(t){return t.count&gt;0}
+function lifecycleButtons(t){return `${t.status===&#x27;pending&#x27;?&#x27;&lt;button class=&quot;gd-btn primary&quot; data-action=&quot;run-start&quot;&gt;启动任务&lt;/button&gt;&#x27;:&#x27;&#x27;}${[&#x27;scheduled&#x27;,&#x27;preparing&#x27;,&#x27;running&#x27;].includes(t.status)?&#x27;&lt;button class=&quot;gd-btn&quot; data-action=&quot;run-cancel&quot;&gt;取消任务&lt;/button&gt;&#x27;:&#x27;&#x27;}`}
+detail=function(){
+ const t=state.tasks.find(t=&gt;t.id===state.detail)||state.tasks[0],r=recipes[t.type];
+ const steps=[&#x27;教师配置&#x27;,&#x27;数据准备&#x27;,&#x27;蒸馏数据&#x27;,&#x27;数据导出&#x27;].concat(t.train?[&#x27;学生训练&#x27;]:[]);
+ const complete=t.status===&#x27;success&#x27;||t.status===&#x27;succeeded&#x27;,done=complete?steps.length:hasData(t)?4:t.completedStages??(t.status===&#x27;running&#x27;?2:0);
+ const body=state.detailTab===&#x27;samples&#x27;?(hasData(t)?sampleView(t.type):&#x27;&lt;div class=&quot;gd-empty&quot;&gt;尚无已导出的数据，请先查看阶段状态与日志。&lt;/div&gt;&#x27;):state.detailTab===&#x27;artifacts&#x27;?artifactView(t):`
+ &lt;div class=&quot;gd-layout&quot;&gt;&lt;section class=&quot;gd-panel&quot;&gt;&lt;div class=&quot;gd-panel-header&quot;&gt;执行阶段${status(t)}&lt;/div&gt;&lt;div class=&quot;gd-timeline&quot;&gt;${steps.map((s,i)=&gt;`&lt;div class=&quot;gd-phase ${i&lt;done?&#x27;done&#x27;:&#x27;&#x27;}&quot;&gt;&lt;div class=&quot;gd-dot&quot;&gt;${i&lt;done?&#x27;✓&#x27;:i+1}&lt;/div&gt;${s}${t.status===&#x27;running&#x27;&amp;&amp;i===done?&#x27;&lt;br&gt;进行中&#x27;:&#x27;&#x27;}${t.status===&#x27;failed&#x27;&amp;&amp;i===done?&#x27;&lt;br&gt;失败&#x27;:&#x27;&#x27;}&lt;/div&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;&lt;div style=&quot;padding:0 18px 18px&quot;&gt;&lt;div class=&quot;gd-flow&quot;&gt;&lt;span&gt;种子数据集&lt;/span&gt;→&lt;span&gt;${esc(t.recipeName||r.name)}&lt;/span&gt;→&lt;span&gt;${hasData(t)?t.count+&#x27; 条数据&#x27;:&#x27;等待数据导出&#x27;}&lt;/span&gt;${t.train?`→&lt;span&gt;学生基模：${esc(studentName(t))}&lt;/span&gt;`:&#x27;&#x27;}&lt;/div&gt;&lt;div class=&quot;gd-hint&quot;&gt;${hasData(t)?&#x27;数据产物已独立登记，后续训练状态不会改变数据资产。&#x27;:&#x27;当前尚无可用的正式数据产物。&#x27;} 生成、评分和筛选的细节见蒸馏数据阶段日志。&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;button class=&quot;gd-btn&quot; data-action=&quot;detail-tab&quot; data-value=&quot;artifacts&quot;&gt;查看日志与产物&lt;/button&gt;${hasData(t)?&#x27;&lt;button class=&quot;gd-btn&quot; data-action=&quot;detail-tab&quot; data-value=&quot;samples&quot;&gt;检查样本&lt;/button&gt;&#x27;:&#x27;&#x27;}&lt;/div&gt;&lt;/div&gt;&lt;/section&gt;&lt;aside class=&quot;gd-panel gd-properties&quot;&gt;&lt;div class=&quot;gd-label&quot;&gt;任务配置&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;教师&lt;/span&gt;&lt;strong&gt;DeepSeek-R1 · 服务示例&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;训练安排&lt;/span&gt;&lt;strong&gt;${t.train?&#x27;数据生产 + 学生训练&#x27;:&#x27;仅生产数据&#x27;}&lt;/strong&gt;&lt;/div&gt;${t.train?`&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;学生基模&lt;/span&gt;&lt;strong&gt;${esc(studentName(t))}&lt;/strong&gt;&lt;/div&gt;&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;模型效果&lt;/span&gt;&lt;strong&gt;尚未测评&lt;/strong&gt;&lt;/div&gt;`:&#x27;&#x27;}&lt;div&gt;&lt;span class=&quot;gd-label&quot;&gt;数据归属&lt;/span&gt;&lt;strong&gt;当前用户 · 可跨项目复用&lt;/strong&gt;&lt;/div&gt;&lt;/aside&gt;&lt;/div&gt;`;
+ return `&lt;div class=&quot;gd-detail-top&quot;&gt;&lt;button class=&quot;gd-back&quot; data-action=&quot;back&quot;&gt;← 返回任务列表&lt;/button&gt;&lt;div class=&quot;gd-row&quot;&gt;${lifecycleButtons(t)}&lt;button class=&quot;gd-btn&quot; data-action=&quot;new&quot;&gt;${[&#x27;failed&#x27;,&#x27;canceled&#x27;].includes(t.status)?&#x27;以此配置新建&#x27;:&#x27;复用配置&#x27;}&lt;/button&gt;&lt;/div&gt;&lt;/div&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;div&gt;&lt;h3 class=&quot;gd-detail-title&quot;&gt;${esc(t.name)}&lt;/h3&gt;&lt;div class=&quot;gd-subtitle&quot;&gt;客服管理项目 / ${esc(t.recipeName||r.name)} / ${t.when}&lt;/div&gt;&lt;/div&gt;${status(t)}&lt;/div&gt;${t.status===&#x27;failed&#x27;?`&lt;div class=&quot;gd-intro&quot; role=&quot;alert&quot;&gt;&lt;strong&gt;${esc(t.failureStage||&#x27;蒸馏数据&#x27;)}失败&lt;/strong&gt;　${esc(t.error||&#x27;请查看对应阶段日志。&#x27;)}${hasData(t)?&#x27;&lt;div&gt;已生成的数据集仍可预览和复用。&lt;/div&gt;&#x27;:&#x27;&#x27;}&lt;/div&gt;`:&#x27;&#x27;}${t.status===&#x27;canceled&#x27;?&#x27;&lt;div class=&quot;gd-intro&quot;&gt;任务已取消。已落盘的中间结果保留，可在日志与产物中检查。&lt;/div&gt;&#x27;:&#x27;&#x27;}&lt;div class=&quot;gd-tabs&quot; style=&quot;margin-top:20px&quot; role=&quot;tablist&quot; aria-label=&quot;任务详情&quot;&gt;${[[&#x27;overview&#x27;,&#x27;运行概览&#x27;],[&#x27;samples&#x27;,&#x27;样本与质量&#x27;],[&#x27;artifacts&#x27;,&#x27;日志与产物&#x27;]].map(([v,n])=&gt;`&lt;button role=&quot;tab&quot; aria-selected=&quot;${state.detailTab===v}&quot; class=&quot;gd-tab ${state.detailTab===v?&#x27;active&#x27;:&#x27;&#x27;}&quot; data-action=&quot;detail-tab&quot; data-value=&quot;${v}&quot;&gt;${n}&lt;/button&gt;`).join(&#x27;&#x27;)}&lt;/div&gt;${body}`;
+};
+artifactView=function(t){return `&lt;div class=&quot;gd-layout&quot;&gt;&lt;section class=&quot;gd-panel&quot;&gt;&lt;div class=&quot;gd-panel-header&quot;&gt;本次任务产物&lt;span class=&quot;gd-label&quot;&gt;数据与模型分别展示&lt;/span&gt;&lt;/div&gt;&lt;table class=&quot;gd-table&quot;&gt;&lt;thead&gt;&lt;tr&gt;&lt;th&gt;产物&lt;/th&gt;&lt;th&gt;状态&lt;/th&gt;&lt;th&gt;操作&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;蒸馏数据集&lt;div class=&quot;gd-secondary&quot;&gt;${recipes[t.type].label}&lt;/div&gt;&lt;/td&gt;&lt;td&gt;${hasData(t)?t.count+&#x27; 条 · 已登记&#x27;:&#x27;尚未导出&#x27;}&lt;/td&gt;&lt;td&gt;${hasData(t)?&#x27;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;detail-tab&quot; data-value=&quot;samples&quot;&gt;预览&lt;/button&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;download&quot;&gt;下载数据&lt;/button&gt;&#x27;:&#x27;—&#x27;}&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;评分与筛选中间数据&lt;/td&gt;&lt;td&gt;${hasData(t)?&#x27;已保留&#x27;:&#x27;以实际阶段产物为准&#x27;}&lt;/td&gt;&lt;td&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;log&quot;&gt;查看阶段日志&lt;/button&gt;&lt;/td&gt;&lt;/tr&gt;${t.train?`&lt;tr&gt;&lt;td&gt;学生模型权重&lt;div class=&quot;gd-secondary&quot;&gt;${esc(studentName(t))} · LoRA 示例&lt;/div&gt;&lt;/td&gt;&lt;td&gt;${t.checkpoint?&#x27;已产出适配器权重&#x27;:t.status===&#x27;failed&#x27;?&#x27;训练失败，未产出权重&#x27;:&#x27;尚未产出&#x27;}&lt;/td&gt;&lt;td&gt;&lt;button class=&quot;gd-btn link&quot; data-action=&quot;log&quot;&gt;训练日志&lt;/button&gt;&lt;/td&gt;&lt;/tr&gt;`:&#x27;&#x27;}&lt;/tbody&gt;&lt;/table&gt;&lt;div style=&quot;padding:16px&quot;&gt;${hasData(t)?&#x27;&lt;button class=&quot;gd-btn primary&quot; data-action=&quot;train&quot;&gt;使用此数据集训练&lt;/button&gt;&#x27;:&#x27;&#x27;}&lt;details class=&quot;gd-advanced&quot;&gt;&lt;summary&gt;存储与版本信息&lt;/summary&gt;&lt;div class=&quot;gd-code&quot;&gt;引擎：EasyDistill 2.0.0&lt;br&gt;数据：用户数据集 / generated / 数据集版本&lt;br&gt;运行：用户工作区 / projects / 项目 / runs / 任务&lt;br&gt;学生基模：共享只读模型池${t.train?&#x27;&lt;br&gt;权重：本次运行 / models / checkpoints&#x27;:&#x27;&#x27;}&lt;br&gt;模型效果：独立测评，训练完成不代表效果达标&lt;/div&gt;&lt;/details&gt;&lt;/div&gt;&lt;/section&gt;&lt;section class=&quot;gd-panel gd-properties&quot;&gt;&lt;div class=&quot;gd-row&quot;&gt;&lt;span&gt;执行日志&lt;/span&gt;&lt;span class=&quot;gd-tag&quot;&gt;状态示例&lt;/span&gt;&lt;/div&gt;&lt;pre class=&quot;gd-code&quot;&gt;${hasData(t)?&#x27;[数据导出] 已登记 &#x27;+t.count+&#x27; 条数据&#x27;:&#x27;[数据导出] 尚未完成&#x27;}${t.train?&#x27;\n[学生训练] &#x27;+(t.checkpoint?&#x27;检查到适配器权重&#x27;:t.status===&#x27;failed&#x27;?&#x27;镜像启动失败&#x27;:&#x27;尚无权重产物&#x27;):&#x27;&#x27;}&lt;/pre&gt;&lt;button class=&quot;gd-btn small&quot; data-action=&quot;log&quot;&gt;完整日志&lt;/button&gt;&lt;/section&gt;&lt;/div&gt;`};
+const reviewedQuality=step3;
+step3=function(w){let html=reviewedQuality(w);if(w.type===&#x27;dpo&#x27;){html=html.replace(`${w.threshold} / 9`,thresholdLabel(&#x27;dpo&#x27;,w.threshold)).replace(&#x27;要求回答正确&#x27;,&#x27;要求优选回答正确&#x27;).replace(`保留 ${samples.filter(s=&gt;s.score&gt;=w.threshold).length} / 4 条`,`保留 ${filteredSamples(&#x27;dpo&#x27;,w.threshold).length} / 4 条`)}if(w.type===&#x27;sft&#x27;&amp;&amp;w.job&amp;&amp;w.job!==&#x27;advanced_instruct_distill&#x27;){const end=html.indexOf(&#x27;&lt;div class=&quot;gd-form-label&quot;&gt;数据产物&lt;/div&gt;&#x27;);if(end&gt;=0)html=&#x27;&lt;div class=&quot;gd-intro&quot;&gt;此配方采用生成、增强或均衡流程。需要自动评分和过滤时，选择高质量指令蒸馏。&lt;/div&gt;&#x27;+html.slice(end)}return html.replace(&#x27;高级配置 · 查看接口映射&#x27;,&#x27;请求结构示例 · 字段对照见交接说明&#x27;)};
+const reviewedConfirm=step4;
+step4=function(w){return reviewedConfirm(w).replace(&#x27;要求正确，最低评分 &#x27;+w.threshold,w.type===&#x27;dpo&#x27;?&#x27;优选/差选最小评分差 &#x27;+w.threshold+&#x27; 分&#x27;:&#x27;按所选配方规则执行&#x27;)};
+root.addEventListener(&#x27;click&#x27;,ev=&gt;{const a=ev.target.closest(&#x27;[data-action]&#x27;)?.dataset.action,t=state.tasks.find(t=&gt;t.id===state.detail);if(!t)return;if(a===&#x27;run-start&#x27;&amp;&amp;t.status===&#x27;pending&#x27;){t.status=&#x27;running&#x27;;render();toast(&#x27;仅演示启动状态，未提交实际任务&#x27;)}if(a===&#x27;run-cancel&#x27;&amp;&amp;[&#x27;scheduled&#x27;,&#x27;preparing&#x27;,&#x27;running&#x27;].includes(t.status)){t.completedStages=hasData(t)?4:t.status===&#x27;running&#x27;?2:0;t.status=&#x27;canceled&#x27;;render();toast(&#x27;仅演示取消状态，未向服务器发送请求&#x27;)}});
+root.addEventListener(&#x27;click&#x27;,ev=&gt;{const b=ev.target.closest(&#x27;[data-action]&#x27;),w=state.wizard;if(!b||!w)return;if(b.dataset.action===&#x27;train-mode&#x27;){w.train=b.dataset.value===&#x27;train&#x27;;wizard();remember()}if(w.train&amp;&amp;!w.studentId&amp;&amp;(b.dataset.action===&#x27;submit&#x27;||b.dataset.action===&#x27;next&#x27;&amp;&amp;w.step===1)){ev.stopImmediatePropagation();toast(&#x27;请先选择学生基模&#x27;);}},true);
+root.addEventListener(&#x27;change&#x27;,ev=&gt;{if(ev.target.id===&#x27;gd-student-model&#x27;&amp;&amp;state.wizard){state.wizard.studentId=ev.target.value;wizard();remember()}});
+const recipeJobs={&#x27;高质量指令蒸馏&#x27;:&#x27;advanced_instruct_distill&#x27;,&#x27;基础指令蒸馏&#x27;:&#x27;instruct_distill&#x27;,&#x27;指令增强蒸馏&#x27;:&#x27;augmented_instruct_distill&#x27;,&#x27;类别均衡蒸馏&#x27;:&#x27;balanced_instruct_distill&#x27;,&#x27;思维链评分与难度混合&#x27;:&#x27;advanced_cot_distill&#x27;,&#x27;基础思维链蒸馏&#x27;:&#x27;cot_distill&#x27;,&#x27;思维链压缩&#x27;:&#x27;cot_long2short&#x27;,&#x27;思维链扩展&#x27;:&#x27;cot_short2long&#x27;};
+root.addEventListener(&#x27;change&#x27;,ev=&gt;{if(ev.target.id===&#x27;gd-recipe&#x27;&amp;&amp;state.wizard){state.wizard.job=recipeJobs[ev.target.value]||recipes[state.wizard.type].job;state.wizard.recipeName=ev.target.value;remember()}});
+root.addEventListener(&#x27;click&#x27;,()=&gt;{const el=overlay.querySelector(&#x27;#gd-recipe&#x27;);if(el&amp;&amp;state.wizard?.recipeName)el.value=state.wizard.recipeName});
+state.tasks.push({id:&#x27;demo-trained&#x27;,name:&#x27;客服学生训练 · 完成示例&#x27;,type:&#x27;sft&#x27;,status:&#x27;success&#x27;,count:3,when:&#x27;今天 10:20&#x27;,train:true,studentId:&#x27;demo-student-qwen-1.5b&#x27;,checkpoint:true},{id:&#x27;demo-failed&#x27;,name:&#x27;学生训练 · 失败示例&#x27;,type:&#x27;sft&#x27;,status:&#x27;failed&#x27;,count:3,when:&#x27;今天 10:25&#x27;,train:true,studentId:&#x27;demo-student-qwen-1.5b&#x27;,failureStage:&#x27;学生训练&#x27;,error:&#x27;训练镜像启动失败（示例），请检查镜像和阶段日志。&#x27;},{id:&#x27;demo-running&#x27;,name:&#x27;教师生成 · 运行示例&#x27;,type:&#x27;sft&#x27;,status:&#x27;running&#x27;,count:0,when:&#x27;刚刚&#x27;,train:false});
+const reviewedTasks=tasks;
+tasks=function(){return reviewedTasks().replace(&#x27;&lt;option value=&quot;pending&quot;&gt;待提交&lt;/option&gt;&#x27;,&#x27;&lt;option value=&quot;pending&quot;&gt;待启动&lt;/option&gt;&lt;option value=&quot;scheduled&quot;&gt;排队中&lt;/option&gt;&lt;option value=&quot;preparing&quot;&gt;准备中&lt;/option&gt;&lt;option value=&quot;running&quot;&gt;运行中&lt;/option&gt;&lt;option value=&quot;failed&quot;&gt;失败&lt;/option&gt;&lt;option value=&quot;canceled&quot;&gt;已取消&lt;/option&gt;&#x27;)};
+render();
+if(globalThis.Tweak){const design={compact:false,radius:6};const t=new Tweak({container:root,onChange:()=&gt;{root.classList.toggle(&#x27;gd-compact&#x27;,design.compact);root.style.setProperty(&#x27;--gd-radius&#x27;,design.radius+&#x27;px&#x27;)}});t.addToggle(design,&#x27;compact&#x27;,{label:&#x27;紧凑表格&#x27;});t.addSlider(design,&#x27;radius&#x27;,{label:&#x27;卡片圆角&#x27;,min:0,max:12,step:2,unit:&#x27;px&#x27;});}
+window.addEventListener(&#x27;openai:set_globals&#x27;,ev=&gt;{const m=ev.detail?.globals?.widgetState?.modelContent;if(m?.view&amp;&amp;[&#x27;tasks&#x27;,&#x27;projects&#x27;,&#x27;datasets&#x27;].includes(m.view)){state.view=m.view;render()}});
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+  let lastPointerWasTouch = false;
+  let pinnedByTouch = false;
+
+  const getTrigger = (event) =&gt; {
+    for (const target of event.composedPath()) {
+      if (target?.nodeType === Node.ELEMENT_NODE) {
+        const trigger = target.closest(&quot;[data-tooltip]&quot;);
+        if (trigger) return trigger;
+      }
+    }
+    return null;
+  };
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    pinnedByTouch = false;
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handlePointer = (event) =&gt; {
+    lastPointerWasTouch =
+      event.type === &quot;pointerdown&quot; &amp;&amp; event.pointerType === &quot;touch&quot;;
+  };
+  const handleTouchClick = (event) =&gt; {
+    const isTouch = event.pointerType === &quot;touch&quot; || lastPointerWasTouch;
+    lastPointerWasTouch = false;
+    if (!isTouch || event.detail === 0) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (
+      trigger == null ||
+      !trigger.isConnected ||
+      getContent(trigger).length === 0 ||
+      (pinnedByTouch &amp;&amp; activeTrigger === trigger)
+    ) {
+      if (pinnedByTouch) {
+        closeTooltip();
+      }
+      return;
+    }
+    openTooltip(trigger);
+    pinnedByTouch = activeTrigger === trigger;
+    window.setTimeout(() =&gt; {
+      if (activeTrigger === trigger &amp;&amp; !trigger.isConnected) {
+        closeTooltip(false);
+      }
+    }, 0);
+  };
+  const handleLeave = (event) =&gt; {
+    if (pinnedByTouch) {
+      return;
+    }
+    const trigger = getTrigger(event);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    lastPointerWasTouch = false;
+    const trigger = getTrigger(event);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handlers = {
+    pointerover: handlePointerOpen,
+    pointerdown: handlePointer,
+    pointercancel: handlePointer,
+    click: handleTouchClick,
+    pointerout: handleLeave,
+    focusin: handleFocusIn,
+    focusout: handleLeave,
+    keydown: handleKeyDown,
+    contextmenu: handleContextMenu,
+  };
+  const roots = new Map();
+  const handledEvents = new WeakSet();
+  const handleEvent = (event) =&gt; {
+    if (handledEvents.has(event)) return;
+    handledEvents.add(event);
+    handlers[event.type](event);
+  };
+  const discoverRoots = (node) =&gt; {
+    if (node.shadowRoot) listen(node.shadowRoot);
+    for (const element of node.querySelectorAll(&quot;*&quot;)) {
+      if (element.shadowRoot) listen(element.shadowRoot);
+    }
+  };
+  const listen = (root) =&gt; {
+    if (roots.has(root)) return;
+    for (const type of Object.keys(handlers)) root.addEventListener(type, handleEvent);
+    const observer = new window.MutationObserver((records) =&gt; {
+      for (const { addedNodes } of records) {
+        for (const node of addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) discoverRoots(node);
+        }
+      }
+      for (const [root, cleanup] of roots) {
+        if (root.host &amp;&amp; !root.host.isConnected) {
+          cleanup();
+          roots.delete(root);
+        }
+      }
+      if (activeTrigger &amp;&amp; !activeTrigger.isConnected) closeTooltip(false);
+    });
+    observer.observe(root, { childList: true, subtree: true });
+    roots.set(root, () =&gt; {
+      observer.disconnect();
+      for (const type of Object.keys(handlers)) root.removeEventListener(type, handleEvent);
+    });
+    discoverRoots(root);
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    lastPointerWasTouch = false;
+    for (const cleanup of roots.values()) cleanup();
+    roots.clear();
+    tooltip = null;
+  };
+
+  // Events between children of one shadow root never reach the document.
+  listen(document);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-tabs&quot;&gt;
+(() =&gt; {
+  const selector = &#x27;.nav[role=&quot;tablist&quot;] [role=&quot;tab&quot;]&#x27;;
+  const disabled = &#x27;:disabled,[aria-disabled=&quot;true&quot;]&#x27;;
+  const selectTab = (selected) =&gt; {
+    const panelId = selected.getAttribute(&quot;aria-controls&quot;);
+    for (const tab of selected.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;)) {
+      const active = tab === selected;
+      tab.classList.toggle(&quot;active&quot;, active);
+      tab.setAttribute(&quot;aria-selected&quot;, String(active));
+      const id = tab.getAttribute(&quot;aria-controls&quot;);
+      const panel = id &amp;&amp; document.getElementById(id);
+      if (panel != null) {
+        panel.hidden = id !== panelId;
+        if (!panel.hidden &amp;&amp; selected.id) {
+          panel.setAttribute(&quot;aria-labelledby&quot;, selected.id);
+        }
+      }
+    }
+  };
+  const interact = (event) =&gt; {
+    const tab = event.target?.closest?.(selector);
+    if (event.defaultPrevented || tab == null || tab.matches(disabled)) {
+      return;
+    }
+    if (event.type === &quot;click&quot;) {
+      selectTab(tab);
+      return;
+    }
+    const tabs = Array.from(
+      tab.closest(&#x27;[role=&quot;tablist&quot;]&#x27;).querySelectorAll(&#x27;[role=&quot;tab&quot;]&#x27;),
+    ).filter((candidate) =&gt; !candidate.matches(disabled));
+    const current = tabs.indexOf(tab);
+    let next;
+    if (event.key === &quot;ArrowRight&quot; || event.key === &quot;ArrowDown&quot;) {
+      next = (current + 1) % tabs.length;
+    } else if (event.key === &quot;ArrowLeft&quot; || event.key === &quot;ArrowUp&quot;) {
+      next = (current + tabs.length - 1) % tabs.length;
+    } else if (event.key === &quot;Home&quot;) {
+      next = 0;
+    } else if (event.key === &quot;End&quot;) {
+      next = tabs.length - 1;
+    } else {
+      return;
+    }
+    event.preventDefault();
+    tabs[next].focus();
+    selectTab(tabs[next]);
+  };
+
+  for (const list of document.querySelectorAll(&#x27;.nav[role=&quot;tablist&quot;]&#x27;)) {
+    const selected =
+      list.querySelector(&#x27;[role=&quot;tab&quot;][aria-selected=&quot;true&quot;]&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;].active&#x27;) ??
+      list.querySelector(&#x27;[role=&quot;tab&quot;]&#x27;);
+    if (selected != null) {
+      selectTab(selected);
+    }
+  }
+  document.addEventListener(&quot;click&quot;, interact);
+  document.addEventListener(&quot;keydown&quot;, interact);
+  window.addEventListener(&quot;pagehide&quot;, () =&gt; {
+    document.removeEventListener(&quot;click&quot;, interact);
+    document.removeEventListener(&quot;keydown&quot;, interact);
+  }, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-carousel&quot;&gt;
+  (() =&gt; {
+    for (const root of document.querySelectorAll(&quot;.viz-carousel&quot;)) {
+      const panels = Array.from(
+        root.querySelectorAll(&quot;:scope &gt; [data-variant]&quot;),
+      );
+      if (panels.length === 0) {
+        continue;
+      }
+      root.setAttribute(&quot;role&quot;, &quot;group&quot;);
+      panels.forEach((panel, index) =&gt; {
+        panel.hidden = index !== 0;
+        panel.setAttribute(&quot;role&quot;, &quot;group&quot;);
+        if (!panel.hasAttribute(&quot;aria-label&quot;)) {
+          panel.setAttribute(&quot;aria-label&quot;, panel.dataset.variant);
+        }
+      });
+      root.dataset.activeVariant = panels[0].dataset.variant;
+      if (panels.length === 1) {
+        continue;
+      }
+
+      const controls = document.createElement(&quot;div&quot;);
+      controls.className = &quot;viz-carousel-controls&quot;;
+      // Portable copy of the settings dropdown&#x27;s legacy glyph; no 14px icon-package preset matches it.
+      // https://github.com/openai/openai/blob/master/codex/codex-apps/webview/src/icons/chevron.svg
+      controls.innerHTML = `
+      &lt;button type=&quot;button&quot; class=&quot;viz-carousel-previous cursor-interaction&quot;&gt;&lt;i data-lucide=&quot;chevron-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;details class=&quot;viz-carousel-picker&quot;&gt;
+        &lt;summary class=&quot;cursor-interaction&quot;&gt;
+          &lt;span class=&quot;viz-carousel-count tabular-nums&quot;&gt;&lt;/span&gt;
+          &lt;span class=&quot;viz-carousel-name&quot;&gt;&lt;/span&gt;
+          &lt;svg class=&quot;viz-carousel-caret&quot; width=&quot;14&quot; height=&quot;14&quot; viewBox=&quot;0 0 20 21&quot; fill=&quot;none&quot; aria-hidden=&quot;true&quot; focusable=&quot;false&quot;&gt;
+            &lt;path d=&quot;M15.2793 7.71101C15.539 7.45131 15.961 7.45131 16.2207 7.71101C16.4804 7.97071 16.4804 8.39272 16.2207 8.65242L10.4707 14.4024C10.211 14.6621 9.78902 14.6621 9.52932 14.4024L3.77932 8.65242L3.69436 8.54792C3.52385 8.28979 3.55205 7.93828 3.77932 7.71101C4.00659 7.48374 4.3581 7.45554 4.61623 7.62605L4.72073 7.71101L10 12.9903L15.2793 7.71101Z&quot; fill=&quot;currentColor&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;0.6&quot; /&gt;
+          &lt;/svg&gt;
+        &lt;/summary&gt;
+        &lt;div class=&quot;viz-carousel-options&quot;&gt;&lt;/div&gt;
+      &lt;/details&gt;
+      &lt;button type=&quot;button&quot; class=&quot;viz-carousel-next cursor-interaction&quot;&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;`;
+      const previous = controls.querySelector(&quot;.viz-carousel-previous&quot;);
+      const next = controls.querySelector(&quot;.viz-carousel-next&quot;);
+      const picker = controls.querySelector(&quot;.viz-carousel-picker&quot;);
+      const summary = picker.querySelector(&quot;summary&quot;);
+      const count = controls.querySelector(&quot;.viz-carousel-count&quot;);
+      const name = controls.querySelector(&quot;.viz-carousel-name&quot;);
+      const options = controls.querySelector(&quot;.viz-carousel-options&quot;);
+      const status = document.createElement(&quot;span&quot;);
+      status.className = &quot;sr-only&quot;;
+      status.setAttribute(&quot;role&quot;, &quot;status&quot;);
+      status.setAttribute(&quot;aria-live&quot;, &quot;polite&quot;);
+      status.setAttribute(&quot;aria-atomic&quot;, &quot;true&quot;);
+      previous.setAttribute(
+        &quot;aria-label&quot;,
+        root.dataset.previousLabel ?? &quot;Previous variant&quot;,
+      );
+      next.setAttribute(&quot;aria-label&quot;, root.dataset.nextLabel ?? &quot;Next variant&quot;);
+
+      let active = 0;
+      let mousePointerId = null;
+      let summaryPointerHandled = false;
+      summary.addEventListener(&quot;pointerdown&quot;, (event) =&gt; {
+        summaryPointerHandled =
+          event.pointerType === &quot;mouse&quot; &amp;&amp; event.button === 0 &amp;&amp; !event.ctrlKey;
+        if (!summaryPointerHandled) {
+          return;
+        }
+        event.preventDefault();
+        summary.focus({ preventScroll: true });
+        picker.open = !picker.open;
+        mousePointerId = picker.open ? event.pointerId : null;
+      });
+      summary.addEventListener(&quot;click&quot;, (event) =&gt; {
+        if (summaryPointerHandled &amp;&amp; event.detail &gt; 0) {
+          event.preventDefault();
+        }
+      });
+      const choices = panels.map((panel, index) =&gt; {
+        const choice = document.createElement(&quot;button&quot;);
+        choice.type = &quot;button&quot;;
+        choice.className = &quot;cursor-interaction&quot;;
+        choice.textContent = panel.dataset.variant;
+        choice.addEventListener(&quot;click&quot;, () =&gt; {
+          select(index);
+          summary.focus();
+        });
+        choice.addEventListener(&quot;pointerup&quot;, (event) =&gt; {
+          if (
+            picker.open &amp;&amp;
+            event.pointerType === &quot;mouse&quot; &amp;&amp;
+            event.button === 0 &amp;&amp;
+            event.pointerId === mousePointerId
+          ) {
+            choice.click();
+          }
+        });
+        options.appendChild(choice);
+        return choice;
+      });
+      const select = (index) =&gt; {
+        const changed = active !== index;
+        active = index;
+        panels.forEach((panel, position) =&gt; {
+          panel.hidden = position !== active;
+          choices[position].setAttribute(
+            &quot;aria-current&quot;,
+            String(position === active),
+          );
+        });
+        root.dataset.activeVariant = panels[active].dataset.variant;
+        count.textContent = `${active + 1} / ${panels.length}`;
+        name.textContent = panels[active].dataset.variant;
+        picker.open = false;
+        mousePointerId = null;
+        if (changed) {
+          status.textContent = `${count.textContent}: ${name.textContent}`;
+        }
+      };
+      previous.addEventListener(&quot;click&quot;, () =&gt;
+        select((active + panels.length - 1) % panels.length),
+      );
+      next.addEventListener(&quot;click&quot;, () =&gt;
+        select((active + 1) % panels.length),
+      );
+      picker.addEventListener(&quot;keydown&quot;, (event) =&gt; {
+        if (event.key === &quot;Escape&quot; &amp;&amp; picker.open) {
+          event.preventDefault();
+          picker.open = false;
+          mousePointerId = null;
+          summary.focus();
+          return;
+        }
+        if (event.altKey || event.ctrlKey || event.metaKey) {
+          return;
+        }
+        const index = choices.indexOf(document.activeElement);
+        let nextIndex;
+        if (event.key === &quot;ArrowDown&quot;) {
+          nextIndex = index &lt; 0 ? active : (index + 1) % choices.length;
+        } else if (event.key === &quot;ArrowUp&quot;) {
+          nextIndex = index &lt; 0 ? active : (index + choices.length - 1) % choices.length;
+        } else if (picker.open &amp;&amp; event.key === &quot;Home&quot;) {
+          nextIndex = 0;
+        } else if (picker.open &amp;&amp; event.key === &quot;End&quot;) {
+          nextIndex = choices.length - 1;
+        } else {
+          return;
+        }
+        event.preventDefault();
+        picker.open = true;
+        choices[nextIndex].focus();
+      });
+      picker.addEventListener(&quot;focusout&quot;, (event) =&gt; {
+        if (!picker.contains(event.relatedTarget)) {
+          picker.open = false;
+          mousePointerId = null;
+        }
+      });
+      const dismiss = (event) =&gt; {
+        if (!summary.contains(event.target)) {
+          mousePointerId = null;
+        }
+        if (!picker.contains(event.target)) {
+          picker.open = false;
+        }
+      };
+      const endPointerSelection = () =&gt; {
+        mousePointerId = null;
+      };
+      const sizePicker = () =&gt; {
+        root.style.setProperty(
+          &quot;--viz-carousel-picker-height&quot;,
+          `${picker.open ? options.offsetHeight : 0}px`,
+        );
+      };
+      picker.addEventListener(&quot;toggle&quot;, sizePicker);
+      window.addEventListener(&quot;resize&quot;, sizePicker);
+      document.addEventListener(&quot;pointerdown&quot;, dismiss);
+      document.addEventListener(&quot;pointerup&quot;, endPointerSelection);
+      document.addEventListener(&quot;pointercancel&quot;, endPointerSelection);
+      window.addEventListener(&quot;blur&quot;, endPointerSelection);
+      window.addEventListener(
+        &quot;pagehide&quot;,
+        () =&gt; {
+          document.removeEventListener(&quot;pointerdown&quot;, dismiss);
+          document.removeEventListener(&quot;pointerup&quot;, endPointerSelection);
+          document.removeEventListener(&quot;pointercancel&quot;, endPointerSelection);
+          window.removeEventListener(&quot;blur&quot;, endPointerSelection);
+          window.removeEventListener(&quot;resize&quot;, sizePicker);
+        },
+        { once: true },
+      );
+      root.append(controls, status);
+      select(0);
+    }
+  })();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+
+<script>(() => {
+  const frame = document.getElementById("codex-visualization");
+  if (!(frame instanceof HTMLIFrameElement)) {
+    return;
+  }
+  const isShare = document.documentElement.classList.contains(
+    "visualization-share-root",
+  );
+  let viewportHeight = globalThis.innerHeight;
+  let sizeFingerprint = null;
+  let sizeWriteTimeout;
+  let lastSize = null;
+  let pendingSize = null;
+  const storageKey = `codex:visualization-widget-state-v2:${JSON.stringify([
+    globalThis.location.pathname,
+    globalThis.location.search,
+  ])}`;
+  const sizeStorageKey = `${storageKey}:share-size-v1`;
+  const parseState = (serializedState) => {
+    if (
+      typeof serializedState !== "string" ||
+      new TextEncoder().encode(serializedState).length > 16 * 1024
+    ) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    /** @type {unknown} */
+    const state = JSON.parse(serializedState);
+    if (
+      state == null ||
+      typeof state !== "object" ||
+      Array.isArray(state) ||
+      ("imageIds" in state &&
+        (!Array.isArray(state.imageIds) || state.imageIds.length > 0))
+    ) {
+      throw new TypeError("Widget state must be a JSON object");
+    }
+    const storedState = { modelContent: null, privateContent: null, ...state };
+    const canonicalState = JSON.stringify(
+      storedState,
+      (_key, /** @type {unknown} */ value) => {
+        if (typeof value === "number" && !Number.isFinite(value)) {
+          throw new TypeError("Widget state must contain finite numbers");
+        }
+        return value;
+      },
+    );
+    if (new TextEncoder().encode(canonicalState).length > 16 * 1024) {
+      throw new TypeError(
+        "Widget state must be a JSON object of at most 16 KiB",
+      );
+    }
+    return storedState;
+  };
+  let storage = null;
+  let state = null;
+  try {
+    const localStorage = globalThis.localStorage;
+    const probeKey = `${storageKey}:probe`;
+    localStorage.setItem(probeKey, "1");
+    localStorage.removeItem(probeKey);
+    storage = localStorage;
+    const savedState = storage.getItem(storageKey);
+    if (savedState != null) {
+      try {
+        state = parseState(savedState);
+      } catch {
+        // Invalid saved state does not disable future writes.
+      }
+    }
+  } catch {
+    storage = null;
+  }
+  const persistSize = () => {
+    globalThis.clearTimeout(sizeWriteTimeout);
+    if (pendingSize == null) {
+      return;
+    }
+    try {
+      storage?.setItem(sizeStorageKey, pendingSize);
+    } catch {
+      // A denied or full cache must not affect the visualization.
+    }
+    pendingSize = null;
+  };
+  if (isShare) {
+    globalThis.addEventListener("pagehide", persistSize);
+  }
+  const initialGlobals = {
+    widgetState: state,
+    statePersistence: storage == null ? "none" : "local",
+  };
+
+  const channel = new MessageChannel();
+  channel.port1.addEventListener("message", (event) => {
+    const data = event.data;
+    if (typeof data !== "object" || data == null) {
+      return;
+    }
+    if (data.type === "widget-state-write") {
+      if (!Number.isSafeInteger(data.id) || data.id <= 0) {
+        return;
+      }
+      let ok = false;
+      try {
+        if (storage != null) {
+          const state = parseState(data.state);
+          storage.setItem(storageKey, JSON.stringify(state));
+          ok = true;
+        }
+      } catch {
+        // Storage denial, quota limits, and invalid state return a failed receipt.
+      }
+      channel.port1.postMessage({
+        type: "widget-state-result",
+        id: data.id,
+        ok,
+      });
+      return;
+    }
+    if (data.type === "height") {
+      const height = data.height;
+      if (
+        typeof height !== "number" ||
+        !Number.isFinite(height) ||
+        height < 0
+      ) {
+        return;
+      }
+      if (height <= 10_000) {
+        const width = isShare && storage != null ? frame.clientWidth : null;
+        frame.style.height = Math.ceil(height) + "px";
+        if (isShare && storage != null) {
+          const size = JSON.stringify({
+            fingerprint: sizeFingerprint,
+            width,
+            viewportHeight: globalThis.innerHeight,
+            dark: globalThis.matchMedia("(prefers-color-scheme: dark)").matches,
+            scale: globalThis.devicePixelRatio,
+            height: Math.ceil(height),
+          });
+          if (size !== lastSize) {
+            lastSize = size;
+            pendingSize = size;
+            globalThis.clearTimeout(sizeWriteTimeout);
+            sizeWriteTimeout = globalThis.setTimeout(persistSize, 100);
+          }
+        }
+      }
+      if (isShare) {
+        // Keep unusually tall content accessible without accepting an unbounded height.
+        if (height > 10_000 && Number.parseFloat(frame.style.height) === 0) {
+          frame.style.removeProperty("height");
+        }
+        frame.scrolling = height > 10_000 ? "auto" : "no";
+        document.documentElement.classList.add("visualization-share-ready");
+      }
+      return;
+    }
+    if (data.type === "scroll-to") {
+      const top = data.top;
+      if (
+        typeof top === "number" &&
+        Number.isFinite(top) &&
+        top >= 0 &&
+        globalThis.navigator.userActivation?.isActive === true
+      ) {
+        globalThis.scrollTo({
+          top: Math.ceil(
+            globalThis.scrollY + frame.getBoundingClientRect().top + top,
+          ),
+        });
+      }
+      return;
+    }
+    if (data.type === "open-external") {
+      const rawHref = data.href;
+      if (typeof rawHref !== "string") {
+        return;
+      }
+      let href;
+      try {
+        const url = new URL(rawHref, document.baseURI);
+        if (url.protocol !== "https:") {
+          return;
+        }
+        href = url.href;
+      } catch {
+        return;
+      }
+      if (globalThis.navigator.userActivation?.isActive === true) {
+        const anchor = document.createElement("a");
+        anchor.href = href;
+        anchor.rel = "noopener noreferrer";
+        anchor.target = "_blank";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+      return;
+    }
+    if (data.type === "follow-up") {
+      const prompt = data.prompt;
+      if (
+        typeof prompt !== "string" ||
+        globalThis.navigator.userActivation?.isActive !== true
+      ) {
+        return;
+      }
+      const title = data.title;
+      globalThis.prompt(typeof title === "string" ? title : prompt, prompt);
+    }
+  });
+  channel.port1.start();
+  const srcdoc = frame.dataset.srcdoc;
+  if (srcdoc == null) {
+    return;
+  }
+  globalThis.addEventListener("resize", () => {
+    const height = Number.parseFloat(frame.style.height);
+    if (!isShare && (!Number.isFinite(height) || height <= viewportHeight)) {
+      frame.style.removeProperty("height");
+    }
+    viewportHeight = globalThis.innerHeight;
+    channel.port1.postMessage({ type: "measure" });
+  });
+  frame.addEventListener(
+    "load",
+    () => {
+      frame.contentWindow?.postMessage(
+        { type: "codex-visualization-initialize" },
+        "*",
+        [channel.port2],
+      );
+    },
+    { once: true },
+  );
+  // Match the trusted bootstrap element, not the same text in an authored title.
+  const frameHtml = srcdoc.replace(
+    '<script type="application/json" id="codex-visualization-widget-state">__CODEX_VISUALIZATION_WIDGET_STATE__<\/script>',
+    () =>
+      '<script type="application/json" id="codex-visualization-widget-state">' +
+      JSON.stringify(initialGlobals).replaceAll("<", "\\u003c") +
+      "<\/script>",
+  );
+  if (isShare && storage != null) {
+    // Fingerprint the rendered document, including restored widget state, without
+    // storing its content. This is a layout cache, not a security identity.
+    let hash = 5381;
+    for (let index = 0; index < frameHtml.length; index += 1) {
+      hash = (hash * 33 + frameHtml.charCodeAt(index)) % 4_294_967_296;
+    }
+    sizeFingerprint = hash.toString(36);
+    try {
+      const size = JSON.parse(storage.getItem(sizeStorageKey) ?? "null");
+      if (
+        size?.fingerprint === sizeFingerprint &&
+        size.width === frame.clientWidth &&
+        size.viewportHeight === globalThis.innerHeight &&
+        size.dark ===
+          globalThis.matchMedia("(prefers-color-scheme: dark)").matches &&
+        size.scale === globalThis.devicePixelRatio &&
+        typeof size.height === "number" &&
+        Number.isFinite(size.height) &&
+        size.height >= 0 &&
+        size.height <= 10_000
+      ) {
+        frame.style.height = size.height + "px";
+      }
+    } catch {
+      // Ignore missing or invalid cache entries and measure the live frame.
+    }
+  }
+  frame.srcdoc = frameHtml;
+  delete frame.dataset.srcdoc;
+})();
+</script>
+</body>
+</html>

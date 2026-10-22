@@ -96,7 +96,7 @@ func (h *DatasetHandler) ListDatasets(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	datasets, total, err := h.datasetSvc.ListDatasets(c.Request.Context(), uid, page, pageSize)
+	datasets, total, err := h.datasetSvc.ListDatasets(c.Request.Context(), uid, page, pageSize, types.ListFilter{Name: c.Query("name"), SourceType: c.Query("source_type")})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": http.StatusInternalServerError, "message": err.Error()})
 		return

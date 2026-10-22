@@ -40,20 +40,28 @@ type SelectedResource struct {
 }
 
 type ContainerTaskRequest struct {
-	TaskUID           int                `json:"task_uid"`
-	TaskID            int                `json:"task_id"`
-	ContainerName     string             `json:"container_name"`
-	Image             string             `json:"image"`
-	Command           string             `json:"command,omitempty"`
-	Args              []string           `json:"args,omitempty"`
-	WorkingDir        string             `json:"working_dir"`
-	LogPath           string             `json:"log_path,omitempty"`
-	Envs              string             `json:"envs,omitempty"`
-	WorkersName       []string           `json:"workers_name,omitempty"`
-	WorkerNums        int                `json:"worker_nums,omitempty"`
-	XPUNums           int                `json:"xpu_nums,omitempty"`
-	NodeType          string             `json:"node_type,omitempty"`
-	SelectedResources []SelectedResource `json:"selected_resources,omitempty"`
+	TaskUID           int                  `json:"task_uid"`
+	TaskID            int                  `json:"task_id"`
+	ContainerName     string               `json:"container_name"`
+	Image             string               `json:"image"`
+	ImagePullPolicy   string               `json:"image_pull_policy,omitempty"`
+	Command           string               `json:"command,omitempty"`
+	Args              []string             `json:"args,omitempty"`
+	WorkingDir        string               `json:"working_dir"`
+	LogPath           string               `json:"log_path,omitempty"`
+	Envs              string               `json:"envs,omitempty"`
+	WorkersName       []string             `json:"workers_name,omitempty"`
+	WorkerNums        int                  `json:"worker_nums,omitempty"`
+	XPUNums           int                  `json:"xpu_nums,omitempty"`
+	ResourceMode      string               `json:"resource_mode,omitempty"`
+	Mounts            []ContainerTaskMount `json:"mounts,omitempty"`
+	NodeType          string               `json:"node_type,omitempty"`
+	SelectedResources []SelectedResource   `json:"selected_resources,omitempty"`
+}
+
+type ContainerTaskMount struct {
+	Path     string `json:"path"`
+	ReadOnly bool   `json:"read_only"`
 }
 
 type AcceptedResponse struct {

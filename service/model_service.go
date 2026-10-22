@@ -14,22 +14,22 @@ import (
 
 // LocalModel 本地模型信息
 type LocalModel struct {
-	ID          string `json:"id"`          // 模型ID（目录名）
-	Name        string `json:"name"`        // 模型名称
-	Path        string `json:"path"`        // 模型路径
-	Description string `json:"description"` // 模型描述
-	Size        int64  `json:"size"`        // 模型大小（字节）
+	Ready             bool   `json:"ready"`
+	ReadinessError    string `json:"readiness_error,omitempty"`
+	ModelType         string `json:"model_type,omitempty"`
+	SupportsVision    bool   `json:"supports_vision"`
+	SuggestedTemplate string `json:"suggested_template,omitempty"`
+	ID                string `json:"id"`          // 模型ID（目录名）
+	Name              string `json:"name"`        // 模型名称
+	Path              string `json:"path"`        // 模型路径
+	Description       string `json:"description"` // 模型描述
+	Size              int64  `json:"size"`        // 模型大小（字节）
 }
 
-type TeacherModel = LocalModel
 type StudentModel = LocalModel
 
 // ModelService 模型服务接口
 type ModelService interface {
-	// ListTeacherModels 列出所有可用的本地教师模型
-	ListTeacherModels(ctx context.Context) ([]*TeacherModel, error)
-	// GetTeacherModel 获取指定本地教师模型信息
-	GetTeacherModel(ctx context.Context, modelID string) (*TeacherModel, error)
 	// ListStudentModels 列出所有可用的学生模型
 	ListStudentModels(ctx context.Context) ([]*StudentModel, error)
 	// GetStudentModel 获取指定学生模型信息
@@ -62,18 +62,6 @@ func NewModelService(storageCfg *config.StorageConfig) ModelService {
 	return &modelService{
 		modelsBasePath: modelsBasePath,
 	}
-}
-
-// ListTeacherModels 列出所有可用的本地教师模型
-func (s *modelService) ListTeacherModels(ctx context.Context) ([]*TeacherModel, error) {
-	_ = ctx
-	return s.listLocalModels("teacher")
-}
-
-// GetTeacherModel 获取指定本地教师模型信息
-func (s *modelService) GetTeacherModel(ctx context.Context, modelID string) (*TeacherModel, error) {
-	_ = ctx
-	return s.getLocalModel(modelID)
 }
 
 // ListStudentModels 列出所有可用的学生模型
@@ -144,6 +132,9 @@ func (s *modelService) listLocalModels(role string) ([]*LocalModel, error) {
 		zap.Int("count", len(models)),
 		zap.String("base_path", s.modelsBasePath))
 
+	for _, m := range models {
+		fillModelReadiness(m)
+	}
 	return models, nil
 }
 
@@ -169,13 +160,15 @@ func (s *modelService) getLocalModel(modelID string) (*LocalModel, error) {
 	// 计算模型大小
 	size := calculateDirSize(modelPath)
 
-	return &LocalModel{
+	model := &LocalModel{
 		ID:          modelID,
 		Name:        modelID,
 		Path:        modelPath,
 		Description: "",
 		Size:        size,
-	}, nil
+	}
+	fillModelReadiness(model)
+	return model, nil
 }
 
 // ValidateLocalModel 验证本地模型是否存在且可用
@@ -202,7 +195,21 @@ func (s *modelService) ValidateLocalModel(ctx context.Context, modelPath string)
 
 // ValidateStudentModel 验证学生模型是否存在且可用
 func (s *modelService) ValidateStudentModel(ctx context.Context, modelPath string) error {
-	return s.ValidateLocalModel(ctx, modelPath)
+	if err := s.ValidateLocalModel(ctx, modelPath); err != nil {
+		return err
+	}
+	resolved, err := filepath.EvalSymlinks(modelPath)
+	if err != nil {
+		return err
+	}
+	base, err := filepath.EvalSymlinks(s.modelsBasePath)
+	if err != nil {
+		return err
+	}
+	if !isSubPath(base, resolved) {
+		return fmt.Errorf("学生模型符号链接越过共享模型池")
+	}
+	return validateOfflineModel(resolved)
 }
 
 func isSubPath(basePath, targetPath string) bool {

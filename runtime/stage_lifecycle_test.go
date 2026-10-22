@@ -42,6 +42,8 @@ func TestFailedTeacherTaskKeepsPublishedLogTarget(t *testing.T) {
 		case http.MethodPost:
 			w.WriteHeader(http.StatusAccepted)
 			_, _ = w.Write([]byte(`{"accepted":true,"container_name":"teacher-task"}`))
+		case http.MethodDelete:
+			w.WriteHeader(http.StatusOK)
 		case http.MethodGet:
 			select {
 			case stage := <-saved:
@@ -56,9 +58,9 @@ func TestFailedTeacherTaskKeepsPublishedLogTarget(t *testing.T) {
 	defer server.Close()
 	executor := NewStageExecutor(t.TempDir(), nil, gcsclient.NewClient(server.URL, time.Second), "runtime",
 		&lifecycleStageRepo{saved: saved}, &lifecyclePipelineRepo{status: types.StatusRunning})
-	stage := &types.StageRun{ID: "stage", StageType: types.StageTeacherInfer}
-	project := &types.Project{ID: "project", UID: 1, TeacherModelConfig: types.ModelConfig{ProviderType: types.ProviderLocal, ModelName: "model", ModelPath: "/models/model"}}
-	err := executor.executeTeacherInfer(context.Background(), stage, project, &types.PipelineRun{ID: "pipeline", UID: 1})
+	stage := &types.StageRun{ID: "stage", StageType: types.StageDistillData}
+	project := &types.Project{ID: "project", UID: 1, TeacherModelConfig: types.ModelConfig{ProviderType: types.ProviderAPI, ModelName: "model", Endpoint: "http://teacher/v1"}}
+	err := executor.executeDistill2(context.Background(), stage, project, &types.PipelineRun{ID: "pipeline", UID: 1, TrainingConfig: types.TrainingConfig{Distillation: &types.DistillationConfig{Version: "2.0", JobType: "instruct_distill"}}})
 	if err == nil || !strings.Contains(err.Error(), "state=12") {
 		t.Fatalf("expected worker failure, got %v", err)
 	}

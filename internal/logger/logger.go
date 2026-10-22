@@ -42,11 +42,11 @@ func Initialize(cfg *config.LoggingConfig) error {
 	if cfg.Output == "file" {
 		// 文件输出 (使用 lumberjack 实现日志轮转)
 		lumberJackLogger := &lumberjack.Logger{
-			Filename:   cfg.FilePath,
-			MaxSize:    cfg.MaxSize, // MB
-			MaxAge:     cfg.MaxAge,  // days
-			Compress:   cfg.Compress,
-			LocalTime:  true,
+			Filename:  cfg.FilePath,
+			MaxSize:   cfg.MaxSize, // MB
+			MaxAge:    cfg.MaxAge,  // days
+			Compress:  cfg.Compress,
+			LocalTime: true,
 		}
 		writeSyncer = zapcore.AddSync(lumberJackLogger)
 	} else {

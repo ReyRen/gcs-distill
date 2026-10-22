@@ -16,6 +16,7 @@ import (
 
 // ExecutorService 流水线执行服务
 type ExecutorService interface {
+	CancelContainers(ctx context.Context, pipelineID string) error
 	// SubmitPipeline 提交流水线到执行队列
 	SubmitPipeline(ctx context.Context, pipelineID string) error
 	// Start 启动后台执行器
@@ -52,6 +53,7 @@ func NewExecutorService(
 	maxConcurrent int,
 	gcsClient *gcsclient.Client,
 	runtimeImage string,
+	options ...runtime.StageExecutorOptions,
 ) ExecutorService {
 	if maxConcurrent <= 0 {
 		maxConcurrent = 5 // 默认最多并发执行5个流水线
@@ -62,7 +64,7 @@ func NewExecutorService(
 		stageRepo:     stageRepo,
 		projectRepo:   projectRepo,
 		datasetRepo:   datasetRepo,
-		stageExecutor: runtime.NewStageExecutor(workspaceRoot, datasetRepo, gcsClient, runtimeImage, stageRepo, pipelineRepo),
+		stageExecutor: runtime.NewStageExecutor(workspaceRoot, datasetRepo, gcsClient, runtimeImage, stageRepo, pipelineRepo, options...),
 		queue:         make(chan string, 100),
 		stopChan:      make(chan struct{}),
 		maxConcurrent: maxConcurrent,
@@ -92,6 +94,55 @@ func (s *executorService) Start(ctx context.Context) {
 	for i := 0; i < s.maxConcurrent; i++ {
 		s.wg.Add(1)
 		go s.runLoop(ctx, i)
+	}
+	go s.recoverTasks(ctx)
+}
+
+func (s *executorService) CancelContainers(ctx context.Context, id string) error {
+	stages, err := s.stageRepo.ListByPipeline(ctx, id)
+	if err != nil {
+		return err
+	}
+	for _, stage := range stages {
+		if stage.ContainerID != "" {
+			s.stageExecutor.ReleaseContainer(stage)
+		}
+	}
+	return nil
+}
+
+func (s *executorService) recoverTasks(ctx context.Context) {
+	ids, err := s.pipelineRepo.RecoverableIDs(ctx)
+	if err != nil {
+		logger.Error("recover distill tasks", zap.Error(err))
+		return
+	}
+	for _, id := range ids {
+		p, err := s.pipelineRepo.GetByID(ctx, id)
+		if err != nil {
+			continue
+		}
+		if p.Status == types.StatusScheduled && p.TrainingConfig.Distillation != nil {
+			if err := s.SubmitPipeline(ctx, id); err != nil {
+				logger.Error("recover scheduled task", zap.Error(err))
+			}
+			continue
+		}
+		if p.Status != types.StatusRunning && p.Status != types.StatusPreparing && p.Status != types.StatusScheduled {
+			continue
+		}
+		_ = s.CancelContainers(ctx, id)
+		stages, _ := s.stageRepo.ListByPipeline(ctx, id)
+		now := time.Now()
+		for _, stage := range stages {
+			if stage.Status == types.StatusRunning || stage.Status == types.StatusPreparing {
+				stage.Status = types.StatusFailed
+				stage.ErrorMessage = "控制服务重启，执行已中断，请新建任务"
+				stage.FinishedAt = &now
+				_ = s.stageRepo.Update(ctx, stage)
+			}
+		}
+		_ = s.pipelineRepo.UpdateStatus(ctx, id, types.StatusFailed, "控制服务重启，执行已中断，请新建任务")
 	}
 }
 
@@ -138,6 +189,21 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 	pipeline, err := s.pipelineRepo.GetByID(ctx, pipelineID)
 	if err != nil {
 		return fmt.Errorf("获取流水线失败: %w", err)
+	}
+
+	if pipeline.Status != types.StatusScheduled {
+		return nil
+	}
+	claimed, err := s.pipelineRepo.Transition(ctx, pipelineID, types.StatusScheduled, types.StatusRunning)
+	if err != nil {
+		return err
+	}
+	if !claimed {
+		return nil
+	}
+	pipeline, err = s.pipelineRepo.GetByID(ctx, pipelineID)
+	if err != nil {
+		return err
 	}
 
 	// 获取项目信息
@@ -227,7 +293,7 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		)
 
 		// 推进到下一阶段
-		if stage.StageOrder < 6 {
+		if stage.StageOrder < len(stages) {
 			pipeline.CurrentStage++
 			if err := s.pipelineRepo.Update(ctx, pipeline); err != nil {
 				logger.Error("更新流水线阶段失败", zap.Error(err))

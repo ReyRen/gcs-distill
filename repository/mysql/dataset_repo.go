@@ -13,10 +13,10 @@ import (
 type DatasetRepository interface {
 	Create(ctx context.Context, dataset *types.Dataset) error
 	GetByID(ctx context.Context, id string) (*types.Dataset, error)
-	List(ctx context.Context, uid, limit, offset int) ([]*types.Dataset, error)
+	List(ctx context.Context, uid, limit, offset int, filters ...types.ListFilter) ([]*types.Dataset, error)
 	Update(ctx context.Context, dataset *types.Dataset) error
 	Delete(ctx context.Context, id string) error
-	Count(ctx context.Context, uid int) (int, error)
+	Count(ctx context.Context, uid int, filters ...types.ListFilter) (int, error)
 }
 
 type datasetRepo struct {
@@ -74,7 +74,7 @@ func (r *datasetRepo) GetByID(ctx context.Context, id string) (*types.Dataset, e
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("dataset not found: %s", id)
+			return nil, fmt.Errorf("dataset not found: %s: %w", id, sql.ErrNoRows)
 		}
 		return nil, fmt.Errorf("query dataset failed: %w", err)
 	}
@@ -82,16 +82,18 @@ func (r *datasetRepo) GetByID(ctx context.Context, id string) (*types.Dataset, e
 	return &dataset, nil
 }
 
-func (r *datasetRepo) List(ctx context.Context, uid, limit, offset int) ([]*types.Dataset, error) {
+func (r *datasetRepo) List(ctx context.Context, uid, limit, offset int, filters ...types.ListFilter) ([]*types.Dataset, error) {
+	where, args := listConditions(uid, "", "dataset", filters)
+	args = append(args, limit, offset)
 	query := `
 		SELECT id, uid, name, description, source_type, file_path, record_count, created_at
 		FROM distill_datasets
-		WHERE uid = ?
+		WHERE ` + where + `
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`
 
-	rows, err := r.db.sql.QueryContext(ctx, query, uid, limit, offset)
+	rows, err := r.db.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query dataset list failed: %w", err)
 	}
@@ -158,9 +160,10 @@ func (r *datasetRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *datasetRepo) Count(ctx context.Context, uid int) (int, error) {
+func (r *datasetRepo) Count(ctx context.Context, uid int, filters ...types.ListFilter) (int, error) {
 	var count int
-	err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_datasets WHERE uid = ?`, uid).Scan(&count)
+	where, args := listConditions(uid, "", "dataset", filters)
+	err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_datasets WHERE `+where, args...).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count datasets failed: %w", err)
 	}

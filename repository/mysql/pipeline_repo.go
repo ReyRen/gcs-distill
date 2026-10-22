@@ -11,13 +11,32 @@ import (
 )
 
 type PipelineRepository interface {
+	RecoverableIDs(ctx context.Context) ([]string, error)
+	Transition(ctx context.Context, id string, from, to types.PipelineStatus) (bool, error)
 	Create(ctx context.Context, pipeline *types.PipelineRun) error
 	GetByID(ctx context.Context, id string) (*types.PipelineRun, error)
-	List(ctx context.Context, uid int, projectID string, limit, offset int) ([]*types.PipelineRun, error)
+	List(ctx context.Context, uid int, projectID string, limit, offset int, filters ...types.ListFilter) ([]*types.PipelineRun, error)
 	Update(ctx context.Context, pipeline *types.PipelineRun) error
 	UpdateStatus(ctx context.Context, id string, status types.PipelineStatus, errorMsg string) error
 	Delete(ctx context.Context, id string) error
-	CountByProject(ctx context.Context, uid int, projectID string) (int, error)
+	CountByProject(ctx context.Context, uid int, projectID string, filters ...types.ListFilter) (int, error)
+}
+
+func (r *pipelineRepo) RecoverableIDs(ctx context.Context) ([]string, error) {
+	rows, err := r.db.sql.QueryContext(ctx, `SELECT id FROM distill_pipeline_runs WHERE status IN ('scheduled','preparing','running') ORDER BY created_at`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 type pipelineRepo struct {
@@ -113,18 +132,32 @@ func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineR
 	return &pipeline, nil
 }
 
-func (r *pipelineRepo) List(ctx context.Context, uid int, projectID string, limit, offset int) ([]*types.PipelineRun, error) {
+func (r *pipelineRepo) Transition(ctx context.Context, id string, from, to types.PipelineStatus) (bool, error) {
+	result, err := r.db.sql.ExecContext(ctx, `UPDATE distill_pipeline_runs SET status = ?,
+	 current_stage = CASE WHEN ? = 'running' THEN 1 ELSE current_stage END,
+	 started_at = CASE WHEN ? = 'running' THEN NOW(6) ELSE started_at END
+	 WHERE id = ? AND status = ?`, to, to, to, id, from)
+	if err != nil {
+		return false, err
+	}
+	n, err := result.RowsAffected()
+	return n == 1, err
+}
+
+func (r *pipelineRepo) List(ctx context.Context, uid int, projectID string, limit, offset int, filters ...types.ListFilter) ([]*types.PipelineRun, error) {
+	where, args := listConditions(uid, projectID, "pipeline", filters)
+	args = append(args, limit, offset)
 	query := `
 		SELECT id, uid, project_id, dataset_id, status, current_stage, trigger_mode,
 			training_config, resource_request, error_message,
 			created_at, started_at, finished_at, updated_at
 		FROM distill_pipeline_runs
-		WHERE uid = ? AND project_id = ?
+		WHERE ` + where + `
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`
 
-	rows, err := r.db.sql.QueryContext(ctx, query, uid, projectID, limit, offset)
+	rows, err := r.db.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query pipeline run list failed: %w", err)
 	}
@@ -188,7 +221,7 @@ func (r *pipelineRepo) Update(ctx context.Context, pipeline *types.PipelineRun) 
 			error_message = ?,
 			started_at = ?,
 			finished_at = ?
-		WHERE id = ?
+		WHERE id = ? AND status NOT IN ('succeeded','failed','canceled')
 	`
 	result, err := r.db.sql.ExecContext(ctx, query,
 		pipeline.UID,
@@ -214,10 +247,10 @@ func (r *pipelineRepo) UpdateStatus(ctx context.Context, id string, status types
 	query := `
 		UPDATE distill_pipeline_runs
 		SET status = ?,
-			error_message = ?
-		WHERE id = ?
+			error_message = ?, finished_at = CASE WHEN ? IN ('succeeded','failed','canceled') THEN NOW(6) ELSE finished_at END
+		WHERE id = ? AND status NOT IN ('succeeded','failed','canceled')
 	`
-	result, err := r.db.sql.ExecContext(ctx, query, status, errorMsg, id)
+	result, err := r.db.sql.ExecContext(ctx, query, status, errorMsg, status, id)
 	if err != nil {
 		return fmt.Errorf("update pipeline status failed: %w", err)
 	}
@@ -238,9 +271,10 @@ func (r *pipelineRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *pipelineRepo) CountByProject(ctx context.Context, uid int, projectID string) (int, error) {
+func (r *pipelineRepo) CountByProject(ctx context.Context, uid int, projectID string, filters ...types.ListFilter) (int, error) {
 	var count int
-	err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_pipeline_runs WHERE uid = ? AND project_id = ?`, uid, projectID).Scan(&count)
+	where, args := listConditions(uid, projectID, "pipeline", filters)
+	err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_pipeline_runs WHERE `+where, args...).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count pipeline runs failed: %w", err)
 	}

@@ -11,12 +11,13 @@ import (
 )
 
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Storage  StorageConfig
-	GCS      GCSConfig
-	Logging  LoggingConfig
-	Executor ExecutorConfig
+	Server      ServerConfig
+	Database    DatabaseConfig
+	Storage     StorageConfig
+	GCS         GCSConfig
+	Logging     LoggingConfig
+	Executor    ExecutorConfig
+	ModelCenter GCSConfig
 }
 
 type ServerConfig struct {
@@ -83,8 +84,10 @@ type LoggingConfig struct {
 }
 
 type ExecutorConfig struct {
+	TrainerImage  string
 	MaxConcurrent int
 	RuntimeImage  string
+	DataWorkers   []string
 }
 
 func Load(configPath string) (*Config, error) {
@@ -135,7 +138,7 @@ func Default() *Config {
 			Port:                   3306,
 			Name:                   "ai_market",
 			User:                   "root",
-			Password:               "!Market4AI",
+			PasswordEnv:            "GCS_DISTILL_DB_PASSWORD",
 			MaxOpenConns:           20,
 			MaxIdleConns:           5,
 			ConnMaxLifetimeSeconds: 300,
@@ -145,7 +148,8 @@ func Default() *Config {
 			RootPath:       "/storage-root-jfs",
 			ModelsBasePath: "/storage-root-jfs/train-base-models",
 		},
-		GCS: GCSConfig{BaseURL: "http://172.18.29.80:8072/api/v1", TimeoutSeconds: 10},
+		GCS:         GCSConfig{BaseURL: "http://172.18.29.80:8072/api/v1", TimeoutSeconds: 10},
+		ModelCenter: GCSConfig{BaseURL: "http://172.18.29.80:8090/api/v1", TimeoutSeconds: 10},
 		Logging: LoggingConfig{
 			Level:    "info",
 			Output:   "stdout",
@@ -155,8 +159,9 @@ func Default() *Config {
 			Compress: true,
 		},
 		Executor: ExecutorConfig{
+			TrainerImage:  "gcs/distill-trainer:0.9.3-cu124-x86_64",
 			MaxConcurrent: 5,
-			RuntimeImage:  "easy-distill/easydistill:latest",
+			RuntimeImage:  "gcs/distill-data:2.0.0-aeb8ca3-x86_64",
 		},
 	}
 	normalizeStorage(&cfg.Storage)
@@ -313,6 +318,19 @@ func applyValue(cfg *Config, section, key, value string) error {
 		return setInt(value, &cfg.Executor.MaxConcurrent, "executor.max_concurrent")
 	case "executor.runtime_image":
 		cfg.Executor.RuntimeImage = value
+	case "executor.trainer_image":
+		cfg.Executor.TrainerImage = value
+	case "model_center.base_url":
+		cfg.ModelCenter.BaseURL = strings.TrimRight(value, "/")
+	case "model_center.timeout_seconds":
+		return setInt(value, &cfg.ModelCenter.TimeoutSeconds, "model_center.timeout_seconds")
+	case "executor.data_workers":
+		cfg.Executor.DataWorkers = nil
+		for _, item := range strings.Split(value, ",") {
+			if node := strings.TrimSpace(item); node != "" {
+				cfg.Executor.DataWorkers = append(cfg.Executor.DataWorkers, node)
+			}
+		}
 	}
 	return nil
 }

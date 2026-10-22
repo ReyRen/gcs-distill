@@ -137,7 +137,7 @@ func TestDefaultUsesSharedGCSServiceConfig(t *testing.T) {
 	if cfg.Storage.ModelsBasePath != "/storage-root-jfs/train-base-models" {
 		t.Fatalf("models base path = %q", cfg.Storage.ModelsBasePath)
 	}
-	if cfg.Executor.RuntimeImage != "easy-distill/easydistill:latest" {
+	if cfg.Executor.RuntimeImage != "gcs/distill-data:2.0.0-aeb8ca3-x86_64" {
 		t.Fatalf("runtime image = %q, want external EasyDistill image reference", cfg.Executor.RuntimeImage)
 	}
 }

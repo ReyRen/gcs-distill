@@ -47,9 +47,6 @@ temp/
 # Build artifacts
 *.tar.gz
 *.zip
-/arm64/out/
-/arm64/*.tar
-/arm64/*.tar.gz
 /offline/bin/
 /offline/config.toml
 /offline/BUILD-INFO.json
@@ -63,3 +60,5 @@ temp/
 *.db
 *.sqlite
 *.sqlite3
+*.tar
+**/__pycache__/

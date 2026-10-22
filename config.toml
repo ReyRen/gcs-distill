@@ -13,7 +13,7 @@ host = "172.18.127.67"
 port = 3306
 name = "ai_market"
 user = "root"
-password = "!Market4AI"
+password_env = "GCS_DISTILL_DB_PASSWORD"
 password_env = ""
 max_open_conns = 20
 max_idle_conns = 5
@@ -40,6 +40,12 @@ max_age = 7
 compress = true
 
 [executor]
+trainer_image = "gcs/distill-trainer:0.9.3-cu124-x86_64"
 max_concurrent = 5
 # External EasyDistill runtime image. gcs-distill only passes this reference to gcs-v2.
-runtime_image = "easy-distill/easydistill:latest"
+runtime_image = "gcs/distill-data:2.0.0-aeb8ca3-x86_64"
+data_workers = "specialai-3090-0"
+
+[model_center]
+base_url = "http://172.18.29.80:8090/api/v1"
+timeout_seconds = 10

@@ -32,7 +32,8 @@ func TestListDatasetCandidatesScansControlledCandidatePath(t *testing.T) {
 	candidatesDir := filepath.Join(root, "user-380", "train-center", "model-distill", "datasets", "candidates")
 	uploadsDir := filepath.Join(root, "user-380", "train-center", "model-distill", "datasets", "uploaded")
 	mustWriteFile(t, filepath.Join(candidatesDir, "alpha", "train.jsonl"), []byte("{\"a\":1}\n{\"a\":2}\n"))
-	mustWriteFile(t, filepath.Join(candidatesDir, "beta.txt"), []byte("one\n"))
+	mustWriteFile(t, filepath.Join(candidatesDir, "beta.json"), []byte("[{\"a\":3}]"))
+	mustWriteFile(t, filepath.Join(candidatesDir, "legacy.txt"), []byte("ignored\n"))
 	mustWriteFile(t, filepath.Join(candidatesDir, "skip.csv"), []byte("ignored\n"))
 	mustWriteFile(t, filepath.Join(candidatesDir, ".hidden.jsonl"), []byte("ignored\n"))
 	mustWriteFile(t, filepath.Join(uploadsDir, "uploaded.jsonl"), []byte("should not be listed\n"))
@@ -52,7 +53,7 @@ func TestListDatasetCandidatesScansControlledCandidatePath(t *testing.T) {
 	if items[0].RecordCount != 2 {
 		t.Fatalf("first candidate record_count = %d, want 2", items[0].RecordCount)
 	}
-	if items[1].Name != "beta.txt" {
+	if items[1].Name != "beta.json" || items[1].RecordCount != 1 {
 		t.Fatalf("second candidate name = %q", items[1].Name)
 	}
 }
@@ -181,6 +182,26 @@ type fakeDatasetRepo struct {
 	dataset *types.Dataset
 }
 
+type referencedDatasetRepo struct{ *fakeDatasetRepo }
+
+func (r referencedDatasetRepo) Delete(context.Context, string) error {
+	return fmt.Errorf("dataset is referenced")
+}
+
+func TestReferencedDatasetDeletionKeepsItsFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "user-380", "train-center", "model-distill", "datasets", "uploaded", "protected", "seed.jsonl")
+	mustWriteFile(t, path, []byte("{\"instruction\":\"hello\"}\n"))
+	repo := referencedDatasetRepo{&fakeDatasetRepo{dataset: &types.Dataset{ID: "protected", UID: 380, SourceType: "upload", FilePath: path}}}
+	svc := NewDatasetService(repo, &config.StorageConfig{RootPath: root})
+	if svc.DeleteDataset(context.Background(), 380, "protected") == nil {
+		t.Fatal("referenced dataset deleted")
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("referenced file removed", err)
+	}
+}
+
 func (r *fakeDatasetRepo) Create(_ context.Context, dataset *types.Dataset) error {
 	copy := *dataset
 	r.dataset = &copy
@@ -195,7 +216,7 @@ func (r *fakeDatasetRepo) GetByID(_ context.Context, id string) (*types.Dataset,
 	return &copy, nil
 }
 
-func (r *fakeDatasetRepo) List(_ context.Context, _, _, _ int) ([]*types.Dataset, error) {
+func (r *fakeDatasetRepo) List(_ context.Context, _, _, _ int, _ ...types.ListFilter) ([]*types.Dataset, error) {
 	return nil, nil
 }
 
@@ -212,7 +233,7 @@ func (r *fakeDatasetRepo) Delete(_ context.Context, id string) error {
 	return nil
 }
 
-func (r *fakeDatasetRepo) Count(_ context.Context, _ int) (int, error) {
+func (r *fakeDatasetRepo) Count(_ context.Context, _ int, _ ...types.ListFilter) (int, error) {
 	return 0, nil
 }
 

@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"mime/multipart"
@@ -15,6 +14,7 @@ import (
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
 	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
+	"github.com/ReyRen/gcs-distill/runtime"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
@@ -33,7 +33,7 @@ type DatasetService interface {
 	CreateDataset(ctx context.Context, dataset *types.Dataset) error
 	CreateUploadedDataset(ctx context.Context, dataset *types.Dataset, file multipart.File, originalFilename string) error
 	GetDataset(ctx context.Context, uid int, id string) (*types.Dataset, error)
-	ListDatasets(ctx context.Context, uid, page, pageSize int) ([]*types.Dataset, int, error)
+	ListDatasets(ctx context.Context, uid, page, pageSize int, filters ...types.ListFilter) ([]*types.Dataset, int, error)
 	ListDatasetCandidates(ctx context.Context, uid int) ([]DatasetCandidate, error)
 	UpdateDataset(ctx context.Context, dataset *types.Dataset) error
 	DeleteDataset(ctx context.Context, uid int, id string) error
@@ -144,7 +144,7 @@ func (s *datasetService) GetDataset(ctx context.Context, uid int, id string) (*t
 	return dataset, nil
 }
 
-func (s *datasetService) ListDatasets(ctx context.Context, uid, page, pageSize int) ([]*types.Dataset, int, error) {
+func (s *datasetService) ListDatasets(ctx context.Context, uid, page, pageSize int, filters ...types.ListFilter) ([]*types.Dataset, int, error) {
 	if uid <= 0 {
 		return nil, 0, fmt.Errorf("uid 必须大于0")
 	}
@@ -156,13 +156,13 @@ func (s *datasetService) ListDatasets(ctx context.Context, uid, page, pageSize i
 	}
 
 	offset := (page - 1) * pageSize
-	datasets, err := s.datasetRepo.List(ctx, uid, pageSize, offset)
+	datasets, err := s.datasetRepo.List(ctx, uid, pageSize, offset, filters...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("获取数据集列表失败: %w", err)
 	}
 	fillDatasetNames(datasets)
 
-	total, err := s.datasetRepo.Count(ctx, uid)
+	total, err := s.datasetRepo.Count(ctx, uid, filters...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("获取数据集总数失败: %w", err)
 	}
@@ -300,6 +300,9 @@ func (s *datasetService) UpdateDataset(ctx context.Context, dataset *types.Datas
 	dataset.FilePath = existing.FilePath
 	dataset.RecordCount = existing.RecordCount
 	dataset.CreatedAt = existing.CreatedAt
+	if existing.SourceType == "generated" {
+		dataset.Description = existing.Description
+	}
 	if err := s.validateDataset(dataset); err != nil {
 		return err
 	}
@@ -322,6 +325,11 @@ func (s *datasetService) DeleteDataset(ctx context.Context, uid int, id string) 
 	if dataset.UID != uid {
 		return fmt.Errorf("数据集不属于当前 uid: %s", id)
 	}
+	// The database rejects deletion while a pipeline still references this
+	// dataset. Delete its record before removing files to preserve that guard.
+	if err := s.datasetRepo.Delete(ctx, id); err != nil {
+		return fmt.Errorf("删除数据集失败: %w", err)
+	}
 
 	if dataset.FilePath != "" && dataset.SourceType != "import" {
 		if err := s.removeOwnedDatasetArtifact(dataset); err != nil {
@@ -332,9 +340,6 @@ func (s *datasetService) DeleteDataset(ctx context.Context, uid int, id string) 
 		}
 	}
 
-	if err := s.datasetRepo.Delete(ctx, id); err != nil {
-		return fmt.Errorf("删除数据集失败: %w", err)
-	}
 	return nil
 }
 
@@ -393,8 +398,9 @@ func (s *datasetService) validateDataset(dataset *types.Dataset) error {
 	}
 
 	validSourceTypes := map[string]bool{
-		"upload": true,
-		"import": true,
+		"upload":    true,
+		"import":    true,
+		"generated": true,
 	}
 	if !validSourceTypes[dataset.SourceType] {
 		return fmt.Errorf("无效的数据来源类型: %s", dataset.SourceType)
@@ -435,6 +441,13 @@ func (s *datasetService) ensureDatasetFilePath(uid int, filePath string) error {
 	}
 	if err := ensurePathUnderBase(cleanPath, base); err != nil {
 		return err
+	}
+	rel, err := filepath.Rel(base, cleanPath)
+	if err != nil {
+		return err
+	}
+	if _, err := runtime.SafeArtifactPath(base, rel); err != nil {
+		return fmt.Errorf("候选数据不可包含符号链接或越界路径: %w", err)
 	}
 
 	info, err := os.Stat(cleanPath)
@@ -490,6 +503,19 @@ func fillDatasetName(dataset *types.Dataset) {
 	if dataset == nil {
 		return
 	}
+	if dataset.SourceType == "generated" {
+		dataset.Lineage = map[string]string{}
+		for _, part := range strings.Split(dataset.Description, ";") {
+			key, value, ok := strings.Cut(strings.TrimSpace(part), "=")
+			if !ok {
+				continue
+			}
+			switch key {
+			case "pipeline", "seed_dataset", "job_type", "revision":
+				dataset.Lineage[key] = value
+			}
+		}
+	}
 	if path := strings.TrimSpace(dataset.FilePath); path != "" {
 		cleanPath := filepath.Clean(strings.ReplaceAll(path, "\\", "/"))
 		name := filepath.Base(cleanPath)
@@ -506,35 +532,11 @@ func fillDatasetName(dataset *types.Dataset) {
 
 func isSupportedDatasetFile(name string) bool {
 	switch strings.ToLower(filepath.Ext(name)) {
-	case ".json", ".jsonl", ".ndjson", ".txt":
+	case ".json", ".jsonl", ".ndjson":
 		return true
 	default:
 		return false
 	}
 }
 
-func countDatasetRecords(filePath string) (int, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	buffer := make([]byte, 1024*64)
-	scanner.Buffer(buffer, 1024*1024)
-
-	count := 0
-	for scanner.Scan() {
-		if strings.TrimSpace(scanner.Text()) != "" {
-			count++
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return 0, err
-	}
-	if count == 0 {
-		return 1, nil
-	}
-	return count, nil
-}
+func countDatasetRecords(filePath string) (int, error) { return runtime.WalkRecords(filePath, nil) }

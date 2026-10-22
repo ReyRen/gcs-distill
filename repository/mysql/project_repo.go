@@ -13,10 +13,10 @@ import (
 type ProjectRepository interface {
 	Create(ctx context.Context, project *types.Project) error
 	GetByID(ctx context.Context, id string) (*types.Project, error)
-	List(ctx context.Context, uid, limit, offset int) ([]*types.Project, error)
+	List(ctx context.Context, uid, limit, offset int, filters ...types.ListFilter) ([]*types.Project, error)
 	Update(ctx context.Context, project *types.Project) error
 	Delete(ctx context.Context, id string) error
-	Count(ctx context.Context, uid int) (int, error)
+	Count(ctx context.Context, uid int, filters ...types.ListFilter) (int, error)
 }
 
 type projectRepo struct {
@@ -39,21 +39,13 @@ func (r *projectRepo) Create(ctx context.Context, project *types.Project) error 
 	if err != nil {
 		return fmt.Errorf("marshal teacher_model_config failed: %w", err)
 	}
-	studentConfig, err := jsonBytes(project.StudentModelConfig)
-	if err != nil {
-		return fmt.Errorf("marshal student_model_config failed: %w", err)
-	}
-	evalConfig, err := jsonBytes(project.EvaluationConfig)
-	if err != nil {
-		return fmt.Errorf("marshal evaluation_config failed: %w", err)
-	}
 
 	query := `
 		INSERT INTO distill_projects (
 			id, uid, name, description, business_scenario,
-			teacher_model_config, student_model_config, evaluation_config,
+			teacher_model_config,
 			created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	if _, err := r.db.sql.ExecContext(ctx, query,
 		project.ID,
@@ -62,8 +54,6 @@ func (r *projectRepo) Create(ctx context.Context, project *types.Project) error 
 		project.Description,
 		project.BusinessScenario,
 		teacherConfig,
-		studentConfig,
-		evalConfig,
 		project.CreatedAt,
 		project.UpdatedAt,
 	); err != nil {
@@ -75,14 +65,14 @@ func (r *projectRepo) Create(ctx context.Context, project *types.Project) error 
 func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, error) {
 	query := `
 		SELECT id, uid, name, description, business_scenario,
-			teacher_model_config, student_model_config, evaluation_config,
+			teacher_model_config,
 			created_at, updated_at
 		FROM distill_projects
 		WHERE id = ?
 	`
 
 	var project types.Project
-	var teacherConfig, studentConfig, evalConfig []byte
+	var teacherConfig []byte
 	var description, businessScenario sql.NullString
 	err := r.db.sql.QueryRowContext(ctx, query, id).Scan(
 		&project.ID,
@@ -91,8 +81,6 @@ func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, e
 		&description,
 		&businessScenario,
 		&teacherConfig,
-		&studentConfig,
-		&evalConfig,
 		&project.CreatedAt,
 		&project.UpdatedAt,
 	)
@@ -102,7 +90,7 @@ func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, e
 		}
 		return nil, fmt.Errorf("query project failed: %w", err)
 	}
-	if err := scanProjectJSON(&project, teacherConfig, studentConfig, evalConfig); err != nil {
+	if err := scanProjectJSON(&project, teacherConfig); err != nil {
 		return nil, err
 	}
 	project.Description = nullStringValue(description)
@@ -110,18 +98,20 @@ func (r *projectRepo) GetByID(ctx context.Context, id string) (*types.Project, e
 	return &project, nil
 }
 
-func (r *projectRepo) List(ctx context.Context, uid, limit, offset int) ([]*types.Project, error) {
+func (r *projectRepo) List(ctx context.Context, uid, limit, offset int, filters ...types.ListFilter) ([]*types.Project, error) {
+	where, args := listConditions(uid, "", "project", filters)
+	args = append(args, limit, offset)
 	query := `
 		SELECT id, uid, name, description, business_scenario,
-			teacher_model_config, student_model_config, evaluation_config,
+			teacher_model_config,
 			created_at, updated_at
 		FROM distill_projects
-		WHERE uid = ?
+		WHERE ` + where + `
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`
 
-	rows, err := r.db.sql.QueryContext(ctx, query, uid, limit, offset)
+	rows, err := r.db.sql.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query project list failed: %w", err)
 	}
@@ -130,7 +120,7 @@ func (r *projectRepo) List(ctx context.Context, uid, limit, offset int) ([]*type
 	var projects []*types.Project
 	for rows.Next() {
 		var project types.Project
-		var teacherConfig, studentConfig, evalConfig []byte
+		var teacherConfig []byte
 		var description, businessScenario sql.NullString
 		if err := rows.Scan(
 			&project.ID,
@@ -139,14 +129,12 @@ func (r *projectRepo) List(ctx context.Context, uid, limit, offset int) ([]*type
 			&description,
 			&businessScenario,
 			&teacherConfig,
-			&studentConfig,
-			&evalConfig,
 			&project.CreatedAt,
 			&project.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan project row failed: %w", err)
 		}
-		if err := scanProjectJSON(&project, teacherConfig, studentConfig, evalConfig); err != nil {
+		if err := scanProjectJSON(&project, teacherConfig); err != nil {
 			return nil, err
 		}
 		project.Description = nullStringValue(description)
@@ -164,14 +152,6 @@ func (r *projectRepo) Update(ctx context.Context, project *types.Project) error 
 	if err != nil {
 		return fmt.Errorf("marshal teacher_model_config failed: %w", err)
 	}
-	studentConfig, err := jsonBytes(project.StudentModelConfig)
-	if err != nil {
-		return fmt.Errorf("marshal student_model_config failed: %w", err)
-	}
-	evalConfig, err := jsonBytes(project.EvaluationConfig)
-	if err != nil {
-		return fmt.Errorf("marshal evaluation_config failed: %w", err)
-	}
 
 	query := `
 		UPDATE distill_projects
@@ -179,9 +159,7 @@ func (r *projectRepo) Update(ctx context.Context, project *types.Project) error 
 			name = ?,
 			description = ?,
 			business_scenario = ?,
-			teacher_model_config = ?,
-			student_model_config = ?,
-			evaluation_config = ?
+			teacher_model_config = ?
 		WHERE id = ?
 	`
 	result, err := r.db.sql.ExecContext(ctx, query,
@@ -190,8 +168,6 @@ func (r *projectRepo) Update(ctx context.Context, project *types.Project) error 
 		project.Description,
 		project.BusinessScenario,
 		teacherConfig,
-		studentConfig,
-		evalConfig,
 		project.ID,
 	)
 	if err != nil {
@@ -214,29 +190,18 @@ func (r *projectRepo) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *projectRepo) Count(ctx context.Context, uid int) (int, error) {
+func (r *projectRepo) Count(ctx context.Context, uid int, filters ...types.ListFilter) (int, error) {
 	var count int
-	if err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_projects WHERE uid = ?`, uid).Scan(&count); err != nil {
+	where, args := listConditions(uid, "", "project", filters)
+	if err := r.db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM distill_projects WHERE `+where, args...).Scan(&count); err != nil {
 		return 0, fmt.Errorf("count projects failed: %w", err)
 	}
 	return count, nil
 }
 
-func scanProjectJSON(project *types.Project, teacherConfig, studentConfig, evalConfig []byte) error {
+func scanProjectJSON(project *types.Project, teacherConfig []byte) error {
 	if err := unmarshalJSON(teacherConfig, &project.TeacherModelConfig); err != nil {
 		return fmt.Errorf("unmarshal teacher_model_config failed: %w", err)
-	}
-	if err := unmarshalJSON(studentConfig, &project.StudentModelConfig); err != nil {
-		return fmt.Errorf("unmarshal student_model_config failed: %w", err)
-	}
-	if len(evalConfig) > 0 {
-		var ec types.EvaluationConfig
-		if err := unmarshalJSON(evalConfig, &ec); err != nil {
-			return fmt.Errorf("unmarshal evaluation_config failed: %w", err)
-		}
-		if len(ec.Metrics) > 0 || ec.TestSetRatio != 0 || ec.ExtraParams != nil {
-			project.EvaluationConfig = &ec
-		}
 	}
 	return nil
 }

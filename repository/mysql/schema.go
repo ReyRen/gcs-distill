@@ -13,8 +13,6 @@ CREATE TABLE IF NOT EXISTS distill_projects (
   description TEXT,
   business_scenario VARCHAR(255),
   teacher_model_config JSON NOT NULL,
-  student_model_config JSON NOT NULL,
-  evaluation_config JSON,
   created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   INDEX idx_distill_projects_uid_created_at (uid, created_at),
@@ -84,65 +82,22 @@ CREATE TABLE IF NOT EXISTS distill_stage_runs (
   CONSTRAINT fk_distill_stage_pipeline FOREIGN KEY (pipeline_run_id) REFERENCES distill_pipeline_runs(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS distill_container_runs (
-  id VARCHAR(64) PRIMARY KEY,
-  stage_run_id VARCHAR(64) NOT NULL,
-  container_name VARCHAR(255) NOT NULL,
-  image VARCHAR(255) NOT NULL,
-  node_name VARCHAR(255) NOT NULL,
-  node_addr VARCHAR(255) NOT NULL,
-  command TEXT,
-  args JSON,
-  envs JSON,
-  mounts JSON,
-  xpu_allocation VARCHAR(255),
-  exit_code INT,
-  started_at DATETIME(6) NULL,
-  finished_at DATETIME(6) NULL,
-  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  INDEX idx_distill_container_runs_stage_run_id (stage_run_id),
-  INDEX idx_distill_container_runs_node_name (node_name),
-  INDEX idx_distill_container_runs_created_at (created_at),
-  CONSTRAINT fk_distill_container_stage FOREIGN KEY (stage_run_id) REFERENCES distill_stage_runs(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS distill_evaluation_reports (
-  id VARCHAR(64) PRIMARY KEY,
-  pipeline_run_id VARCHAR(64) NOT NULL,
-  stage_run_id VARCHAR(64) NOT NULL,
-  metrics JSON NOT NULL,
-  details JSON,
-  summary TEXT,
-  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  INDEX idx_distill_evaluation_reports_pipeline_run_id (pipeline_run_id),
-  INDEX idx_distill_evaluation_reports_stage_run_id (stage_run_id),
-  INDEX idx_distill_evaluation_reports_created_at (created_at),
-  CONSTRAINT fk_distill_eval_pipeline FOREIGN KEY (pipeline_run_id) REFERENCES distill_pipeline_runs(id) ON DELETE CASCADE,
-  CONSTRAINT fk_distill_eval_stage FOREIGN KEY (stage_run_id) REFERENCES distill_stage_runs(id)
-);
-
-CREATE TABLE IF NOT EXISTS distill_artifacts (
-  id VARCHAR(64) PRIMARY KEY,
-  pipeline_run_id VARCHAR(64) NOT NULL,
-  stage_run_id VARCHAR(64),
-  artifact_type VARCHAR(50) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  file_path TEXT NOT NULL,
-  file_size BIGINT,
-  metadata JSON,
-  created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  INDEX idx_distill_artifacts_pipeline_run_id (pipeline_run_id),
-  INDEX idx_distill_artifacts_stage_run_id (stage_run_id),
-  INDEX idx_distill_artifacts_artifact_type (artifact_type),
-  INDEX idx_distill_artifacts_created_at (created_at),
-  CONSTRAINT fk_distill_artifact_pipeline FOREIGN KEY (pipeline_run_id) REFERENCES distill_pipeline_runs(id) ON DELETE CASCADE,
-  CONSTRAINT fk_distill_artifact_stage FOREIGN KEY (stage_run_id) REFERENCES distill_stage_runs(id)
-);
 `
 
 func (db *DB) EnsureSchema(ctx context.Context) error {
 	for _, stmt := range splitSQLStatements(distillSchema) {
 		if _, err := db.sql.ExecContext(ctx, stmt); err != nil {
+			return err
+		}
+	}
+	// Earlier installations made the retired project-level student column
+	// mandatory. New runs store their student in training_config instead.
+	var required int
+	if err := db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'distill_projects' AND COLUMN_NAME = 'student_model_config' AND IS_NULLABLE = 'NO'`).Scan(&required); err != nil {
+		return err
+	}
+	if required > 0 {
+		if _, err := db.sql.ExecContext(ctx, `ALTER TABLE distill_projects MODIFY COLUMN student_model_config JSON NULL`); err != nil {
 			return err
 		}
 	}

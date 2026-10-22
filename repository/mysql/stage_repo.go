@@ -15,8 +15,6 @@ type StageRepository interface {
 	GetByID(ctx context.Context, id string) (*types.StageRun, error)
 	ListByPipeline(ctx context.Context, pipelineID string) ([]*types.StageRun, error)
 	Update(ctx context.Context, stage *types.StageRun) error
-	UpdateStatus(ctx context.Context, id string, status types.PipelineStatus, errorMsg string) error
-	Delete(ctx context.Context, id string) error
 }
 
 type stageRepo struct {
@@ -208,7 +206,7 @@ func (r *stageRepo) Update(ctx context.Context, stage *types.StageRun) error {
 			error_message = ?,
 			started_at = ?,
 			finished_at = ?
-		WHERE id = ?
+		WHERE id = ? AND (status NOT IN ('succeeded','failed','canceled') OR status = ?)
 	`
 	result, err := r.db.sql.ExecContext(ctx, query,
 		stage.Status,
@@ -224,40 +222,13 @@ func (r *stageRepo) Update(ctx context.Context, stage *types.StageRun) error {
 		stage.StartedAt,
 		stage.FinishedAt,
 		stage.ID,
+		stage.Status,
 	)
 	if err != nil {
 		return fmt.Errorf("update stage run failed: %w", err)
 	}
 	if rows, _ := result.RowsAffected(); rows == 0 {
 		return fmt.Errorf("stage run not found: %s", stage.ID)
-	}
-	return nil
-}
-
-func (r *stageRepo) UpdateStatus(ctx context.Context, id string, status types.PipelineStatus, errorMsg string) error {
-	query := `
-		UPDATE distill_stage_runs
-		SET status = ?,
-			error_message = ?
-		WHERE id = ?
-	`
-	result, err := r.db.sql.ExecContext(ctx, query, status, errorMsg, id)
-	if err != nil {
-		return fmt.Errorf("update stage status failed: %w", err)
-	}
-	if rows, _ := result.RowsAffected(); rows == 0 {
-		return fmt.Errorf("stage run not found: %s", id)
-	}
-	return nil
-}
-
-func (r *stageRepo) Delete(ctx context.Context, id string) error {
-	result, err := r.db.sql.ExecContext(ctx, `DELETE FROM distill_stage_runs WHERE id = ?`, id)
-	if err != nil {
-		return fmt.Errorf("delete stage run failed: %w", err)
-	}
-	if rows, _ := result.RowsAffected(); rows == 0 {
-		return fmt.Errorf("stage run not found: %s", id)
 	}
 	return nil
 }

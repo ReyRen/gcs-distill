@@ -5,10 +5,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
+	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/types"
+	"github.com/ReyRen/gcs-distill/runtime"
 	"github.com/ReyRen/gcs-distill/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -18,12 +24,14 @@ import (
 type PipelineHandler struct {
 	pipelineSvc service.PipelineService
 	gcsClient   *gcsclient.Client
+	storage     config.StorageConfig
 }
 
-func NewPipelineHandler(pipelineSvc service.PipelineService, gcsClient *gcsclient.Client) *PipelineHandler {
+func NewPipelineHandler(pipelineSvc service.PipelineService, gcsClient *gcsclient.Client, storage config.StorageConfig) *PipelineHandler {
 	return &PipelineHandler{
 		pipelineSvc: pipelineSvc,
 		gcsClient:   gcsClient,
+		storage:     storage,
 	}
 }
 
@@ -54,6 +62,7 @@ func (h *PipelineHandler) CreatePipeline(c *gin.Context) {
 		return
 	}
 
+	redactPipelineCredentials(&req)
 	c.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,
 		"message": "流水线创建成功",
@@ -81,6 +90,7 @@ func (h *PipelineHandler) GetPipeline(c *gin.Context) {
 		return
 	}
 
+	redactPipelineCredentials(pipeline)
 	c.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,
 		"message": "获取流水线成功",
@@ -94,18 +104,11 @@ func (h *PipelineHandler) ListPipelines(c *gin.Context) {
 		return
 	}
 	projectID := c.Query("project_id")
-	if projectID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"code":    http.StatusBadRequest,
-			"message": "项目ID不能为空",
-		})
-		return
-	}
 
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
-	pipelines, total, err := h.pipelineSvc.ListPipelines(c.Request.Context(), uid, projectID, page, pageSize)
+	pipelines, total, err := h.pipelineSvc.ListPipelines(c.Request.Context(), uid, projectID, page, pageSize, types.ListFilter{Name: c.Query("name"), Status: c.Query("status"), JobType: c.Query("job_type")})
 	if err != nil {
 		_ = c.Error(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -115,6 +118,9 @@ func (h *PipelineHandler) ListPipelines(c *gin.Context) {
 		return
 	}
 
+	for _, p := range pipelines {
+		redactPipelineCredentials(p)
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"code":    http.StatusOK,
 		"message": "获取流水线列表成功",
@@ -139,8 +145,8 @@ func (h *PipelineHandler) StartPipeline(c *gin.Context) {
 
 	if err := h.pipelineSvc.StartPipeline(c.Request.Context(), id); err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
+		c.JSON(http.StatusConflict, gin.H{
+			"code":    http.StatusConflict,
 			"message": err.Error(),
 		})
 		return
@@ -164,8 +170,8 @@ func (h *PipelineHandler) CancelPipeline(c *gin.Context) {
 
 	if err := h.pipelineSvc.CancelPipeline(c.Request.Context(), id); err != nil {
 		_ = c.Error(err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"code":    http.StatusInternalServerError,
+		c.JSON(http.StatusConflict, gin.H{
+			"code":    http.StatusConflict,
 			"message": err.Error(),
 		})
 		return
@@ -211,7 +217,7 @@ func (h *PipelineHandler) GetStageLogs(c *gin.Context) {
 	}
 
 	tail := c.DefaultQuery("tail", "100")
-	logs, err := h.gcsClient.GetTaskLogs(c.Request.Context(), containerName, tail)
+	logs, err := h.readStageLogs(c, stage, containerName, tail)
 	if err != nil {
 		_ = c.Error(err)
 		c.JSON(http.StatusBadGateway, gin.H{
@@ -237,6 +243,21 @@ func (h *PipelineHandler) StreamStageLogsWebSocket(c *gin.Context) {
 	}
 
 	tail := c.DefaultQuery("tail", "100")
+	if stage.Status == types.StatusSucceeded || stage.Status == types.StatusFailed || stage.Status == types.StatusCanceled {
+		logs, err := h.readStageLogs(c, stage, containerName, tail)
+		if err != nil {
+			c.JSON(404, gin.H{"code": 404, "message": "日志暂不可用"})
+			return
+		}
+		conn, err := stageLogUpgrader.Upgrade(c.Writer, c.Request, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_ = conn.WriteMessage(websocket.TextMessage, logs)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "日志已结束"), time.Now().Add(time.Second))
+		return
+	}
 	targetURL, err := h.gcsClient.TaskLogsWebSocketURL(containerName, tail)
 	if err != nil {
 		_ = c.Error(err)
@@ -278,8 +299,12 @@ func (h *PipelineHandler) DownloadStageLogs(c *gin.Context) {
 		return
 	}
 
-	tail := c.DefaultQuery("tail", "10000")
-	logs, err := h.gcsClient.GetTaskLogs(c.Request.Context(), containerName, tail)
+	filename := fmt.Sprintf("stage_%s_%s.log", stage.StageType, shortID(stage.ID))
+	if path, err := h.stageLogFile(c, stage); err == nil {
+		c.FileAttachment(path, filename)
+		return
+	}
+	logs, err := h.readStageLogs(c, stage, containerName, "all")
 	if err != nil {
 		_ = c.Error(err)
 		c.JSON(http.StatusBadGateway, gin.H{
@@ -289,11 +314,49 @@ func (h *PipelineHandler) DownloadStageLogs(c *gin.Context) {
 		return
 	}
 
-	filename := fmt.Sprintf("stage_%s_%s.log", stage.StageType, shortID(stage.ID))
 	c.Header("Content-Description", "File Transfer")
 	c.Header("Content-Disposition", "attachment; filename="+filename)
 	c.Header("Content-Transfer-Encoding", "binary")
 	c.Data(http.StatusOK, "application/octet-stream", logs)
+}
+
+func (h *PipelineHandler) stageLogFile(c *gin.Context, stage *types.StageRun) (string, error) {
+	p, err := h.pipelineSvc.GetPipeline(c.Request.Context(), stage.PipelineRunID)
+	if err != nil {
+		return "", err
+	}
+	root := runtime.NewConfigGenerator(h.storage.RootPath).GetRunWorkspace(p.UID, p.ProjectID, p.ID)
+	for _, name := range []string{"log.txt", "archived.log"} {
+		rel, err := filepath.Rel(root, filepath.Join(stage.LogPath, name))
+		if err != nil {
+			continue
+		}
+		path, err := runtime.SafeArtifactPath(root, rel)
+		if err != nil {
+			continue
+		}
+		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+			return path, nil
+		}
+	}
+	return "", os.ErrNotExist
+}
+
+func (h *PipelineHandler) readStageLogs(c *gin.Context, stage *types.StageRun, containerName, tail string) ([]byte, error) {
+	if path, err := h.stageLogFile(c, stage); err == nil {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		if n, err := strconv.Atoi(tail); err == nil && n > 0 {
+			lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+			if len(lines) > n {
+				data = []byte(strings.Join(lines[len(lines)-n:], "\n"))
+			}
+		}
+		return data, nil
+	}
+	return h.gcsClient.GetTaskLogs(c.Request.Context(), containerName, tail)
 }
 
 func (h *PipelineHandler) stageLogTarget(c *gin.Context) (*types.StageRun, string, bool) {
