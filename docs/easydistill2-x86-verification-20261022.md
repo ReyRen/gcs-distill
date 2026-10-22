@@ -10,7 +10,7 @@
 - 生产 distill 配置单独保存在 `/etc/gcs-distill/config.toml`，权限 0600；交付模板不含数据库密码。
 - 官方 EasyDistill 源码固定为 `aeb8ca3eab8b2a82f754c01c3d1f59ad276268c3`，15 份配方与官方文件逐字节核对。官方 LLaMA-Factory 固定为 v0.9.3 的 `ca75f1edf3cb50343ed1c98605141c3e22075b5f`。
 - 数据镜像：`gcs/distill-data:2.0.0-aeb8ca3-x86_64`，ID `sha256:3ea860dcd708835a18b81d1a7d3d9f38e94f57e1ca6b3217a5aef0127a44b181`。
-- 训练镜像：`gcs/distill-trainer:0.9.3-cu124-vl-x86_64`，ID `sha256:7f92fac4d0c2576f3ed21301b6bbcc1408bcd4a619f36982629fc5200fc4e89f`；PyTorch 2.6.0 / CUDA 12.4。
+- 训练镜像：`gcs/distill-trainer:0.9.3-cu124-vl-x86_64`，ID `sha256:cd028009fe9bef713dcbe7cb41629086458cecbda5833d3c49695506df688e04`；PyTorch 2.6.0 / CUDA 12.4。
 - 二进制、镜像归档、依赖锁文件的最终校验值以离线包 `manifest.json` 和 `SHA256SUMS` 为准。worker 使用原生 Linux amd64、CGO/NVML，glibc 最低 2.31；没有使用 Ascend 构建标签。
 - 三个仓库发布到 GitHub `main`：`ReyRen/gcs-distill`、`ReyRen/gcs-v2`、`ReyRen/gcs-info-catch-v2`。worker 发布增加 NVML 进程计数和采集时间，不包含工作区已有的推理模块修改。
 
