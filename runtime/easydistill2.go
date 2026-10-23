@@ -483,17 +483,19 @@ func (e *StageExecutor) executeExport2(ctx context.Context, stage *types.StageRu
 	recipe, _ := FindWorkflow(w.JobType)
 	assetID := uuid.NewSHA1(uuid.NameSpaceURL, []byte(fmt.Sprintf("gcs-distill2:%d:%s", p.UID, p.ID))).String()
 	assetDir := filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", p.UID), "train-center", "model-distill", "datasets", "generated", assetID)
+	teacher := project.TeacherModelConfig
+	if w.TeacherModel != nil {
+		teacher = *w.TeacherModel
+	}
+	if teacher.ModelName == "" {
+		return fmt.Errorf("teacher model identity is required for export provenance")
+	}
 	if strings.HasPrefix(w.JobType, "mm_") {
 		if _, err := CopyRecords(path, filepath.Join(root, "data", "intermediate", "mm_native_sft.jsonl"), nil); err != nil {
 			return err
 		}
-		if _, err := CopyRecords(path, path, func(row map[string]interface{}) error {
-			return normalizeMultimodalRecord(row, filepath.Join(assetDir, "images"), filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", p.UID)))
-		}); err != nil {
-			return fmt.Errorf("normalize multimodal training data: %w", err)
-		}
 	}
-	count, err := WalkRecords(path, func(row map[string]interface{}) error {
+	count, err := CopyRecords(path, path, func(row map[string]interface{}) error {
 		if recipe.OutputFormat == "sft_messages" {
 			if messages, ok := row["messages"].([]interface{}); !ok || len(messages) == 0 {
 				return fmt.Errorf("SFT output has no messages")
@@ -502,6 +504,22 @@ func (e *StageExecutor) executeExport2(ctx context.Context, stage *types.StageRu
 		if recipe.OutputFormat == "dpo_pairs" && (row["chosen"] == nil || row["rejected"] == nil) {
 			return fmt.Errorf("DPO output has no chosen/rejected")
 		}
+		if strings.HasPrefix(w.JobType, "mm_") {
+			if err := normalizeMultimodalRecord(row, filepath.Join(assetDir, "images"), filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", p.UID))); err != nil {
+				return err
+			}
+		}
+		metadata, ok := row["metadata"].(map[string]interface{})
+		if !ok {
+			metadata = map[string]interface{}{}
+		}
+		metadata["model"] = teacher.ModelName
+		provenance := map[string]string{"pipeline_id": p.ID, "seed_dataset_id": p.DatasetID, "job_type": w.JobType}
+		if teacher.ServiceID != "" {
+			provenance["teacher_service_id"] = teacher.ServiceID
+		}
+		metadata["gcs_distill"] = provenance
+		row["metadata"] = metadata
 		return nil
 	})
 	if err != nil {

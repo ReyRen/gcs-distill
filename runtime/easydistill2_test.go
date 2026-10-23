@@ -130,8 +130,9 @@ func (r *exportDatasetRepo) Create(_ context.Context, d *types.Dataset) error {
 func TestDistill2RegistersIndependentGeneratedAssetIdempotently(t *testing.T) {
 	g := NewConfigGenerator(t.TempDir())
 	p := &types.PipelineRun{UID: 380, ID: "run", TrainingConfig: types.TrainingConfig{Distillation: &types.DistillationConfig{Version: "2.0", JobType: "instruct_distill"}}}
+	p.TrainingConfig.Distillation.TeacherModel = &types.ModelConfig{ModelName: "snapshot-teacher", ServiceID: "owned-service"}
 	path := distill2OutputPath(g.GetRunWorkspace(p.UID, "project", p.ID), "instruct_distill")
-	if err := writeJSONLines(path, []map[string]interface{}{{"messages": []interface{}{map[string]interface{}{"role": "assistant", "content": "answer"}}}}); err != nil {
+	if err := writeJSONLines(path, []map[string]interface{}{{"messages": []interface{}{map[string]interface{}{"role": "assistant", "content": "answer"}}, "metadata": map[string]interface{}{"model": "pipeline", "request_id": "original-request"}}}); err != nil {
 		t.Fatal(err)
 	}
 	repo := &exportDatasetRepo{}
@@ -147,6 +148,15 @@ func TestDistill2RegistersIndependentGeneratedAssetIdempotently(t *testing.T) {
 	}
 	if _, err := os.Stat(repo.created.FilePath); err != nil {
 		t.Fatal(err)
+	}
+	rows, _, _, err := PreviewRecords(repo.created.FilePath, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata := rows[0]["metadata"].(map[string]interface{})
+	provenance := metadata["gcs_distill"].(map[string]interface{})
+	if metadata["model"] != "snapshot-teacher" || provenance["pipeline_id"] != p.ID || provenance["teacher_service_id"] != "owned-service" || metadata["request_id"] != "original-request" {
+		t.Fatalf("export lost actual teacher provenance: %+v", metadata)
 	}
 }
 
