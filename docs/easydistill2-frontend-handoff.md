@@ -191,7 +191,7 @@ Mock 覆盖核心主流程，可用于页面和交互交接；它不是已经接
 ### 已有运行验收与尚待验证项
 
 - 任务名保存为 `training_config.distillation.name`，随本次配置持久化。历史任务回退显示创建时间和短 ID，不能只存浏览器内存。
-- 旧任务没有 distillation 子对象，返回 summary.retired=true，仅保留历史记录且不能启动；旧执行代码和镜像已清退。
+- 仅接受 EasyDistill 2 的 training_config.distillation；旧版任务和兼容字段已清理，不再返回 summary.retired、trigger_mode 或 retry_count。stage.node_name 为实际执行节点：控制阶段取控制服务主机名，容器阶段取调度器确认的 worker；尚未分配时为空。
 - JSON 数组按对象计数；JSONL 严格逐条解析，非法行不静默丢弃。TXT 不作为 2.0 可直接运行的格式推荐。
 - 不丢失 messages、images、工具轨迹、偏好对及 metadata，不能一律压成 instruction/output 两列。
 - 无产物不能显示成功；数据生成失败不叫“模型训练失败”。

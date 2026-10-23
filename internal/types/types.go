@@ -88,7 +88,6 @@ type PipelineRun struct {
 	DatasetID       string           `json:"dataset_id" db:"dataset_id"`
 	Status          PipelineStatus   `json:"status" db:"status"`
 	CurrentStage    int              `json:"current_stage" db:"current_stage"`
-	TriggerMode     string           `json:"trigger_mode" db:"trigger_mode"`
 	TrainingConfig  TrainingConfig   `json:"training_config" db:"training_config"`   // JSON
 	ResourceRequest ResourceRequest  `json:"resource_request" db:"resource_request"` // JSON
 	ErrorMessage    string           `json:"error_message,omitempty" db:"error_message"`
@@ -106,7 +105,6 @@ type PipelineSummary struct {
 	OutputRecords   int    `json:"output_records"`
 	OutputDatasetID string `json:"output_dataset_id,omitempty"`
 	HasModelWeights bool   `json:"has_model_weights"`
-	Retired         bool   `json:"retired"`
 }
 
 // TrainingConfig configures student training.
@@ -168,7 +166,6 @@ type StageRun struct {
 	OutputManifest map[string]string      `json:"output_manifest,omitempty" db:"output_manifest"` // JSON
 	Metrics        map[string]interface{} `json:"metrics,omitempty" db:"metrics"`                 // JSON
 	LogPath        string                 `json:"log_path,omitempty" db:"log_path"`
-	RetryCount     int                    `json:"retry_count" db:"retry_count"`
 	ErrorMessage   string                 `json:"error_message,omitempty" db:"error_message"`
 	StartedAt      *time.Time             `json:"started_at,omitempty" db:"started_at"`
 	FinishedAt     *time.Time             `json:"finished_at,omitempty" db:"finished_at"`

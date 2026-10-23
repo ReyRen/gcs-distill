@@ -40,7 +40,6 @@ CREATE TABLE IF NOT EXISTS distill_pipeline_runs (
   dataset_id VARCHAR(64) NOT NULL,
   status VARCHAR(50) NOT NULL DEFAULT 'pending',
   current_stage INT DEFAULT 0,
-  trigger_mode VARCHAR(50) DEFAULT 'manual',
   training_config JSON NOT NULL,
   resource_request JSON,
   error_message TEXT,
@@ -69,7 +68,6 @@ CREATE TABLE IF NOT EXISTS distill_stage_runs (
   output_manifest JSON,
   metrics JSON,
   log_path TEXT,
-  retry_count INT DEFAULT 0,
   error_message TEXT,
   started_at DATETIME(6) NULL,
   finished_at DATETIME(6) NULL,
@@ -87,17 +85,6 @@ CREATE TABLE IF NOT EXISTS distill_stage_runs (
 func (db *DB) EnsureSchema(ctx context.Context) error {
 	for _, stmt := range splitSQLStatements(distillSchema) {
 		if _, err := db.sql.ExecContext(ctx, stmt); err != nil {
-			return err
-		}
-	}
-	// Earlier installations made the retired project-level student column
-	// mandatory. New runs store their student in training_config instead.
-	var required int
-	if err := db.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'distill_projects' AND COLUMN_NAME = 'student_model_config' AND IS_NULLABLE = 'NO'`).Scan(&required); err != nil {
-		return err
-	}
-	if required > 0 {
-		if _, err := db.sql.ExecContext(ctx, `ALTER TABLE distill_projects MODIFY COLUMN student_model_config JSON NULL`); err != nil {
 			return err
 		}
 	}

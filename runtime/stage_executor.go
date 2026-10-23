@@ -76,7 +76,16 @@ func (e *StageExecutor) ExecuteStage(ctx context.Context, stage *types.StageRun,
 	}()
 	w := pipeline.TrainingConfig.Distillation
 	if w == nil {
-		return fmt.Errorf("retired workflow: create an EasyDistill 2 task")
+		return fmt.Errorf("training_config.distillation is required")
+	}
+	// Controller stages run here; container stages record the worker returned
+	// by the scheduler, after allocation has actually happened.
+	stage.NodeName = ""
+	if stage.StageType == types.StageTeacherConfig || stage.StageType == types.StageDatasetBuild || stage.StageType == types.StageDatasetExport {
+		stage.NodeName, err = os.Hostname()
+		if err != nil {
+			return fmt.Errorf("read execution hostname: %w", err)
+		}
 	}
 	snapshot := *project
 	if w.TeacherModel != nil {
@@ -320,7 +329,7 @@ func (e *StageExecutor) ReleaseContainer(stage *types.StageRun) {
 	e.stopContainerTask(stage.ContainerID)
 }
 
-func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName, pipelineID string) error {
+func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName, pipelineID string, stage *types.StageRun) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
@@ -349,6 +358,10 @@ func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName,
 				logger.Warn("gcs-v2 task not found yet", zap.String("container_name", containerName))
 				continue
 			}
+			if err := e.recordTaskWorker(ctx, stage, task); err != nil {
+				e.stopContainerTask(containerName)
+				return err
+			}
 			if task.TaskStates == gcsclient.TaskStateContainerDone {
 				return nil
 			}
@@ -357,4 +370,27 @@ func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName,
 			}
 		}
 	}
+}
+
+func (e *StageExecutor) recordTaskWorker(ctx context.Context, stage *types.StageRun, task *gcsclient.TaskInfo) error {
+	name := ""
+	for _, worker := range task.TaskWorkers {
+		if worker.Name == "" {
+			continue
+		}
+		if name != "" && name != worker.Name {
+			return fmt.Errorf("distillation requires a single worker, got %s and %s", name, worker.Name)
+		}
+		name = worker.Name
+	}
+	if name == "" || name == stage.NodeName {
+		return nil
+	}
+	stage.NodeName = name
+	if e.stageRepo != nil {
+		if err := e.stageRepo.Update(ctx, stage); err != nil {
+			return fmt.Errorf("persist actual execution node: %w", err)
+		}
+	}
+	return nil
 }

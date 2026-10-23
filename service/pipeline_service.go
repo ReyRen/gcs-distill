@@ -68,9 +68,6 @@ func (s *pipelineService) CreatePipeline(ctx context.Context, pipeline *types.Pi
 	if err := s.validatePipeline(ctx, pipeline); err != nil {
 		return err
 	}
-	if pipeline.TriggerMode == "" {
-		pipeline.TriggerMode = "manual"
-	}
 	pipeline.Status = types.StatusPending
 	pipeline.CurrentStage = 0
 
@@ -90,7 +87,6 @@ func (s *pipelineService) CreatePipeline(ctx context.Context, pipeline *types.Pi
 			StageType:     stageType,
 			StageOrder:    i + 1,
 			Status:        types.StatusPending,
-			RetryCount:    0,
 		}
 		if err := s.stageRepo.Create(ctx, stage); err != nil {
 			return fmt.Errorf("创建阶段失败: %w", err)
@@ -147,7 +143,7 @@ func (s *pipelineService) StartPipeline(ctx context.Context, id string) error {
 		return newValidationError("任务不存在")
 	}
 	if p.TrainingConfig.Distillation == nil {
-		return newValidationError("旧版任务已停用，请创建 EasyDistill 2 任务")
+		return newValidationError("training_config.distillation 必须提供")
 	}
 	if w := p.TrainingConfig.Distillation; w.TrainStudent {
 		if s.modelSvc == nil || w.StudentModel == nil {
@@ -239,7 +235,7 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 		return newValidationError("流水线 uid 必须与项目 uid 一致")
 	}
 	if pipeline.TrainingConfig.Distillation == nil {
-		pipeline.TrainingConfig.Distillation = &types.DistillationConfig{Version: "2.0", JobType: "instruct_distill"}
+		return newValidationError("training_config.distillation 必须提供")
 	}
 	w := pipeline.TrainingConfig.Distillation
 	if w.TrainStudent && s.trainerImage != "" {

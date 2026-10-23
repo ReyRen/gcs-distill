@@ -72,10 +72,12 @@ type AcceptedResponse struct {
 }
 
 type TaskInfo struct {
-	TaskStates        int    `json:"task_states"`
-	TaskContainerName string `json:"task_containername"`
-	TaskLogPath       string `json:"task_log_path"`
-	TaskTime          string `json:"task_time"`
+	TaskStates  int          `json:"task_states"`
+	TaskWorkers []TaskWorker `json:"task_workers"`
+}
+
+type TaskWorker struct {
+	Name string `json:"task_workers_name"`
 }
 
 type logResponse struct {

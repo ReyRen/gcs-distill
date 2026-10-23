@@ -43,8 +43,8 @@ func (r *stageRepo) Create(ctx context.Context, stage *types.StageRun) error {
 			id, pipeline_run_id, stage_type, stage_order, status,
 			container_id, node_name, config_path,
 			input_manifest, output_manifest, metrics,
-			log_path, retry_count, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			log_path, created_at, updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	if _, err := r.db.sql.ExecContext(ctx, query,
 		stage.ID,
@@ -59,7 +59,6 @@ func (r *stageRepo) Create(ctx context.Context, stage *types.StageRun) error {
 		outputManifest,
 		metrics,
 		stage.LogPath,
-		stage.RetryCount,
 		stage.CreatedAt,
 		stage.UpdatedAt,
 	); err != nil {
@@ -73,7 +72,7 @@ func (r *stageRepo) GetByID(ctx context.Context, id string) (*types.StageRun, er
 		SELECT id, pipeline_run_id, stage_type, stage_order, status,
 			container_id, node_name, config_path,
 			input_manifest, output_manifest, metrics,
-			log_path, retry_count, error_message,
+			log_path, error_message,
 			started_at, finished_at, created_at, updated_at
 		FROM distill_stage_runs
 		WHERE id = ?
@@ -96,7 +95,6 @@ func (r *stageRepo) GetByID(ctx context.Context, id string) (*types.StageRun, er
 		&outputManifest,
 		&metrics,
 		&logPath,
-		&stage.RetryCount,
 		&errorMessage,
 		&startedAt,
 		&finishedAt,
@@ -127,7 +125,7 @@ func (r *stageRepo) ListByPipeline(ctx context.Context, pipelineID string) ([]*t
 		SELECT id, pipeline_run_id, stage_type, stage_order, status,
 			container_id, node_name, config_path,
 			input_manifest, output_manifest, metrics,
-			log_path, retry_count, error_message,
+			log_path, error_message,
 			started_at, finished_at, created_at, updated_at
 		FROM distill_stage_runs
 		WHERE pipeline_run_id = ?
@@ -159,7 +157,6 @@ func (r *stageRepo) ListByPipeline(ctx context.Context, pipelineID string) ([]*t
 			&outputManifest,
 			&metrics,
 			&logPath,
-			&stage.RetryCount,
 			&errorMessage,
 			&startedAt,
 			&finishedAt,
@@ -202,7 +199,6 @@ func (r *stageRepo) Update(ctx context.Context, stage *types.StageRun) error {
 			output_manifest = ?,
 			metrics = ?,
 			log_path = ?,
-			retry_count = ?,
 			error_message = ?,
 			started_at = ?,
 			finished_at = ?
@@ -217,7 +213,6 @@ func (r *stageRepo) Update(ctx context.Context, stage *types.StageRun) error {
 		outputManifest,
 		metrics,
 		stage.LogPath,
-		stage.RetryCount,
 		stage.ErrorMessage,
 		stage.StartedAt,
 		stage.FinishedAt,

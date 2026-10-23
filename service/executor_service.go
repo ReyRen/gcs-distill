@@ -184,7 +184,7 @@ func (s *executorService) runLoop(ctx context.Context, executorID int) {
 }
 
 // executePipeline 执行完整流水线
-func (s *executorService) executePipeline(ctx context.Context, pipelineID string) error {
+func (s *executorService) executePipeline(ctx context.Context, pipelineID string) (resultErr error) {
 	// 获取流水线信息
 	pipeline, err := s.pipelineRepo.GetByID(ctx, pipelineID)
 	if err != nil {
@@ -201,6 +201,11 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 	if !claimed {
 		return nil
 	}
+	defer func() {
+		if resultErr != nil {
+			_ = s.pipelineRepo.UpdateStatus(ctx, pipelineID, types.StatusFailed, resultErr.Error())
+		}
+	}()
 	pipeline, err = s.pipelineRepo.GetByID(ctx, pipelineID)
 	if err != nil {
 		return err
@@ -219,6 +224,9 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 	if err != nil {
 		return fmt.Errorf("获取阶段列表失败: %w", err)
 	}
+	if err := validateExecutionStages(pipeline, stages); err != nil {
+		return err
+	}
 
 	// 按阶段顺序执行
 	for _, stage := range stages {
@@ -228,9 +236,6 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		}
 		if current.Status == types.StatusCanceled {
 			return nil
-		}
-		if stage.StageOrder != pipeline.CurrentStage {
-			continue
 		}
 
 		logger.Info("开始执行阶段",
@@ -243,9 +248,8 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		now := time.Now()
 		stage.Status = types.StatusRunning
 		stage.StartedAt = &now
-		stage.NodeName = "gcs-v2"
 		if err := s.stageRepo.Update(ctx, stage); err != nil {
-			logger.Error("更新阶段状态失败", zap.Error(err))
+			return fmt.Errorf("记录阶段启动失败: %w", err)
 		}
 
 		// 执行阶段
@@ -283,7 +287,7 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		// 阶段执行成功
 		stage.Status = types.StatusSucceeded
 		if err := s.stageRepo.Update(ctx, stage); err != nil {
-			logger.Error("更新阶段状态失败", zap.Error(err))
+			return fmt.Errorf("记录阶段结果失败: %w", err)
 		}
 
 		logger.Info("阶段执行成功",
@@ -296,20 +300,7 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		if stage.StageOrder < len(stages) {
 			pipeline.CurrentStage++
 			if err := s.pipelineRepo.Update(ctx, pipeline); err != nil {
-				logger.Error("更新流水线阶段失败", zap.Error(err))
-			}
-
-			// 激活下一阶段
-			nextStageTime := time.Now()
-			for _, nextStage := range stages {
-				if nextStage.StageOrder == pipeline.CurrentStage {
-					nextStage.Status = types.StatusRunning
-					nextStage.StartedAt = &nextStageTime
-					if err := s.stageRepo.Update(ctx, nextStage); err != nil {
-						logger.Error("激活下一阶段失败", zap.Error(err))
-					}
-					break
-				}
+				return fmt.Errorf("推进流水线阶段失败: %w", err)
 			}
 		}
 	}
@@ -328,5 +319,21 @@ func (s *executorService) executePipeline(ctx context.Context, pipelineID string
 		zap.Duration("duration", finishTime.Sub(*pipeline.StartedAt)),
 	)
 
+	return nil
+}
+
+func validateExecutionStages(pipeline *types.PipelineRun, stages []*types.StageRun) error {
+	if pipeline.TrainingConfig.Distillation == nil {
+		return fmt.Errorf("training_config.distillation is required")
+	}
+	expected := runtime.PipelineStageTypes(pipeline)
+	if len(stages) != len(expected) || pipeline.CurrentStage != 1 {
+		return fmt.Errorf("流水线阶段不完整，无法执行")
+	}
+	for i, stage := range stages {
+		if stage == nil || stage.PipelineRunID != pipeline.ID || stage.StageOrder != i+1 || stage.StageType != expected[i] || stage.Status != types.StatusPending {
+			return fmt.Errorf("流水线第 %d 阶段无效，无法执行", i+1)
+		}
+	}
 	return nil
 }

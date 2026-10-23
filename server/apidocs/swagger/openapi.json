@@ -779,15 +779,11 @@
             "type": "string"
           },
           "summary": {
-            "description": "Actual job type, input/output counts, output dataset ID, model weights availability and retired flag.",
+            "description": "Actual job type, input/output counts, output dataset ID, model weights availability.",
             "type": "object"
           },
           "training_config": {
             "$ref": "#/components/schemas/TrainingConfig"
-          },
-          "trigger_mode": {
-            "example": "manual",
-            "type": "string"
           },
           "uid": {
             "description": "GCS user id. User storage is derived as /storage-root-jfs/user-{uid}/train-center/model-distill.",
@@ -1020,10 +1016,6 @@
             "example": "uuid-pipeline",
             "type": "string"
           },
-          "retry_count": {
-            "example": 0,
-            "type": "integer"
-          },
           "stage_order": {
             "example": 3,
             "type": "integer"
@@ -1096,7 +1088,7 @@
         "properties": {
           "extra_params": {
             "additionalProperties": true,
-            "description": "Reserved passthrough params for future EasyDistill student model adapters.",
+            "description": "Model connection options; student training does not consume these fields.",
             "type": "object"
           },
           "max_tokens": {
@@ -1114,7 +1106,7 @@
             "type": "string"
           },
           "model_path": {
-            "description": "Resolved local model path. Frontend should not hand-type it; backend fills it from model_id. Kept for backward compatibility.",
+            "description": "Resolved user-private model path returned by the backend; input always uses model_id.",
             "example": "/storage-root-jfs/user-369/train-center/model-distill/models/base/Qwen2.5-0.5B-Instruct",
             "type": "string"
           },
@@ -1324,6 +1316,9 @@
             "type": "number"
           }
         },
+        "required": [
+          "distillation"
+        ],
         "type": "object"
       }
     }
@@ -1331,7 +1326,7 @@
   "info": {
     "description": "Offline x86 EasyDistill 2 data workflows and optional local student training. UID must be injected by the trusted platform gateway. Legacy local teacher inference is removed.",
     "title": "GCS-Distill API",
-    "version": "2.0.0"
+    "version": "2.0.4"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -2469,78 +2464,6 @@
           }
         },
         "summary": "Download stage log file",
-        "tags": [
-          "pipelines"
-        ]
-      }
-    },
-    "/api/v1/pipelines/{id}/stages/{stage_id}/logs/stream": {
-      "get": {
-        "description": "Compatibility alias for /logs. This endpoint is not SSE and not WebSocket; use /logs/ws for realtime display.",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/PipelineId"
-          },
-          {
-            "$ref": "#/components/parameters/StageId"
-          },
-          {
-            "description": "Number of log lines to return or seed the stream with",
-            "in": "query",
-            "name": "tail",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "maximum": 10000,
-              "minimum": 1,
-              "type": "integer"
-            }
-          },
-          {
-            "description": "Trusted platform identity; obtain from login state.",
-            "in": "query",
-            "name": "uid",
-            "required": true,
-            "schema": {
-              "minimum": 1,
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "text/plain": {
-                "schema": {
-                  "example": "log line 1\nlog line 2\n",
-                  "type": "string"
-                }
-              }
-            },
-            "description": "Plain text stage logs proxied from gcs-v2 task logs"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Stage not found or stage container not ready"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Failed to read logs from gcs-v2"
-          }
-        },
-        "summary": "Tail stage logs (compatibility alias)",
         "tags": [
           "pipelines"
         ]

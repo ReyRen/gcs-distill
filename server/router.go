@@ -146,7 +146,6 @@ func (r *Router) setupRoutes() {
 			pipelines.GET("/:id/model/download", r.workflowHandler.DownloadModel)
 			pipelines.GET("/:id/quality", r.workflowHandler.Quality)
 			pipelines.GET("/:id/stages/:stage_id/logs", r.pipelineHandler.GetStageLogs)
-			pipelines.GET("/:id/stages/:stage_id/logs/stream", r.pipelineHandler.StreamStageLogs)
 			pipelines.GET("/:id/stages/:stage_id/logs/ws", r.pipelineHandler.StreamStageLogsWebSocket)
 			pipelines.GET("/:id/stages/:stage_id/logs/download", r.pipelineHandler.DownloadStageLogs)
 		}

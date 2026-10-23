@@ -12,6 +12,7 @@ p.add_argument('--output', required=True, type=Path)
 p.add_argument('--distill', required=True, type=Path)
 p.add_argument('--manager', required=True, type=Path)
 p.add_argument('--worker', required=True, type=Path)
+p.add_argument('--worker-build-info', required=True, type=Path)
 p.add_argument('--data-image', required=True, type=Path)
 p.add_argument('--trainer-image', required=True, type=Path)
 p.add_argument('--source-info', required=True, type=Path)
@@ -21,7 +22,7 @@ root = a.output.resolve()
 if root.exists():
     raise RuntimeError('output must be a new directory')
 root.mkdir(parents=True)
-for n in ['bin', 'images', 'docs', 'locks', 'tests']:
+for n in ['bin', 'images', 'docs', 'locks']:
     (root / n).mkdir()
 shutil.copytree(str(repo / 'offline/scripts'), str(root / 'scripts'))
 shutil.copy2(str(repo / 'offline/README.md'), str(root / 'README.md'))
@@ -29,9 +30,6 @@ shutil.copy2(str(repo / 'offline/gcs-distill.service.tpl'), str(root / 'gcs-dist
 shutil.copy2(str(repo / 'config.toml'), str(root / 'config.example.toml'))
 for src in ['docs/easydistill2-frontend-handoff.md', 'docs/easydistill2-x86-verification-20261022.md', 'docs/storage-layout.md', 'server/apidocs/swagger/openapi.json']:
     shutil.copy2(str(repo / src), str(root / 'docs' / Path(src).name))
-for src in (repo / 'tests/integration').glob('*.py'):
-    shutil.copy2(str(src),str(root / 'tests' / src.name))
-shutil.copy2(str(repo / 'tests/integration/README.md'), str(root / 'tests/README.md'))
 shutil.copy2(str(repo / 'x86/image/trainer-constraints.txt'),str(root / 'locks/trainer-constraints.txt'))
 
 def sha(path):
@@ -41,11 +39,17 @@ def sha(path):
             h.update(b)
     return h.hexdigest()
 
+worker_build = json.loads(a.worker_build_info.read_text())
+if worker_build.get('goos') != 'linux' or worker_build.get('goarch') != 'amd64' or worker_build.get('binary_sha256') != sha(a.worker):
+    raise RuntimeError('worker build metadata does not match the supplied Linux amd64 binary')
+if not worker_build.get('build_host_glibc') or worker_build.get('cgo_enabled') is not True:
+    raise RuntimeError('worker requires verified native glibc and CGO build metadata')
 manifest = {'architecture': 'linux/amd64', 'offline': True, 'images': [], 'binaries': {},
             'sources': json.loads(a.source_info.read_text()),
             'easydistill_revision': 'aeb8ca3eab8b2a82f754c01c3d1f59ad276268c3',
             'trainer_revision': 'ca75f1edf3cb50343ed1c98605141c3e22075b5f',
-            'worker_glibc_minimum': '2.31', 'worker_cgo': True, 'worker_ascend': False}
+            'worker_glibc_minimum': worker_build['build_host_glibc'], 'worker_cgo': True, 'worker_ascend': False,
+            'worker_build': worker_build}
 for role, src in [('distill', a.distill), ('manager', a.manager), ('worker', a.worker)]:
     name = {'distill': 'gcs-distill-server', 'manager': 'gcs-V2', 'worker': 'gcs-info-catch-V2'}[role]
     dest = root / 'bin' / name

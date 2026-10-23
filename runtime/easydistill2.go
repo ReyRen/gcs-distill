@@ -455,7 +455,7 @@ func (e *StageExecutor) executeDistill2(ctx context.Context, stage *types.StageR
 		return err
 	}
 	defer e.ReleaseContainer(stage)
-	if err := e.waitForContainerTask(ctx, containerID, p.ID); err != nil {
+	if err := e.waitForContainerTask(ctx, containerID, p.ID, stage); err != nil {
 		return err
 	}
 	stage.OutputManifest = map[string]string{"container_id": containerID, "output_path": distill2OutputPath(root, p.TrainingConfig.Distillation.JobType), "upstream_revision": EasyDistill2Revision}
@@ -618,7 +618,7 @@ func (e *StageExecutor) executeStudentTrain2(ctx context.Context, stage *types.S
 		return err
 	}
 	defer e.ReleaseContainer(stage)
-	if err := e.waitForContainerTask(ctx, id, p.ID); err != nil {
+	if err := e.waitForContainerTask(ctx, id, p.ID, stage); err != nil {
 		return err
 	}
 	checkpoints := filepath.Join(root, "models", "checkpoints")

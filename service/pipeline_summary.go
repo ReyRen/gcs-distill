@@ -10,10 +10,9 @@ import (
 
 func (s *pipelineService) enrichPipeline(ctx context.Context, p *types.PipelineRun) {
 	w := p.TrainingConfig.Distillation
-	summary := &types.PipelineSummary{Retired: w == nil}
+	summary := &types.PipelineSummary{}
 	p.Summary = summary
 	if w == nil {
-		p.Name = "旧版任务（已停用）"
 		return
 	}
 	p.Name = w.Name

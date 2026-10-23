@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -82,8 +83,42 @@ func TestCanceledPipelineDeletesItsGCSTask(t *testing.T) {
 	}))
 	defer server.Close()
 	executor := NewStageExecutor(t.TempDir(), nil, gcsclient.NewClient(server.URL, time.Second), "runtime", nil, &lifecyclePipelineRepo{status: types.StatusCanceled})
-	err := executor.waitForContainerTask(context.Background(), "teacher-task", "pipeline")
+	err := executor.waitForContainerTask(context.Background(), "teacher-task", "pipeline", &types.StageRun{})
 	if !errors.Is(err, context.Canceled) || !deleted.Load() {
 		t.Fatalf("canceled pipeline left its task running: deleted=%v err=%v", deleted.Load(), err)
+	}
+}
+
+func TestExecutionNodeUsesConfirmedWorker(t *testing.T) {
+	saved := make(chan types.StageRun, 2)
+	executor := NewStageExecutor(t.TempDir(), nil, nil, "runtime", &lifecycleStageRepo{saved: saved}, nil)
+	stage := &types.StageRun{ID: "stage"}
+	if err := executor.recordTaskWorker(context.Background(), stage, &gcsclient.TaskInfo{}); err != nil || stage.NodeName != "" || len(saved) != 0 {
+		t.Fatalf("unallocated task acquired an invented node: %+v %v", stage, err)
+	}
+	task := &gcsclient.TaskInfo{TaskWorkers: []gcsclient.TaskWorker{{Name: "actual-worker"}}}
+	if err := executor.recordTaskWorker(context.Background(), stage, task); err != nil {
+		t.Fatal(err)
+	}
+	if actual := <-saved; actual.NodeName != "actual-worker" {
+		t.Fatalf("actual worker was not persisted: %+v", actual)
+	}
+	task.TaskWorkers = append(task.TaskWorkers, gcsclient.TaskWorker{Name: "second-worker"})
+	if err := executor.recordTaskWorker(context.Background(), stage, task); err == nil {
+		t.Fatal("unexpected multi-node execution accepted")
+	}
+}
+
+func TestControllerStageUsesCurrentHostname(t *testing.T) {
+	executor := NewStageExecutor(t.TempDir(), nil, nil, "runtime", nil, nil)
+	stage := &types.StageRun{ID: "stage", StageType: types.StageTeacherConfig}
+	project := &types.Project{ID: "project", UID: 1, TeacherModelConfig: types.ModelConfig{ModelName: "teacher", Endpoint: "http://teacher/v1"}}
+	pipeline := &types.PipelineRun{ID: "pipeline", ProjectID: "project", UID: 1, TrainingConfig: types.TrainingConfig{Distillation: &types.DistillationConfig{Version: "2.0", JobType: "instruct_distill"}}}
+	if err := executor.ExecuteStage(context.Background(), stage, pipeline, project); err != nil {
+		t.Fatal(err)
+	}
+	hostname, err := os.Hostname()
+	if err != nil || stage.NodeName != hostname {
+		t.Fatalf("incorrect controller node: %q (hostname %q, err %v)", stage.NodeName, hostname, err)
 	}
 }

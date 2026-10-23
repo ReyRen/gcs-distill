@@ -232,10 +232,6 @@ func (h *PipelineHandler) GetStageLogs(c *gin.Context) {
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", logs)
 }
 
-func (h *PipelineHandler) StreamStageLogs(c *gin.Context) {
-	h.GetStageLogs(c)
-}
-
 func (h *PipelineHandler) StreamStageLogsWebSocket(c *gin.Context) {
 	stage, containerName, ok := h.stageLogTarget(c)
 	if !ok {

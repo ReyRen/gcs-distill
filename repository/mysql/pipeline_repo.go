@@ -66,9 +66,9 @@ func (r *pipelineRepo) Create(ctx context.Context, pipeline *types.PipelineRun) 
 
 	query := `
 		INSERT INTO distill_pipeline_runs (
-			id, uid, project_id, dataset_id, status, current_stage, trigger_mode,
+			id, uid, project_id, dataset_id, status, current_stage,
 			training_config, resource_request, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	if _, err := r.db.sql.ExecContext(ctx, query,
 		pipeline.ID,
@@ -77,7 +77,6 @@ func (r *pipelineRepo) Create(ctx context.Context, pipeline *types.PipelineRun) 
 		pipeline.DatasetID,
 		pipeline.Status,
 		pipeline.CurrentStage,
-		pipeline.TriggerMode,
 		trainingConfig,
 		resourceRequest,
 		pipeline.CreatedAt,
@@ -90,7 +89,7 @@ func (r *pipelineRepo) Create(ctx context.Context, pipeline *types.PipelineRun) 
 
 func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineRun, error) {
 	query := `
-		SELECT id, uid, project_id, dataset_id, status, current_stage, trigger_mode,
+		SELECT id, uid, project_id, dataset_id, status, current_stage,
 			training_config, resource_request, error_message,
 			created_at, started_at, finished_at, updated_at
 		FROM distill_pipeline_runs
@@ -108,7 +107,6 @@ func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineR
 		&pipeline.DatasetID,
 		&pipeline.Status,
 		&pipeline.CurrentStage,
-		&pipeline.TriggerMode,
 		&trainingConfig,
 		&resourceRequest,
 		&errorMessage,
@@ -148,7 +146,7 @@ func (r *pipelineRepo) List(ctx context.Context, uid int, projectID string, limi
 	where, args := listConditions(uid, projectID, "pipeline", filters)
 	args = append(args, limit, offset)
 	query := `
-		SELECT id, uid, project_id, dataset_id, status, current_stage, trigger_mode,
+		SELECT id, uid, project_id, dataset_id, status, current_stage,
 			training_config, resource_request, error_message,
 			created_at, started_at, finished_at, updated_at
 		FROM distill_pipeline_runs
@@ -176,7 +174,6 @@ func (r *pipelineRepo) List(ctx context.Context, uid int, projectID string, limi
 			&pipeline.DatasetID,
 			&pipeline.Status,
 			&pipeline.CurrentStage,
-			&pipeline.TriggerMode,
 			&trainingConfig,
 			&resourceRequest,
 			&errorMessage,
