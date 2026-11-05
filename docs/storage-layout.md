@@ -3,6 +3,8 @@
 所有蒸馏业务文件均归当前 UID，统一前缀为 `/storage-root-jfs/user-{uid}/train-center/model-distill/`。
 控制端与执行节点必须挂载同一份 JFS，绝对路径一致。目录按首次查询、上传、导入或运行自动创建，不需要提前逐项建目录。
 
+公共种子格式模板属于程序资源：随控制端二进制内置，离线交付包另含 `dataset-templates/`，通过 `/api/v1/dataset-templates` 查询和下载。它们不自动复制到每个用户 JFS，也不登记为用户业务数据；用户主动上传模板后，才按普通上传资产落在该用户 `datasets/uploaded/` 中。
+
 ```text
 model-distill/
 ├── models/
@@ -16,13 +18,15 @@ model-distill/
 │   ├── uploaded/{dataset_id}/               # 用户上传的种子数据
 │   └── generated/{dataset_id}/
 │       ├── dataset.jsonl                    # 可跨项目复用的最终数据资产
-│       └── images/                          # 图文附件，内容哈希命名
+│       ├── images/                          # 图文附件，内容哈希命名
+│       ├── manifest.json                    # 生成时的导出清单，含默认划分 ID
+│       └── splits/{split_id}/               # 不可变划分快照：manifest.json + train/validation/test.jsonl
 └── projects/{project_id}/runs/{pipeline_id}/
     ├── configs/                             # 本次参数、教师配置、训练配置与字段映射
     ├── data/
     │   ├── seed/input.jsonl                  # 本次输入快照
     │   ├── intermediate/                    # 评分、筛选、轨迹、原生图文等中间数据
-    │   └── exported/                        # 本次最终数据与 manifest.json
+    │   └── exported/                        # 最终数据、manifest.json、扩充统计 expansion.json、splits/{id}/
     ├── models/checkpoints/
     │   ├── adapter_model.safetensors 等      # 最终 LoRA；全量训练为完整模型权重
     │   └── checkpoint-{step}/               # 训练框架产生的阶段检查点

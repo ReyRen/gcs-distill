@@ -25,11 +25,15 @@ root.mkdir(parents=True)
 for n in ['bin', 'images', 'docs', 'locks']:
     (root / n).mkdir()
 shutil.copytree(str(repo / 'offline/scripts'), str(root / 'scripts'))
+shutil.copytree(str(repo / 'runtime/seed_templates'), str(root / 'dataset-templates'))
 shutil.copy2(str(repo / 'offline/README.md'), str(root / 'README.md'))
 shutil.copy2(str(repo / 'offline/gcs-distill.service.tpl'), str(root / 'gcs-distill.service.tpl'))
 shutil.copy2(str(repo / 'config.toml'), str(root / 'config.example.toml'))
 for src in ['docs/easydistill2-frontend-handoff.md', 'docs/easydistill2-x86-verification-20261022.md', 'docs/storage-layout.md', 'server/apidocs/swagger/openapi.json']:
     shutil.copy2(str(repo / src), str(root / 'docs' / Path(src).name))
+shutil.copy2(str(repo / 'docs/data-expansion-split-frontend.md'), str(root / 'docs/data-expansion-split-frontend.md'))
+shutil.copy2(str(repo / 'docs/data-preparation-verification-20261105.md'), str(root / 'docs/data-preparation-verification-20261105.md'))
+shutil.copy2(str(repo / 'docs/sft-seed-reuse-fix-20261105.md'), str(root / 'docs/sft-seed-reuse-fix-20261105.md'))
 shutil.copy2(str(repo / 'x86/image/trainer-constraints.txt'),str(root / 'locks/trainer-constraints.txt'))
 
 def sha(path):

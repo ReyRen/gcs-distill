@@ -2,6 +2,8 @@
 
 客户现场无需 Go、pip、Git 或外网。交付包包括三个 Linux amd64 二进制、数据和训练两份完整 Docker 镜像、配置模板、校验清单及安装/预检脚本。运行时不会补下载依赖。
 
+v2.0.7 新增用户指定扩充目标和数据划分，逻辑包含在控制端二进制中，原有数据/训练镜像继续使用，无新依赖和数据库迁移；接口与存储规则见交付 docs/data-expansion-split-frontend.md。
+
 ## 平台提前准备
 
 1. Linux x86_64、现有 Docker 和 worker 的容器网络，须能访问内网教师服务；使用 Swarm overlay 时需允许普通容器附加。沿用平台实际网络，不要求新建名为 myNet 的网络。GPU 节点需 NVIDIA 驱动及 Container Toolkit，支持镜像 CUDA 12.4。Docker、驱动、Toolkit、存储客户端属于平台基础环境，平台需按客户操作系统另外准备其离线安装包。
@@ -39,6 +41,8 @@ worker 保留 CGO/NVML，未启用 Ascend。构建所用 glibc 和二进制 SHA2
 资源选择需要同时升级本包 manager 和每个拟参与训练的 x86 worker，沿用原 Redis 采集配置。新版 worker 上报采集时间与 NVML 进程数；未升级、监控缺失或过期的节点仍可展示，但训练卡禁选，不会将未知占用当空闲。当前现场 `specialai-3090-0`、`gpu22` 和 `node1` 已升级并导入两份镜像。训练只允许单台服务器上的一张或多张 NVIDIA GPU；不能跨节点，数据阶段不预留 GPU。控制端和 worker 时钟需要同步。
 
 Swagger UI 的脚本和样式已内置，不依赖公网 CDN。生产交付包不包含固定回答的教师 fixture 或验收业务数据。隔离开发测试保留在源码 `tests/integration` 中，不能作为生产教师服务部署。
+
+种子格式示例单独放在交付包 `dataset-templates/`，覆盖全部 15 个配方；明确标注为示例，不自动登记到用户数据库。控制端二进制内置同一份资源，`GET /api/v1/dataset-templates` 返回目录和首条样本，`GET /api/v1/dataset-templates/download` 下载全包，断网可用。多模态 JSONL 内嵌 PNG，直接上传即可验证格式，无需额外准备示例图片路径。用户替换为业务图片时仍须遵守当前用户 JFS 路径和离线约束。
 
 ```sh
 python3 scripts/cleanup-legacy.py

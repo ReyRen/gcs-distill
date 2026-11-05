@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/ReyRen/gcs-distill/internal/types"
@@ -29,6 +30,19 @@ func MapSeedRecord(row map[string]interface{}, w *types.DistillationConfig) erro
 			}
 		}
 		return false
+	}
+	if SupportsDataExpansion(w.JobType) && !text("instruction") && w.FieldMapping["instruction"] == "" && row["messages"] != nil {
+		if images, exists := row["images"]; exists && images != nil {
+			values, ok := images.([]interface{})
+			if !ok || len(values) > 0 {
+				return fmt.Errorf("含图片的 SFT 数据请使用多模态配方并提供 instruction、images，不能自动转换为纯文本种子")
+			}
+		}
+		instruction, err := singleTurnSeedInstruction(row["messages"])
+		if err != nil {
+			return err
+		}
+		row["instruction"] = instruction
 	}
 	switch w.JobType {
 	case "agent_distill":
@@ -76,8 +90,64 @@ func MapSeedRecord(row map[string]interface{}, w *types.DistillationConfig) erro
 		}
 	default:
 		if !text("instruction") {
-			return fmt.Errorf("input requires instruction; configure field_mapping for another column")
+			fields := make([]string, 0, len(row))
+			for key := range row {
+				fields = append(fields, key)
+			}
+			sort.Strings(fields)
+			return fmt.Errorf("需要非空的 instruction 文本，当前字段为 [%s]；其他问题列请配置 field_mapping，例如 {\"instruction\":\"question\"}", strings.Join(fields, ", "))
 		}
 	}
 	return nil
+}
+
+// Reusing an exported single-turn SFT dataset as instruction seeds is a data
+// conversion, not a replay of its old answers. Keep the source messages intact.
+func singleTurnSeedInstruction(raw interface{}) (string, error) {
+	messages, ok := raw.([]interface{})
+	if !ok || len(messages) == 0 {
+		return "", fmt.Errorf("messages 必须是非空的单轮对话数组")
+	}
+	var instruction string
+	systemSeen, userSeen, assistantSeen := false, false, false
+	for _, raw := range messages {
+		message, ok := raw.(map[string]interface{})
+		if !ok {
+			return "", fmt.Errorf("messages 中每条消息必须是对象")
+		}
+		content, text := message["content"].(string)
+		if !text {
+			return "", fmt.Errorf("指令种子只支持文本消息，图文内容请使用多模态配方并提供 instruction、images")
+		}
+		if message["tool_calls"] != nil {
+			return "", fmt.Errorf("工具对话不能直接转换为指令种子，请先整理为 instruction 文本或选择 Agent 配方")
+		}
+		switch message["role"] {
+		case "system":
+			if systemSeen || userSeen || strings.TrimSpace(content) == "" {
+				return "", fmt.Errorf("messages 应为可选 system、一个 user、可选 assistant 的单轮对话")
+			}
+			systemSeen = true
+		case "user":
+			if userSeen || assistantSeen {
+				return "", fmt.Errorf("多轮 messages 不能自动转换为单条指令，请先整理为 instruction 文本")
+			}
+			instruction = strings.TrimSpace(content)
+			if instruction == "" {
+				return "", fmt.Errorf("messages 的 user 消息不能为空")
+			}
+			userSeen = true
+		case "assistant":
+			if !userSeen || assistantSeen {
+				return "", fmt.Errorf("messages 应为可选 system、一个 user、可选 assistant 的单轮对话")
+			}
+			assistantSeen = true
+		default:
+			return "", fmt.Errorf("messages 含不支持的角色，仅支持单轮 system/user/assistant 文本对话")
+		}
+	}
+	if !userSeen {
+		return "", fmt.Errorf("messages 缺少 user 问题，无法生成 instruction")
+	}
+	return instruction, nil
 }

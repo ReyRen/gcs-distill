@@ -1,5 +1,7 @@
 # EasyDistill 2 x86：页面设计与前端交接
 
+2026-11-05 新增：[用户指定扩充目标与数据集划分接口](data-expansion-split-frontend.md)。创建任务补充 data_expansion/data_split，已有生成数据集支持划分预览、保存、下载及训练参数交接；详细边界以新文档为准。
+
 核对日期：2026-10-22。依据本仓库、gcs-s3 的目录机制、GCS 容器协议和平台实际页面。交互 mock 使用标注的合成示例数据，不连接生产 API。
 
 删除项目时，若仍有 scheduled、preparing、running 任务，后端返回 409。前端应提示先取消并等待任务结束，再删除；不要把失败当成删除成功。数据库事务同时锁定项目及任务，避免与启动操作竞态。
@@ -109,6 +111,8 @@ SFT 用质量阈值；CoT 用逻辑正确性、RV/CD 和难度分组；DPO 用�
 | 不创建任务的配置预览，隐藏密钥 | `POST /api/v1/workflows/preview` |
 | 项目真实任务统计 | `GET /api/v1/projects/{id}/summary?uid=...` |
 | 输入数据预览、字段和实际条数 | `GET /api/v1/datasets/{id}/preview?uid=...&limit=10` |
+| 种子格式模板、适用配方、必填字段和首条样例 | `GET /api/v1/dataset-templates?job_type=...`；`/workflows` 每个配方也返回 `seed_template` |
+| 当前模板 / 全部模板下载 | `GET /api/v1/dataset-templates/{id}/download`、`GET /api/v1/dataset-templates/download` |
 | 创建/启动/取消任务 | 现有 `/pipelines`、`/{id}/start`、`/{id}/cancel` |
 | 外层阶段状态 | `GET /api/v1/pipelines/{id}/stages` |
 | 中间及最终数据 | `GET /api/v1/pipelines/{id}/artifacts?uid=...` |
@@ -121,6 +125,8 @@ SFT 用质量阈值；CoT 用逻辑正确性、RV/CD 和难度分组；DPO 用�
 数据生产为 GCS CPU 容器任务，教师推理使用已有服务。`resource_request.executor_nodes` 选择已加载镜像的数据节点；训练 GPU 仍用 `selected_resources`。
 
 教师服务选择调用 distill 的 `GET /api/v1/teachers?uid=...`；提交 `teacher_model.service_id` 即可，后端校验归属、在线状态并从模型中心取得连接信息和凭据。手工 API 配置提交 `endpoint`、`model_name`、`api_secret_ref`。`POST /api/v1/teachers/test` 会验证鉴权、模型发现和少量聊天推理；不会自动证明视觉能力。执行地址必须从 worker 可达，不得使用浏览器代理相对地址或 localhost。密钥只提交一次，回包中的 `********` 不能作为新密钥提交。
+
+已有 Ollama 等内网服务通过模型中心的“外部模型引接”登记，每个模型单独使用真实的 upstream_model_name；蒸馏只复用该服务，不创建教师容器或为教师申请训练卡。教师使用哪些 GPU 由原服务的启动配置决定。仅开启学生训练时，蒸馏页面才要求选择学生训练节点和卡。当前接入 `http://172.18.127.67:11434/v1` 的 `qwen2.5vl:7b`、`qwen3-vl:32b`，不使用另起的独立教师实例。
 
 最小创建请求：
 
@@ -186,7 +192,16 @@ Mock 覆盖核心主流程，可用于页面和交互交接；它不是已经接
 | LoRA / 全量 | training_config.distillation.finetuning_type = lora / full |
 | 轮数、学习率、每卡批量 | training_config.num_train_epochs / learning_rate / per_device_train_batch_size |
 | 单节点及卡号 | resource_request.selected_resources[].node_name / xpu_indices |
-| 数据执行节点，可省略沿用服务配置 | resource_request.executor_nodes |
+| 数据执行节点，可省略沿用服务配置 | resource_request.executor_nodes：节点名称字符串数组，如 ["specialai-3090-0"]，不能传节点对象 |
+
+### 种子模板入口
+
+- 创建任务“数据与教师”的数据选择器旁放“下载种子模板”，按当前配方使用 `/workflows` 的 `seed_template`；切换配方同步更新模板和必填字段。模板目录可单独调用 `/dataset-templates?job_type=...`，不需要项目或用户数据 ID。
+- “我的数据集 → 上传”弹窗同样提供“查看格式 / 下载模板”，未选配方时列出 7 类模板，另有“下载全部模板”。展示 `name`、`description`、`required_fields`、`example_records`；主区域只显示对应的一条样例，不一次展开所有字段说明。图片 data URI 在示例代码区可折叠显示，但下载文件必须保留原值。
+- `download_path` 和 `bundle_download_path` 相对于 API 基础地址。例如浏览器平台的 API 基础地址为 `/modelDistillIpAddress/api/v1/`，拼接 `dataset-templates/instruction/download`，不要从站点根目录直接请求，也不要将其当作用户数据集 ID。
+- 共 7 类、每类 2 条，覆盖后端全部 15 个配方。JSONL 为 UTF-8 无 BOM；图文模板使用内嵌 PNG，可单独下载上传。CSV 暂不作为支持格式展示。模板只帮助理解格式，不能承诺质量筛选必定留下样本或模型效果得到提升。
+- 下载和 ZIP 内文件采用带序号的中文名称，展示及保存时使用回包 `filename`，不要按英文模板 ID 自行生成文件名。接口 ID 和下载路径保持稳定；响应 `Content-Disposition` 使用 UTF-8 文件名编码。
+- 目录及单文件/ZIP 下载均只读取内置公共样例，不写 MySQL、不创建用户资产、不触发训练。所有模板 `examples_only=true`；只有用户主动上传后才进入其数据集列表。页面文案为“格式示例，请替换为您的业务数据”，不要把它们标为已验证业务数据或自动给新用户灌入数据。
 
 ### 已有运行验收与尚待验证项
 
@@ -257,7 +272,7 @@ Mock 覆盖核心主流程，可用于页面和交互交接；它不是已经接
 | 学生、训练参数、运行环境 | `/models/student`、`/runtime`；train_student=true 才校验基模和训练参数；trainer_image 可省略沿用配置镜像，指定值必须在 runtime 目录中；模板省略时尝试使用基模 suggested_template |
 | 数据选择、上传、候选登记 | `/datasets` GET/POST、`/datasets/upload` POST、`/datasets/candidates` GET；上传及候选文件实际计数，空文件/非法 JSON 返回 400；不能信任客户端 record_count |
 | 字段映射、预览 | `/datasets/{id}/preview`；field_mapping 键为规范字段、值为源列名；原始 metadata、messages、images 不丢弃 |
-| 教师选择与测试 | `/teachers`、`/teachers/test`；supports_vision 可为 null，capability_source=model_config/unknown；配置识别不等于已做视觉推理验收；连接测试仍返回 vision_verified=false |
+| 教师选择与测试 | `/teachers`、`/teachers/test`；supports_vision 可为 null，capability_source=model_config/ollama_metadata/unknown；Ollama 通过实际 `/api/show` 元数据识别，不能按模型名猜测；配置识别不等于已做视觉推理验收；连接测试仍返回 vision_verified=false |
 | 输出长度、并发 | teacher_model.max_tokens、concurrency 为正数时覆盖配方生成配置和已有阶段对应设置；省略/0 保留配方默认，负数拒绝；timeout_seconds 控制教师请求超时 |
 | CPU 数据节点 | `/runtime.data_workers` 与 `/resources/available.nodes[].data_supported`；executor_nodes 最多一个，可省略沿用默认；不申请 GPU |
 | 训练节点及卡号 | `/resources/available`；单节点 radio + devices 复选；POST `/resources/validate` 做提交前实时校验，不预留 GPU |

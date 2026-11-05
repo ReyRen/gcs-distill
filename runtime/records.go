@@ -56,7 +56,7 @@ func WalkRecords(path string, visit func(map[string]interface{}) error) (int, er
 		}
 		if visit != nil {
 			if err = visit(row); err != nil {
-				return count, err
+				return count, fmt.Errorf("record %d: %w", count+1, err)
 			}
 		}
 		count++

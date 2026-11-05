@@ -103,6 +103,9 @@ func (r *Router) setupRoutes() {
 	{
 		v1.GET("/workflows", r.workflowHandler.List)
 		v1.POST("/workflows/preview", r.workflowHandler.Preview)
+		v1.GET("/dataset-templates", handlers.ListSeedTemplates)
+		v1.GET("/dataset-templates/download", handlers.DownloadSeedTemplateBundle)
+		v1.GET("/dataset-templates/:id/download", handlers.DownloadSeedTemplate)
 		// 项目管理
 		projects := v1.Group("/projects")
 		{
@@ -125,6 +128,12 @@ func (r *Router) setupRoutes() {
 			datasets.GET("/:id/preview", r.workflowHandler.PreviewDataset)
 			datasets.GET("/:id/download", r.workflowHandler.DownloadDataset)
 			datasets.GET("/:id/training-config", r.workflowHandler.DatasetTrainingConfig)
+			datasets.POST("/:id/splits/preview", r.workflowHandler.PreviewDatasetSplit)
+			datasets.POST("/:id/splits", r.workflowHandler.CreateDatasetSplit)
+			datasets.GET("/:id/splits", r.workflowHandler.ListDatasetSplits)
+			datasets.GET("/:id/splits/:split_id", r.workflowHandler.GetDatasetSplit)
+			datasets.GET("/:id/splits/:split_id/partitions/:partition/preview", r.workflowHandler.PreviewSplitPartition)
+			datasets.GET("/:id/splits/:split_id/partitions/:partition/download", r.workflowHandler.DownloadSplitPartition)
 			datasets.PUT("/:id", r.datasetHandler.UpdateDataset)
 			datasets.DELETE("/:id", r.datasetHandler.DeleteDataset)
 		}

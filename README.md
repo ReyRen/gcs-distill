@@ -11,6 +11,8 @@ teacher_config → dataset_build → distill_data → dataset_export → [studen
 任务保存教师、学生、配方与训练参数快照。生成数据属于用户，可跨项目复用。学生训练失败不会删除已导出的数据。权重和日志可下载，结束后的容器自动回收。
 
 - [前端接口与页面交接](docs/easydistill2-frontend-handoff.md)
+- [扩充目标与数据划分对接](docs/data-expansion-split-frontend.md)、[本次验收记录](docs/data-preparation-verification-20261105.md)
+- [种子格式模板与用法](runtime/seed_templates/00_使用说明.md)，下载入口 `/api/v1/dataset-templates/download`
 - [交互 mock](docs/ui/gcs-distill2-mock.html)
 - [离线部署与基础环境](offline/README.md)
 - [OpenAPI](server/apidocs/swagger/openapi.json)，服务入口 `/swagger/`

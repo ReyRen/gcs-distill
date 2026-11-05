@@ -77,6 +77,9 @@ func WorkflowDefaults(recipe WorkflowRecipe) (map[string]interface{}, error) {
 	for _, key := range []string{"job_type", "backend", "dataset"} {
 		delete(cfg, key)
 	}
+	if err := configureExpansion(cfg, nil); err != nil {
+		return nil, err
+	}
 	if stages, ok := cfg["pipeline"].([]interface{}); ok {
 		for _, stage := range stages {
 			if value, ok := stage.(map[string]interface{}); ok {
@@ -104,6 +107,15 @@ func NormalizeDistillation(p *types.PipelineRun, project *types.Project) error {
 	recipe, ok := FindWorkflow(w.JobType)
 	if !ok {
 		return fmt.Errorf("不支持的蒸馏配方: %s", w.JobType)
+	}
+	if err := NormalizeDataExpansion(w.DataExpansion, w.JobType); err != nil {
+		return err
+	}
+	if err := NormalizeDataSplit(w.DataSplit); err != nil {
+		return err
+	}
+	if w.DataSplit != nil && w.DataSplit.Enabled && recipe.OutputFormat != "sft_messages" && recipe.OutputFormat != "dpo_pairs" {
+		return fmt.Errorf("只有 SFT/DPO 训练数据支持训练/验证/测试集划分")
 	}
 	if strings.TrimSpace(w.Name) == "" {
 		name := []rune(project.Name + " / " + recipe.Name)
@@ -250,6 +262,9 @@ func (g *ConfigGenerator) GenerateDistill2Config(project *types.Project, p *type
 	}
 	if teacher.TimeoutSeconds > 0 {
 		backend["timeout"] = teacher.TimeoutSeconds
+	}
+	if err := configureExpansion(cfg, w.DataExpansion); err != nil {
+		return nil, err
 	}
 	if pipeline, ok := cfg["pipeline"].([]interface{}); ok {
 		for i, rawStage := range pipeline {
@@ -431,6 +446,9 @@ func (e *StageExecutor) executeDistill2(ctx context.Context, stage *types.StageR
 		return err
 	}
 	root := e.configGen.GetRunWorkspace(p.UID, project.ID, p.ID)
+	if c := p.TrainingConfig.Distillation.DataExpansion; c != nil && c.Enabled {
+		return e.executeExpansion(ctx, stage, project, p, cfg)
+	}
 	configPath := filepath.Join(root, "configs", "distill_data.json")
 	if err := writePrivateJSON(configPath, cfg); err != nil {
 		return err
@@ -457,6 +475,9 @@ func (e *StageExecutor) executeDistill2(ctx context.Context, stage *types.StageR
 	defer e.ReleaseContainer(stage)
 	if err := e.waitForContainerTask(ctx, containerID, p.ID, stage); err != nil {
 		return err
+	}
+	if _, err := WalkRecords(distill2OutputPath(root, p.TrainingConfig.Distillation.JobType), nil); err != nil {
+		return fmt.Errorf("蒸馏没有生成有效数据，请检查教师调用和筛选阶段日志: %w", err)
 	}
 	stage.OutputManifest = map[string]string{"container_id": containerID, "output_path": distill2OutputPath(root, p.TrainingConfig.Distillation.JobType), "upstream_revision": EasyDistill2Revision}
 	return nil
@@ -531,6 +552,15 @@ func (e *StageExecutor) executeExport2(ctx context.Context, stage *types.StageRu
 	}
 	stage.OutputManifest = map[string]string{"dataset_path": path, "format": recipe.OutputFormat, "record_count": fmt.Sprint(count), "bytes": fmt.Sprint(info.Size()), "upstream_revision": EasyDistill2Revision}
 	stage.Metrics = map[string]interface{}{"output_records": count, "output_bytes": info.Size()}
+	var split *SplitManifest
+	if w.DataSplit != nil && w.DataSplit.Enabled {
+		split, err = CreateDataSplit(path, filepath.Join(root, "data", "exported", "splits"), assetID, *w.DataSplit)
+		if err != nil {
+			return fmt.Errorf("数据划分失败: %w", err)
+		}
+		stage.OutputManifest["split_id"] = split.ID
+		stage.Metrics["data_split"] = split
+	}
 	if e.datasetRepo != nil {
 		id := assetID
 		assetPath := filepath.Join(assetDir, "dataset.jsonl")
@@ -540,6 +570,18 @@ func (e *StageExecutor) executeExport2(ctx context.Context, stage *types.StageRu
 		}
 		if existing == nil || errors.Is(err, sql.ErrNoRows) {
 			if _, err := CopyRecords(path, assetPath, nil); err != nil {
+				return err
+			}
+			if split != nil {
+				assetSplit, err := CreateDataSplit(assetPath, filepath.Join(assetDir, "splits"), assetID, *w.DataSplit)
+				if err != nil {
+					return err
+				}
+				if assetSplit.ID != split.ID {
+					return fmt.Errorf("导出数据划分快照不一致")
+				}
+			}
+			if err := writePrivateJSON(filepath.Join(assetDir, "manifest.json"), stage.OutputManifest); err != nil {
 				return err
 			}
 			name := []rune(project.Name + " / " + recipe.Name)
@@ -594,7 +636,24 @@ func (g *ConfigGenerator) BuildTrainerConfig(project *types.Project, p *types.Pi
 	if w.FinetuningType == "lora" {
 		cfg["lora_target"] = "all"
 	}
-	return cfg, map[string]interface{}{"gcs_distilled": dataset}, nil
+	entries := map[string]interface{}{"gcs_distilled": dataset}
+	if w.DataSplit != nil && w.DataSplit.Enabled {
+		m, err := AttachedDataSplit(filepath.Join(root, "data", "exported"))
+		if err != nil {
+			return nil, nil, err
+		}
+		if m == nil {
+			return nil, nil, fmt.Errorf("任务要求数据划分，但划分快照不存在，拒绝使用全量数据训练")
+		}
+		entries = TrainingSplitEntries(dataset, filepath.Join(root, "data", "exported", "splits"), m)
+		if m.Partitions["validation"].Records > 0 {
+			cfg["do_eval"] = true
+			cfg["eval_dataset"] = "gcs_validation"
+			cfg["eval_strategy"] = "epoch"
+			cfg["per_device_eval_batch_size"] = 1
+		}
+	}
+	return cfg, entries, nil
 }
 
 func (e *StageExecutor) executeStudentTrain2(ctx context.Context, stage *types.StageRun, project *types.Project, p *types.PipelineRun) error {
@@ -653,6 +712,12 @@ func (e *StageExecutor) executeStudentTrain2(ctx context.Context, stage *types.S
 	if err != nil || !weights {
 		return fmt.Errorf("training finished without checkpoint artifacts")
 	}
+	validation := w.DataSplit != nil && w.DataSplit.Enabled && w.DataSplit.ValidationRatio > 0
+	metrics, err := ReadTrainerMetrics(checkpoints, validation)
+	if err != nil {
+		return err
+	}
+	stage.Metrics = metrics
 	stage.OutputManifest = map[string]string{"container_id": id, "checkpoint_path": checkpoints, "trainer": "llamafactory"}
 	return nil
 }

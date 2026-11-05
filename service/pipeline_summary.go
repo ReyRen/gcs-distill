@@ -27,9 +27,12 @@ func (s *pipelineService) enrichPipeline(ctx context.Context, p *types.PipelineR
 	}
 	for _, stage := range stages {
 		switch stage.StageType {
+		case types.StageDistillData:
+			summary.Expansion = stage.Metrics["expansion"]
 		case types.StageDatasetBuild:
 			summary.InputRecords, _ = strconv.Atoi(stage.OutputManifest["record_count"])
 		case types.StageDatasetExport:
+			summary.DataSplit = stage.Metrics["data_split"]
 			if stage.Status == types.StatusSucceeded {
 				summary.OutputRecords, _ = strconv.Atoi(stage.OutputManifest["record_count"])
 				summary.OutputDatasetID = stage.OutputManifest["dataset_id"]

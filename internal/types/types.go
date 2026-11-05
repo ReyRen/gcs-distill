@@ -98,13 +98,15 @@ type PipelineRun struct {
 }
 
 type PipelineSummary struct {
-	JobType         string `json:"job_type"`
-	OutputFormat    string `json:"output_format"`
-	TrainStudent    bool   `json:"train_student"`
-	InputRecords    int    `json:"input_records"`
-	OutputRecords   int    `json:"output_records"`
-	OutputDatasetID string `json:"output_dataset_id,omitempty"`
-	HasModelWeights bool   `json:"has_model_weights"`
+	Expansion       interface{} `json:"data_expansion,omitempty"`
+	DataSplit       interface{} `json:"data_split,omitempty"`
+	JobType         string      `json:"job_type"`
+	OutputFormat    string      `json:"output_format"`
+	TrainStudent    bool        `json:"train_student"`
+	InputRecords    int         `json:"input_records"`
+	OutputRecords   int         `json:"output_records"`
+	OutputDatasetID string      `json:"output_dataset_id,omitempty"`
+	HasModelWeights bool        `json:"has_model_weights"`
 }
 
 // TrainingConfig configures student training.
@@ -125,6 +127,8 @@ type TrainingConfig struct {
 
 // DistillationConfig describes an EasyDistill 2 data workflow and optional training.
 type DistillationConfig struct {
+	DataExpansion  *DataExpansionConfig   `json:"data_expansion,omitempty"`
+	DataSplit      *DataSplitConfig       `json:"data_split,omitempty"`
 	FieldMapping   map[string]string      `json:"field_mapping,omitempty"`
 	TeacherModel   *ModelConfig           `json:"teacher_model,omitempty"`
 	StudentModel   *ModelConfig           `json:"student_model,omitempty"`
@@ -136,6 +140,25 @@ type DistillationConfig struct {
 	TrainerImage   string                 `json:"trainer_image,omitempty"`
 	ModelTemplate  string                 `json:"model_template,omitempty"`
 	FinetuningType string                 `json:"finetuning_type,omitempty"`
+}
+
+// DataExpansionConfig counts distinct, usable output instructions, after native filtering.
+type DataExpansionConfig struct {
+	Enabled       bool `json:"enabled"`
+	TargetRecords int  `json:"target_records"`
+	MaxRounds     int  `json:"max_rounds,omitempty"`
+	MaxCandidates int  `json:"max_candidates,omitempty"`
+	BatchSize     int  `json:"batch_size,omitempty"`
+}
+
+// DataSplitConfig is persisted in the immutable task snapshot. Ratios use [0,1].
+type DataSplitConfig struct {
+	Enabled         bool    `json:"enabled"`
+	TrainRatio      float64 `json:"train_ratio"`
+	ValidationRatio float64 `json:"validation_ratio"`
+	TestRatio       float64 `json:"test_ratio"`
+	Seed            int64   `json:"seed"`
+	GroupBy         string  `json:"group_by,omitempty"`
 }
 
 // ResourceRequest describes pipeline resource requirements.

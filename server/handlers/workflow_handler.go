@@ -69,7 +69,7 @@ func (h *WorkflowHandler) Preview(c *gin.Context) {
 		return
 	}
 	redactConfig(cfg)
-	c.JSON(200, gin.H{"code": 200, "data": gin.H{"config": cfg, "stages": runtime.PipelineStageTypes(&p), "resource_mode": "cpu", "resource_request": p.ResourceRequest, "training_scope": "single_node_multi_gpu", "train_student": p.TrainingConfig.Distillation.TrainStudent}})
+	c.JSON(200, gin.H{"code": 200, "data": gin.H{"config": cfg, "stages": runtime.PipelineStageTypes(&p), "resource_mode": "cpu", "resource_request": p.ResourceRequest, "training_scope": "single_node_multi_gpu", "train_student": p.TrainingConfig.Distillation.TrainStudent, "data_expansion": p.TrainingConfig.Distillation.DataExpansion, "data_split": p.TrainingConfig.Distillation.DataSplit}})
 }
 
 func redactConfig(value interface{}) {
@@ -118,6 +118,11 @@ func (h *WorkflowHandler) Summary(c *gin.Context) {
 }
 
 func (h *WorkflowHandler) List(c *gin.Context) {
+	templates, err := runtime.SeedTemplates()
+	if err != nil {
+		c.JSON(500, gin.H{"code": 500, "message": "读取种子模板失败"})
+		return
+	}
 	items := []gin.H{}
 	for _, recipe := range runtime.WorkflowRecipes() {
 		defaults, err := runtime.WorkflowDefaults(recipe)
@@ -126,7 +131,21 @@ func (h *WorkflowHandler) List(c *gin.Context) {
 			return
 		}
 		redactConfig(defaults)
-		items = append(items, gin.H{"job_type": recipe.JobType, "name": recipe.Name, "category": recipe.Category, "output_format": recipe.OutputFormat, "input_fields": recipe.InputFields, "default_parameters": defaults})
+		item := gin.H{"job_type": recipe.JobType, "name": recipe.Name, "category": recipe.Category, "output_format": recipe.OutputFormat, "input_fields": recipe.InputFields, "default_parameters": defaults}
+		item["supports_data_expansion"] = runtime.SupportsDataExpansion(recipe.JobType)
+		if runtime.SupportsDataExpansion(recipe.JobType) {
+			item["seed_input_formats"] = []string{"instruction", "single_turn_messages"}
+			item["input_note"] = "支持 instruction 文本，或单轮 SFT messages；自动提取 user 问题，原 assistant 回答不作为本次教师输出"
+		}
+		item["supports_data_split"] = recipe.OutputFormat == "sft_messages" || recipe.OutputFormat == "dpo_pairs"
+		for _, template := range templates {
+			for _, job := range template.JobTypes {
+				if job == recipe.JobType {
+					item["seed_template"] = template
+				}
+			}
+		}
+		items = append(items, item)
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 200, "data": gin.H{"engine": "easydistill", "version": "2.0.0", "upstream_revision": runtime.EasyDistill2Revision,
 		"runtime_image": runtime.EasyDistill2Image, "items": items, "default_job_type": "instruct_distill",
@@ -190,7 +209,7 @@ func (h *WorkflowHandler) PreviewArtifact(c *gin.Context) {
 		if limit < 1 || limit > 100 {
 			limit = 10
 		}
-		if item.Name == "manifest.json" {
+		if item.Name == "manifest.json" || item.Name == "expansion.json" {
 			data, err := os.ReadFile(path)
 			if err != nil {
 				break

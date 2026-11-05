@@ -53,3 +53,28 @@ func TestTeacherOwnershipBeforeCredentialResolution(t *testing.T) {
 		t.Fatal("snapshot was not resolved")
 	}
 }
+
+func TestTeacherInferenceTimeoutIsSeparateFromCatalogTimeout(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/models":
+			fmt.Fprint(w, `{"data":[{"id":"existing-model"}]}`)
+		case "/v1/chat/completions":
+			time.Sleep(100 * time.Millisecond)
+			fmt.Fprint(w, `{"choices":[{"message":{"role":"assistant","content":"OK"}}]}`)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer upstream.Close()
+	svc := NewTeacherService("", 50*time.Millisecond)
+	for _, timeout := range []int{0, 1} {
+		model := &types.ModelConfig{Endpoint: upstream.URL + "/v1", ModelName: "existing-model", TimeoutSeconds: timeout}
+		if err := svc.Test(context.Background(), 369, model); err != nil {
+			t.Fatalf("model loading was limited by catalog timeout (teacher timeout %d): %v", timeout, err)
+		}
+	}
+	if svc.client.Timeout != 50*time.Millisecond {
+		t.Fatal("teacher test changed the shared catalog client timeout")
+	}
+}

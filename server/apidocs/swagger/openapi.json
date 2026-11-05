@@ -269,6 +269,122 @@
         },
         "type": "object"
       },
+      "DataExpansionConfig": {
+        "properties": {
+          "batch_size": {
+            "description": "Per-round candidate cap; default min(max(target_records,4),2000). max_rounds*batch_size must cover the target.",
+            "maximum": 2000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "max_candidates": {
+            "description": "Default 3*target_records; counts requested candidate instructions, not total teacher API calls.",
+            "maximum": 1000000,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "max_rounds": {
+            "description": "Default max(5,3*ceil(target_records/batch_size)), capped at 100.",
+            "maximum": 100,
+            "minimum": 1,
+            "type": "integer"
+          },
+          "target_records": {
+            "description": "Final distinct usable records after native filtering. A shortfall fails and retains partial artifacts.",
+            "maximum": 100000,
+            "minimum": 1,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "DataSplitConfig": {
+        "additionalProperties": false,
+        "description": "Ratios must sum to 1. All enabled partitions must contain at least one independent group. Group integrity takes precedence over exact ratios.",
+        "properties": {
+          "enabled": {
+            "default": false,
+            "type": "boolean"
+          },
+          "group_by": {
+            "default": "auto",
+            "description": "auto or dotted scalar field path. Prompt and image grouping always applies.",
+            "type": "string"
+          },
+          "seed": {
+            "example": 42,
+            "format": "int64",
+            "type": "integer"
+          },
+          "test_ratio": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "train_ratio": {
+            "exclusiveMaximum": true,
+            "exclusiveMinimum": true,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "validation_ratio": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "DataSplitManifest": {
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/DataSplitConfig"
+          },
+          "created_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "dataset_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "partitions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SplitPartition"
+            },
+            "type": "object"
+          },
+          "source_sha256": {
+            "type": "string"
+          },
+          "total_groups": {
+            "type": "integer"
+          },
+          "total_records": {
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
       "Dataset": {
         "properties": {
           "created_at": {
@@ -492,8 +608,14 @@
         "type": "object"
       },
       "DistillationConfig": {
-        "description": "EasyDistill 2 workflow. New runs default to data-only instruct_distill. Stored in training_config.distillation.",
+        "description": "EasyDistill 2 workflow. New runs default to data-only instruct_distill. Stored in training_config.distillation. Expansion defaults off, including native advanced-recipe expansion. Split applies after export normalization, before student training. Four instruction recipes also accept single-turn SFT messages by extracting user text when instruction is absent. Multiturn/tool/image conversations are not flattened.",
         "properties": {
+          "data_expansion": {
+            "$ref": "#/components/schemas/DataExpansionConfig"
+          },
+          "data_split": {
+            "$ref": "#/components/schemas/DataSplitConfig"
+          },
           "field_mapping": {
             "additionalProperties": {
               "type": "string"
@@ -916,6 +1038,71 @@
         },
         "type": "object"
       },
+      "SeedTemplate": {
+        "description": "Offline public format example. Never auto-registered as user business data. download_path is relative to the API base ending in /api/v1/.",
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "download_path": {
+            "example": "dataset-templates/instruction/download",
+            "type": "string"
+          },
+          "example_records": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "examples_only": {
+            "enum": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "filename": {
+            "example": "01_指令与偏好数据种子.jsonl",
+            "type": "string"
+          },
+          "id": {
+            "example": "instruction",
+            "type": "string"
+          },
+          "job_types": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "name": {
+            "type": "string"
+          },
+          "record_count": {
+            "example": 2,
+            "type": "integer"
+          },
+          "required_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "job_types",
+          "required_fields",
+          "filename",
+          "record_count",
+          "example_records",
+          "download_path",
+          "examples_only"
+        ],
+        "type": "object"
+      },
       "SelectedResource": {
         "description": "Manually selected gcs-v2 node and XPU devices.",
         "properties": {
@@ -946,6 +1133,26 @@
           "node_name",
           "xpu_indices"
         ],
+        "type": "object"
+      },
+      "SplitPartition": {
+        "properties": {
+          "actual_ratio": {
+            "type": "number"
+          },
+          "download_path": {
+            "type": "string"
+          },
+          "groups": {
+            "type": "integer"
+          },
+          "preview_path": {
+            "type": "string"
+          },
+          "records": {
+            "type": "integer"
+          }
+        },
         "type": "object"
       },
       "StageListResponse": {
@@ -1274,7 +1481,7 @@
             "type": "integer"
           },
           "learning_rate": {
-            "example": 0.00002,
+            "example": 2e-05,
             "format": "double",
             "type": "number"
           },
@@ -1326,10 +1533,170 @@
   "info": {
     "description": "Offline x86 EasyDistill 2 data workflows and optional local student training. UID must be injected by the trusted platform gateway. Legacy local teacher inference is removed.",
     "title": "GCS-Distill API",
-    "version": "2.0.4"
+    "version": "2.0.8"
   },
   "openapi": "3.0.3",
   "paths": {
+    "/api/v1/dataset-templates": {
+      "get": {
+        "description": "Seven template families cover all fifteen recipes. Includes required fields and one example record. No user data is read or created. Resolve download_path and bundle_download_path against the configured API base, retaining any platform proxy prefix.",
+        "parameters": [
+          {
+            "description": "Optional exact recipe id from /workflows. Unknown id returns 400.",
+            "in": "query",
+            "name": "job_type",
+            "schema": {
+              "example": "advanced_instruct_distill",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "example": 200,
+                      "type": "integer"
+                    },
+                    "data": {
+                      "properties": {
+                        "bundle_download_path": {
+                          "example": "dataset-templates/download",
+                          "type": "string"
+                        },
+                        "encoding": {
+                          "example": "UTF-8",
+                          "type": "string"
+                        },
+                        "examples_only": {
+                          "enum": [
+                            true
+                          ],
+                          "type": "boolean"
+                        },
+                        "formats": {
+                          "example": [
+                            "jsonl",
+                            "json"
+                          ],
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
+                        },
+                        "items": {
+                          "items": {
+                            "$ref": "#/components/schemas/SeedTemplate"
+                          },
+                          "type": "array"
+                        },
+                        "notice": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Public seed template catalog"
+          },
+          "400": {
+            "description": "Unknown workflow"
+          }
+        },
+        "summary": "List offline seed format templates, optionally by workflow",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
+    "/api/v1/dataset-templates/download": {
+      "get": {
+        "description": "Public format examples only. Download does not create datasets or tasks. Multimodal JSONL embeds its PNG so it can be uploaded standalone in an offline environment.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Attachment",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Download all offline seed templates with instructions and sample image",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
+    "/api/v1/dataset-templates/{id}/download": {
+      "get": {
+        "description": "Public format examples only. Download does not create datasets or tasks. Multimodal JSONL embeds its PNG so it can be uploaded standalone in an offline environment.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "enum": [
+                "instruction",
+                "reasoning",
+                "reasoning-rewrite",
+                "evaluation",
+                "agent",
+                "search-agent",
+                "multimodal"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Attachment",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown template id"
+          }
+        },
+        "summary": "Download a ready-to-upload JSONL seed template",
+        "tags": [
+          "datasets"
+        ]
+      }
+    },
     "/api/v1/datasets": {
       "get": {
         "description": "List registered datasets for one uid. Datasets are independent resources; pipelines bind project_id and dataset_id when they run.",
@@ -1665,6 +2032,382 @@
         "summary": "Preview independent UID-scoped dataset records"
       }
     },
+    "/api/v1/datasets/{id}/splits": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid configuration or missing UID"
+          },
+          "404": {
+            "description": "Missing or not owned"
+          },
+          "422": {
+            "description": "Invalid data, unsupported format, insufficient independent groups, or failed split"
+          }
+        },
+        "summary": "List saved splits and export-time default split ID"
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataSplitConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DataSplitManifest"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid configuration or missing UID"
+          },
+          "404": {
+            "description": "Missing or not owned"
+          },
+          "422": {
+            "description": "Invalid data, unsupported format, insufficient independent groups, or failed split"
+          }
+        },
+        "summary": "Create immutable split; identical input/config reuses its ID"
+      }
+    },
+    "/api/v1/datasets/{id}/splits/preview": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DataSplitConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DataSplitManifest"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid configuration or missing UID"
+          },
+          "404": {
+            "description": "Missing or not owned"
+          },
+          "422": {
+            "description": "Invalid data, unsupported format, insufficient independent groups, or failed split"
+          }
+        },
+        "summary": "Preview actual grouped partition counts; creates no files"
+      }
+    },
+    "/api/v1/datasets/{id}/splits/{split_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "split_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "properties": {
+                    "code": {
+                      "type": "integer"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/DataSplitManifest"
+                    }
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid configuration or missing UID"
+          },
+          "404": {
+            "description": "Missing or not owned"
+          },
+          "422": {
+            "description": "Invalid data, unsupported format, insufficient independent groups, or failed split"
+          }
+        },
+        "summary": "Get saved split metadata"
+      }
+    },
+    "/api/v1/datasets/{id}/splits/{split_id}/partitions/{partition}/download": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "split_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "partition",
+            "required": true,
+            "schema": {
+              "enum": [
+                "train",
+                "validation",
+                "test"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/x-ndjson": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid configuration or missing UID"
+          },
+          "404": {
+            "description": "Missing or not owned"
+          },
+          "422": {
+            "description": "Invalid data, unsupported format, insufficient independent groups, or failed split"
+          }
+        },
+        "summary": "Download partition JSONL; multimodal images remain in the owned dataset asset"
+      }
+    },
+    "/api/v1/datasets/{id}/splits/{split_id}/partitions/{partition}/preview": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "split_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-f0-9]{32}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "partition",
+            "required": true,
+            "schema": {
+              "enum": [
+                "train",
+                "validation",
+                "test"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 10,
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid configuration or missing UID"
+          },
+          "404": {
+            "description": "Missing or not owned"
+          },
+          "422": {
+            "description": "Invalid data, unsupported format, insufficient independent groups, or failed split"
+          }
+        },
+        "summary": "Preview a partition, at most 100 records"
+      }
+    },
     "/api/v1/datasets/{id}/training-config": {
       "get": {
         "parameters": [
@@ -1683,6 +2426,14 @@
             "schema": {
               "minimum": 1,
               "type": "integer"
+            }
+          },
+          {
+            "description": "Saved split; omission uses export-time default when present. Never falls back to full data for an invalid split.",
+            "in": "query",
+            "name": "split_id",
+            "schema": {
+              "type": "string"
             }
           }
         ],
@@ -3033,6 +3784,7 @@
     },
     "/api/v1/workflows": {
       "get": {
+        "description": "Each recipe includes seed_template with template id, required fields, example record and download_path. Seven template families cover all fifteen recipes. Download paths are relative to the configured API base ending in /api/v1/.",
         "parameters": [],
         "responses": {
           "200": {

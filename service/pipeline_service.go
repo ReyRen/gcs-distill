@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -304,6 +305,33 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 	}
 	if recordCount == 0 {
 		return newValidationError("种子数据集不能为空")
+	}
+	compiled, err := runtime.NewConfigGenerator("").GenerateDistill2Config(project, pipeline)
+	if err != nil {
+		return newValidationError(err.Error())
+	}
+	if w.DataExpansion != nil && w.DataExpansion.Enabled {
+		if stages, ok := compiled["pipeline"].([]interface{}); ok {
+			for _, raw := range stages {
+				stage, _ := raw.(map[string]interface{})
+				if stage["stage"] != "instruction_expansion" {
+					continue
+				}
+				config, _ := stage["config"].(map[string]interface{})
+				// Marshal through JSON to handle both YAML integers and API numbers.
+				b, _ := json.Marshal(config)
+				var c struct {
+					Samples int `json:"num_in_context_samples"`
+				}
+				_ = json.Unmarshal(b, &c)
+				if c.Samples == 0 {
+					c.Samples = 3
+				}
+				if c.Samples < 1 || c.Samples > recordCount {
+					return newValidationError(fmt.Sprintf("扩充的上下文种子条数 %d 超出可用种子数 %d", c.Samples, recordCount))
+				}
+			}
+		}
 	}
 
 	if pipeline.TrainingConfig.Distillation.TrainStudent && pipeline.TrainingConfig.NumTrainEpochs <= 0 {

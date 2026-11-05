@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"io"
+	"path/filepath"
 	"strings"
 )
 
@@ -66,5 +67,33 @@ func (h *WorkflowHandler) DatasetTrainingConfig(c *gin.Context) {
 	if strings.HasPrefix(recipe.JobType, "mm_") {
 		entry["columns"].(map[string]string)["images"] = "images"
 	}
-	c.JSON(200, gin.H{"code": 200, "data": gin.H{"dataset_id": d.ID, "format": recipe.OutputFormat, "stage": stage, "dataset": "gcs_distilled", "dataset_info": gin.H{"gcs_distilled": entry}, "requires_student_model": true, "creates_training_task": false}})
+	entries := map[string]interface{}{"gcs_distilled": entry}
+	data := gin.H{"dataset_id": d.ID, "format": recipe.OutputFormat, "stage": stage, "dataset": "gcs_distilled", "requires_student_model": true, "creates_training_task": false}
+	var split *runtime.SplitManifest
+	if id := c.Query("split_id"); id != "" {
+		// Reuse the same ownership/path validation as the split endpoints.
+		_, base, ok := h.splitDataset(c)
+		if !ok {
+			return
+		}
+		split, err = runtime.ReadDataSplit(base, id)
+	} else {
+		split, err = runtime.AttachedDataSplit(filepath.Dir(d.FilePath))
+	}
+	if err != nil {
+		c.JSON(422, gin.H{"code": 422, "message": "无法读取指定的数据划分，拒绝回退到全量数据"})
+		return
+	}
+	if split != nil {
+		entries = runtime.TrainingSplitEntries(entry, filepath.Join(filepath.Dir(d.FilePath), "splits"), split)
+		data["data_split"] = splitResponse(split, uid)
+		if split.Partitions["validation"].Records > 0 {
+			data["do_eval"] = true
+			data["eval_dataset"] = "gcs_validation"
+			data["eval_strategy"] = "epoch"
+			data["per_device_eval_batch_size"] = 1
+		}
+	}
+	data["dataset_info"] = entries
+	c.JSON(200, gin.H{"code": 200, "data": data})
 }

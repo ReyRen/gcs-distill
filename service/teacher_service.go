@@ -10,14 +10,16 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ReyRen/gcs-distill/internal/types"
 )
 
 type TeacherService struct {
-	baseURL string
-	client  *http.Client
+	baseURL      string
+	client       *http.Client
+	capabilities sync.Map
 }
 type Teacher struct {
 	ID               string `json:"id"`
@@ -32,11 +34,13 @@ type Teacher struct {
 
 type teacherRecord struct {
 	Teacher
-	ModelPath string `json:"model_path"`
+	ModelPath         string `json:"model_path"`
+	OpenAIBaseURL     string `json:"openai_base_url"`
+	UpstreamModelName string `json:"upstream_model_name"`
 }
 
 func NewTeacherService(baseURL string, timeout time.Duration) *TeacherService {
-	return &TeacherService{strings.TrimRight(baseURL, "/"), &http.Client{Timeout: timeout}}
+	return &TeacherService{baseURL: strings.TrimRight(baseURL, "/"), client: &http.Client{Timeout: timeout}}
 }
 
 func (s *TeacherService) get(ctx context.Context, path string, target any) error {
@@ -80,11 +84,18 @@ func (s *TeacherService) List(ctx context.Context, uid int) ([]Teacher, error) {
 		}
 		for _, item := range result.Items {
 			if item.UID == strconv.Itoa(uid) && item.Status == "online" {
+				item.SupportsVision = nil
 				item.CapabilitySource = "unknown"
 				if item.ServiceType == "local_inference" && item.ModelPath != "" {
 					if modelType, vision, _ := modelCapabilities(item.ModelPath); modelType != "" {
 						item.SupportsVision = &vision
 						item.CapabilitySource = "model_config"
+					}
+				}
+				if item.ServiceType == "online_provider" {
+					if vision := s.ollamaVision(ctx, item); vision != nil {
+						item.SupportsVision = vision
+						item.CapabilitySource = "ollama_metadata"
 					}
 				}
 				items = append(items, item.Teacher)
@@ -95,6 +106,71 @@ func (s *TeacherService) List(ctx context.Context, uid int) ([]Teacher, error) {
 		}
 	}
 	return items, nil
+}
+
+type teacherCapability struct {
+	vision  *bool
+	expires time.Time
+}
+
+// Read actual Ollama metadata. Generic OpenAI endpoints and failed probes stay
+// unknown; a model name containing "VL" is not proof of image support.
+func (s *TeacherService) ollamaVision(ctx context.Context, item teacherRecord) *bool {
+	base := strings.TrimRight(item.OpenAIBaseURL, "/")
+	endpoint, err := url.Parse(base)
+	if err != nil || endpoint.Host == "" || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.Path != "/v1" {
+		return nil
+	}
+	model := item.UpstreamModelName
+	if model == "" {
+		model = item.ModelName
+	}
+	if model == "" {
+		return nil
+	}
+	key := base + "\n" + model
+	if cached, ok := s.capabilities.Load(key); ok {
+		value := cached.(teacherCapability)
+		if time.Now().Before(value.expires) {
+			return value.vision
+		}
+		s.capabilities.Delete(key)
+	}
+	var vision *bool
+	defer func() {
+		s.capabilities.Store(key, teacherCapability{vision: vision, expires: time.Now().Add(time.Minute)})
+	}()
+	ctx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	defer cancel()
+	payload, _ := json.Marshal(map[string]string{"model": model})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimSuffix(base, "/v1")+"/api/show", bytes.NewReader(payload))
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	var data struct {
+		Capabilities []string `json:"capabilities"`
+	}
+	if json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&data) != nil || len(data.Capabilities) == 0 {
+		return nil
+	}
+	completion, hasVision := false, false
+	for _, capability := range data.Capabilities {
+		completion = completion || capability == "completion"
+		hasVision = hasVision || capability == "vision"
+	}
+	if completion || hasVision {
+		vision = &hasVision
+	}
+	return vision
 }
 
 func (s *TeacherService) Resolve(ctx context.Context, uid int, model *types.ModelConfig) error {
@@ -185,7 +261,14 @@ func (s *TeacherService) Test(ctx context.Context, uid int, model *types.ModelCo
 			if key != "" {
 				req.Header.Set("Authorization", "Bearer "+key)
 			}
-			chat, err := s.client.Do(req)
+			// Model-center metadata calls are short, but an existing Ollama service
+			// may need to load the selected model before answering its first request.
+			inferenceClient := *s.client
+			inferenceClient.Timeout = 120 * time.Second
+			if model.TimeoutSeconds > 0 {
+				inferenceClient.Timeout = time.Duration(model.TimeoutSeconds) * time.Second
+			}
+			chat, err := inferenceClient.Do(req)
 			if err != nil {
 				return fmt.Errorf("teacher inference failed: %w", err)
 			}
