@@ -23,6 +23,14 @@ func MapSeedRecord(row map[string]interface{}, w *types.DistillationConfig) erro
 		}
 		row[target] = value
 	}
+	if !strings.HasPrefix(w.JobType, "mm_") {
+		if images, exists := row["images"]; exists && images != nil {
+			values, ok := images.([]interface{})
+			if !ok || len(values) > 0 {
+				return fmt.Errorf("含图片的数据不能用于纯文本配方，请选择多模态配方或单独整理纯文本种子")
+			}
+		}
+	}
 	text := func(keys ...string) bool {
 		for _, key := range keys {
 			if v, ok := row[key].(string); ok && strings.TrimSpace(v) != "" {
@@ -32,12 +40,6 @@ func MapSeedRecord(row map[string]interface{}, w *types.DistillationConfig) erro
 		return false
 	}
 	if SupportsDataExpansion(w.JobType) && !text("instruction") && w.FieldMapping["instruction"] == "" && row["messages"] != nil {
-		if images, exists := row["images"]; exists && images != nil {
-			values, ok := images.([]interface{})
-			if !ok || len(values) > 0 {
-				return fmt.Errorf("含图片的 SFT 数据请使用多模态配方并提供 instruction、images，不能自动转换为纯文本种子")
-			}
-		}
 		instruction, err := singleTurnSeedInstruction(row["messages"])
 		if err != nil {
 			return err
@@ -62,13 +64,22 @@ func MapSeedRecord(row map[string]interface{}, w *types.DistillationConfig) erro
 			return fmt.Errorf("CoT rewriting requires a problem and an existing response")
 		}
 	case "instruct_eval", "cot_eval":
-		if row["messages"] != nil {
-			return nil
-		}
 		if !text("instruction", "problem", "input") {
+			if row["messages"] != nil {
+				if _, err := singleTurnSeedInstruction(row["messages"]); err != nil {
+					return err
+				}
+				messages := row["messages"].([]interface{})
+				last := messages[len(messages)-1].(map[string]interface{})
+				content, _ := last["content"].(string)
+				if last["role"] != "assistant" || strings.TrimSpace(content) == "" {
+					return fmt.Errorf("质量评估需要已有的非空 assistant 回答")
+				}
+				return nil
+			}
 			return fmt.Errorf("quality evaluation requires an instruction or messages")
 		}
-		if !text("response", "answer", "output") && row["messages"] == nil {
+		if !text("response", "answer", "output") {
 			return fmt.Errorf("quality evaluation requires an existing response or messages")
 		}
 	case "mm_instruct_distill", "mm_cot_distill":

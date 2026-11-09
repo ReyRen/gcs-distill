@@ -79,31 +79,49 @@ func WalkRecords(path string, visit func(map[string]interface{}) error) (int, er
 // CopyRecords converts JSON arrays/JSONL into JSONL with bounded memory and
 // publishes the result only after every record passed validation.
 func CopyRecords(input, output string, transform func(map[string]interface{}) error) (int, error) {
+	count, _, err := CopySeedRecords(input, output, 0, transform)
+	return count, err
+}
+
+// CopySeedRecords selects the first limit records (zero means all), while
+// still checking the entire source's JSON syntax and reporting its actual size.
+func CopySeedRecords(input, output string, limit int, transform func(map[string]interface{}) error) (int, int, error) {
+	if limit < 0 {
+		return 0, 0, fmt.Errorf("seed_limit 不能为负数")
+	}
 	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	f, err := os.CreateTemp(filepath.Dir(output), ".records-*")
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	defer os.Remove(f.Name())
 	enc := json.NewEncoder(f)
-	count, err := WalkRecords(input, func(row map[string]interface{}) error {
+	count := 0
+	total, err := WalkRecords(input, func(row map[string]interface{}) error {
+		if limit > 0 && count >= limit {
+			return nil
+		}
 		if transform != nil {
 			if err := transform(row); err != nil {
 				return err
 			}
 		}
-		return enc.Encode(row)
+		if err := enc.Encode(row); err != nil {
+			return err
+		}
+		count++
+		return nil
 	})
 	closeErr := f.Close()
 	if err != nil {
-		return count, err
+		return count, total, err
 	}
 	if closeErr != nil {
-		return count, closeErr
+		return count, total, closeErr
 	}
-	return count, os.Rename(f.Name(), output)
+	return count, total, os.Rename(f.Name(), output)
 }
 
 func PreviewRecords(path string, limit int) ([]map[string]interface{}, int, []string, error) {

@@ -61,6 +61,7 @@ type ModelConfig struct {
 	MaxTokens      int                    `json:"max_tokens,omitempty"`
 	Concurrency    int                    `json:"concurrency,omitempty"`
 	TimeoutSeconds int                    `json:"timeout_seconds,omitempty"`
+	RetryAttempts  *int                   `json:"retry_attempts,omitempty"`
 	ExtraParams    map[string]interface{} `json:"extra_params,omitempty"`
 }
 
@@ -98,6 +99,8 @@ type PipelineRun struct {
 }
 
 type PipelineSummary struct {
+	SourceRecords   int         `json:"source_records"`
+	Generation      interface{} `json:"generation,omitempty"`
 	Expansion       interface{} `json:"data_expansion,omitempty"`
 	DataSplit       interface{} `json:"data_split,omitempty"`
 	JobType         string      `json:"job_type"`
@@ -127,6 +130,7 @@ type TrainingConfig struct {
 
 // DistillationConfig describes an EasyDistill 2 data workflow and optional training.
 type DistillationConfig struct {
+	SeedLimit      int                    `json:"seed_limit,omitempty"`
 	DataExpansion  *DataExpansionConfig   `json:"data_expansion,omitempty"`
 	DataSplit      *DataSplitConfig       `json:"data_split,omitempty"`
 	FieldMapping   map[string]string      `json:"field_mapping,omitempty"`

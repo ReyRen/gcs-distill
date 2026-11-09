@@ -155,7 +155,7 @@ func (s *pipelineService) StartPipeline(ctx context.Context, id string) error {
 		}
 	}
 	if s.resources != nil {
-		if err := s.resources.Validate(ctx, &p.ResourceRequest, p.TrainingConfig.Distillation.TrainStudent, false); err != nil {
+		if err := s.resources.Validate(ctx, &p.ResourceRequest, p.TrainingConfig.Distillation.TrainStudent, true); err != nil {
 			return newValidationError(err.Error())
 		}
 	}
@@ -297,13 +297,11 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 	if err := runtime.NormalizeDistillation(pipeline, project); err != nil {
 		return newValidationError(err.Error())
 	}
-	recordCount, err := runtime.WalkRecords(dataset.FilePath, func(row map[string]interface{}) error {
-		return runtime.MapSeedRecord(row, w)
-	})
+	selection, err := runtime.InspectSeedSelection(ctx, dataset.FilePath, w)
 	if err != nil {
 		return newValidationError("种子数据校验失败: " + err.Error())
 	}
-	if recordCount == 0 {
+	if selection.SelectedRecords == 0 {
 		return newValidationError("种子数据集不能为空")
 	}
 	compiled, err := runtime.NewConfigGenerator("").GenerateDistill2Config(project, pipeline)
@@ -327,8 +325,8 @@ func (s *pipelineService) validatePipeline(ctx context.Context, pipeline *types.
 				if c.Samples == 0 {
 					c.Samples = 3
 				}
-				if c.Samples < 1 || c.Samples > recordCount {
-					return newValidationError(fmt.Sprintf("扩充的上下文种子条数 %d 超出可用种子数 %d", c.Samples, recordCount))
+				if c.Samples < 1 || c.Samples > selection.SelectedRecords {
+					return newValidationError(fmt.Sprintf("扩充的上下文种子条数 %d 超出选中的种子数 %d", c.Samples, selection.SelectedRecords))
 				}
 			}
 		}

@@ -95,6 +95,9 @@ func NormalizeDistillation(p *types.PipelineRun, project *types.Project) error {
 		p.TrainingConfig.Distillation = &types.DistillationConfig{Version: "2.0", JobType: "instruct_distill"}
 	}
 	w := p.TrainingConfig.Distillation
+	if w.SeedLimit < 0 {
+		return fmt.Errorf("seed_limit 不能为负数，0 表示全部种子")
+	}
 	if w.Version == "" {
 		w.Version = "2.0"
 	}
@@ -134,6 +137,22 @@ func NormalizeDistillation(p *types.PipelineRun, project *types.Project) error {
 	teacher := w.TeacherModel
 	if teacher.MaxTokens < 0 || teacher.Concurrency < 0 || teacher.TimeoutSeconds < 0 {
 		return fmt.Errorf("教师生成长度、并发数和超时时间不能为负数")
+	}
+	if teacher.Concurrency == 0 {
+		teacher.Concurrency = 1
+	}
+	if teacher.MaxTokens == 0 {
+		teacher.MaxTokens = 2048
+	}
+	if teacher.TimeoutSeconds == 0 {
+		teacher.TimeoutSeconds = 120
+	}
+	if teacher.RetryAttempts == nil {
+		value := 1
+		teacher.RetryAttempts = &value
+	}
+	if *teacher.RetryAttempts < 0 || *teacher.RetryAttempts > 3 {
+		return fmt.Errorf("教师重试次数必须为 0 到 3")
 	}
 	if teacher.ModelName == "" {
 		return fmt.Errorf("教师模型名称不能为空")
@@ -263,6 +282,8 @@ func (g *ConfigGenerator) GenerateDistill2Config(project *types.Project, p *type
 	if teacher.TimeoutSeconds > 0 {
 		backend["timeout"] = teacher.TimeoutSeconds
 	}
+	// Retry once at the operator layer; disable the SDK's nested retry loop.
+	backend["max_retries"] = 0
 	if err := configureExpansion(cfg, w.DataExpansion); err != nil {
 		return nil, err
 	}
@@ -287,6 +308,11 @@ func (g *ConfigGenerator) GenerateDistill2Config(project *types.Project, p *type
 		}
 	}
 	applyTeacherGenerationControls(cfg, teacher.MaxTokens, teacher.Concurrency)
+	retries := 1
+	if teacher.RetryAttempts != nil {
+		retries = *teacher.RetryAttempts
+	}
+	applyTeacherRetries(cfg, retries)
 	fixRecipePaths(cfg)
 	return cfg, nil
 }
@@ -427,7 +453,7 @@ func (e *StageExecutor) prepareDataset2(ctx context.Context, stage *types.StageR
 	}
 	userRoot := filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", p.UID))
 	path := filepath.Join(root, "data", "seed", "input.jsonl")
-	count, err := CopyRecords(dataset.FilePath, path, func(row map[string]interface{}) error {
+	count, sourceCount, err := CopySeedRecords(dataset.FilePath, path, p.TrainingConfig.Distillation.SeedLimit, func(row map[string]interface{}) error {
 		if err := MapSeedRecord(row, p.TrainingConfig.Distillation); err != nil {
 			return err
 		}
@@ -436,7 +462,11 @@ func (e *StageExecutor) prepareDataset2(ctx context.Context, stage *types.StageR
 	if err != nil {
 		return err
 	}
-	stage.OutputManifest = map[string]string{"input_path": path, "record_count": fmt.Sprint(count), "format": "jsonl"}
+	method := "all"
+	if p.TrainingConfig.Distillation.SeedLimit > 0 {
+		method = "first_n"
+	}
+	stage.OutputManifest = map[string]string{"input_path": path, "record_count": fmt.Sprint(count), "source_records": fmt.Sprint(sourceCount), "seed_limit": fmt.Sprint(p.TrainingConfig.Distillation.SeedLimit), "selection_method": method, "format": "jsonl"}
 	return nil
 }
 

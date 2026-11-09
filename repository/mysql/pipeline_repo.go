@@ -131,10 +131,11 @@ func (r *pipelineRepo) GetByID(ctx context.Context, id string) (*types.PipelineR
 }
 
 func (r *pipelineRepo) Transition(ctx context.Context, id string, from, to types.PipelineStatus) (bool, error) {
-	result, err := r.db.sql.ExecContext(ctx, `UPDATE distill_pipeline_runs SET status = ?,
+	now := time.Now()
+	result, err := r.db.sql.ExecContext(ctx, `UPDATE distill_pipeline_runs SET status = ?, updated_at = ?,
 	 current_stage = CASE WHEN ? = 'running' THEN 1 ELSE current_stage END,
-	 started_at = CASE WHEN ? = 'running' THEN NOW(6) ELSE started_at END
-	 WHERE id = ? AND status = ?`, to, to, to, id, from)
+	 started_at = CASE WHEN ? = 'running' THEN ? ELSE started_at END
+	 WHERE id = ? AND status = ?`, to, now, to, to, now, id, from)
 	if err != nil {
 		return false, err
 	}
@@ -244,10 +245,11 @@ func (r *pipelineRepo) UpdateStatus(ctx context.Context, id string, status types
 	query := `
 		UPDATE distill_pipeline_runs
 		SET status = ?,
-			error_message = ?, finished_at = CASE WHEN ? IN ('succeeded','failed','canceled') THEN NOW(6) ELSE finished_at END
+			error_message = ?, updated_at = ?, finished_at = CASE WHEN ? IN ('succeeded','failed','canceled') THEN ? ELSE finished_at END
 		WHERE id = ? AND status NOT IN ('succeeded','failed','canceled')
 	`
-	result, err := r.db.sql.ExecContext(ctx, query, status, errorMsg, status, id)
+	now := time.Now()
+	result, err := r.db.sql.ExecContext(ctx, query, status, errorMsg, now, status, now, id)
 	if err != nil {
 		return fmt.Errorf("update pipeline status failed: %w", err)
 	}

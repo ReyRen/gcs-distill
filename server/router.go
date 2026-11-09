@@ -126,6 +126,8 @@ func (r *Router) setupRoutes() {
 			datasets.GET("/candidates", r.datasetHandler.ListDatasetCandidates)
 			datasets.GET("/:id", r.datasetHandler.GetDataset)
 			datasets.GET("/:id/preview", r.workflowHandler.PreviewDataset)
+			datasets.POST("/:id/validate", r.workflowHandler.ValidateDatasetSeed)
+			datasets.GET("/:id/compatible-workflows", r.workflowHandler.DatasetCompatibleWorkflows)
 			datasets.GET("/:id/download", r.workflowHandler.DownloadDataset)
 			datasets.GET("/:id/training-config", r.workflowHandler.DatasetTrainingConfig)
 			datasets.POST("/:id/splits/preview", r.workflowHandler.PreviewDatasetSplit)

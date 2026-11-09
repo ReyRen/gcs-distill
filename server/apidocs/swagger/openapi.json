@@ -331,9 +331,9 @@
           "train_ratio": {
             "exclusiveMaximum": true,
             "exclusiveMinimum": true,
-            "type": "number",
+            "maximum": 1,
             "minimum": 0,
-            "maximum": 1
+            "type": "number"
           },
           "validation_ratio": {
             "maximum": 1,
@@ -649,6 +649,12 @@
             "additionalProperties": true,
             "description": "Native EasyDistill 2 config overrides; input/output paths and selected teacher are managed by GCS",
             "type": "object"
+          },
+          "seed_limit": {
+            "default": 0,
+            "description": "First N seed records; zero means all. Source JSON is fully parsed; only selected records undergo schema validation.",
+            "minimum": 0,
+            "type": "integer"
           },
           "student_model": {
             "$ref": "#/components/schemas/StudentModelConfig"
@@ -1389,6 +1395,7 @@
             "type": "string"
           },
           "concurrency": {
+            "default": 1,
             "description": "Positive values override existing recipe and stage settings; zero/omitted retains recipe defaults; negative values are rejected.",
             "example": 10,
             "type": "integer"
@@ -1404,6 +1411,7 @@
             "type": "object"
           },
           "max_tokens": {
+            "default": 2048,
             "description": "Positive values override existing recipe and stage settings; zero/omitted retains recipe defaults; negative values are rejected.",
             "example": 2048,
             "type": "integer"
@@ -1419,6 +1427,13 @@
               "api"
             ],
             "type": "string"
+          },
+          "retry_attempts": {
+            "default": 1,
+            "description": "Retries after first attempt for native generation operators. Some upstream evaluators retain their own policy; the three-consecutive-timeout circuit still applies.",
+            "maximum": 3,
+            "minimum": 0,
+            "type": "integer"
           },
           "service_id": {
             "description": "Owned online model-center service; backend resolves endpoint, model and credentials.",
@@ -1533,7 +1548,7 @@
   "info": {
     "description": "Offline x86 EasyDistill 2 data workflows and optional local student training. UID must be injected by the trusted platform gateway. Legacy local teacher inference is removed.",
     "title": "GCS-Distill API",
-    "version": "2.0.8"
+    "version": "2.0.9"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -2459,6 +2474,73 @@
           }
         },
         "summary": "SFT/DPO dataset handoff for the existing training page; does not create a training task"
+      }
+    },
+    "/api/v1/datasets/{id}/validate": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "field_mapping": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "job_type": {
+                    "type": "string"
+                  },
+                  "seed_limit": {
+                    "default": 0,
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "job_type"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "valid=true and exact seed_selection counts"
+          },
+          "400": {
+            "description": "Invalid request/job type"
+          },
+          "404": {
+            "description": "Missing or not owned"
+          },
+          "422": {
+            "description": "Seed format mismatch; valid=false and record error"
+          }
+        },
+        "summary": "Validate selected seed rows before teacher/resource selection; no task or teacher calls"
       }
     },
     "/api/v1/models/student": {
@@ -3840,6 +3922,53 @@
         "tags": [
           "health"
         ]
+      }
+    },
+    "/api/v1/datasets/{id}/compatible-workflows": {
+      "get": {
+        "summary": "Single-pass schema compatibility for all workflow types; no model calls",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "uid",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "seed_limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "seed_selection and items with compatible/reason/invalid_record for every workflow"
+          },
+          "400": {
+            "description": "Invalid limit/UID"
+          },
+          "404": {
+            "description": "Unavailable or not owned"
+          },
+          "422": {
+            "description": "Invalid source JSON"
+          }
+        }
       }
     }
   },

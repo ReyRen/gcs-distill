@@ -69,7 +69,17 @@ func (h *WorkflowHandler) Preview(c *gin.Context) {
 		return
 	}
 	redactConfig(cfg)
-	c.JSON(200, gin.H{"code": 200, "data": gin.H{"config": cfg, "stages": runtime.PipelineStageTypes(&p), "resource_mode": "cpu", "resource_request": p.ResourceRequest, "training_scope": "single_node_multi_gpu", "train_student": p.TrainingConfig.Distillation.TrainStudent, "data_expansion": p.TrainingConfig.Distillation.DataExpansion, "data_split": p.TrainingConfig.Distillation.DataSplit}})
+	dataset, err := h.datasets.GetDataset(c.Request.Context(), p.UID, p.DatasetID)
+	if err != nil {
+		c.JSON(404, gin.H{"code": 404, "message": "数据集不存在"})
+		return
+	}
+	selection, err := runtime.InspectSeedSelection(c.Request.Context(), dataset.FilePath, p.TrainingConfig.Distillation)
+	if err != nil {
+		c.JSON(400, gin.H{"code": 400, "message": err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"code": 200, "data": gin.H{"seed_selection": selection, "config": cfg, "stages": runtime.PipelineStageTypes(&p), "resource_mode": "cpu", "resource_request": p.ResourceRequest, "training_scope": "single_node_multi_gpu", "train_student": p.TrainingConfig.Distillation.TrainStudent, "data_expansion": p.TrainingConfig.Distillation.DataExpansion, "data_split": p.TrainingConfig.Distillation.DataSplit}})
 }
 
 func redactConfig(value interface{}) {

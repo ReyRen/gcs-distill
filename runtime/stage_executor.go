@@ -332,6 +332,7 @@ func (e *StageExecutor) ReleaseContainer(stage *types.StageRun) {
 func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName, pipelineID string, stage *types.StageRun) error {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
+	observer := &generationObserver{}
 
 	for {
 		select {
@@ -361,6 +362,12 @@ func (e *StageExecutor) waitForContainerTask(ctx context.Context, containerName,
 			if err := e.recordTaskWorker(ctx, stage, task); err != nil {
 				e.stopContainerTask(containerName)
 				return err
+			}
+			if stage.StageType == types.StageDistillData {
+				if err := e.observeGeneration(ctx, stage, observer); err != nil {
+					e.stopContainerTask(containerName)
+					return err
+				}
 			}
 			if task.TaskStates == gcsclient.TaskStateContainerDone {
 				return nil

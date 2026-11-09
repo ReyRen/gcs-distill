@@ -238,7 +238,10 @@ func (e *StageExecutor) executeExpansion(ctx context.Context, stage *types.Stage
 	logRoot := e.configGen.GetLogPath(p.UID, project.ID, p.ID, "distill_data")
 	defer func() { stage.LogPath = logRoot }()
 	persist := func() error {
-		stage.Metrics = map[string]interface{}{"expansion": progress}
+		if stage.Metrics == nil {
+			stage.Metrics = map[string]interface{}{}
+		}
+		stage.Metrics["expansion"] = progress
 		stage.OutputManifest = map[string]string{"output_path": distill2OutputPath(root, p.TrainingConfig.Distillation.JobType), "record_count": fmt.Sprint(progress.Actual), "target_records": fmt.Sprint(c.TargetRecords), "target_reached": fmt.Sprint(progress.Reached), "expansion_manifest": "data/exported/expansion.json", "upstream_revision": EasyDistill2Revision}
 		if err := writePrivateJSON(filepath.Join(root, "data", "exported", "expansion.json"), progress); err != nil {
 			return err

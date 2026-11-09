@@ -98,3 +98,18 @@ func TestMessageSeedSnapshotPreservesOriginalFileAndReportsBadRecord(t *testing.
 		t.Fatal("missing record index", err)
 	}
 }
+
+func TestEvaluationPreflightRequiresARealExistingAnswer(t *testing.T) {
+	for _, raw := range []string{`{"messages":"bad"}`, `{"messages":[]}`, `{"messages":[{"role":"user","content":"question"}]}`, `{"instruction":"question","messages":[{"role":"user","content":"question"},{"role":"assistant","content":"answer"}]}`} {
+		var row map[string]interface{}
+		_ = json.Unmarshal([]byte(raw), &row)
+		if err := MapSeedRecord(row, &types.DistillationConfig{JobType: "instruct_eval"}); err == nil {
+			t.Fatal("invalid evaluation seed accepted", raw)
+		}
+	}
+	var row map[string]interface{}
+	_ = json.Unmarshal([]byte(`{"messages":[{"role":"user","content":"question"},{"role":"assistant","content":"real answer"}]}`), &row)
+	if err := MapSeedRecord(row, &types.DistillationConfig{JobType: "instruct_eval"}); err != nil {
+		t.Fatal(err)
+	}
+}

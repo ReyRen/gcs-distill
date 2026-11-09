@@ -34,6 +34,8 @@ for src in ['docs/easydistill2-frontend-handoff.md', 'docs/easydistill2-x86-veri
 shutil.copy2(str(repo / 'docs/data-expansion-split-frontend.md'), str(root / 'docs/data-expansion-split-frontend.md'))
 shutil.copy2(str(repo / 'docs/data-preparation-verification-20261105.md'), str(root / 'docs/data-preparation-verification-20261105.md'))
 shutil.copy2(str(repo / 'docs/sft-seed-reuse-fix-20261105.md'), str(root / 'docs/sft-seed-reuse-fix-20261105.md'))
+shutil.copy2(str(repo / 'docs/generation-performance-frontend.md'), str(root / 'docs/generation-performance-frontend.md'))
+shutil.copy2(str(repo / 'docs/generation-performance-verification-20261109.md'), str(root / 'docs/generation-performance-verification-20261109.md'))
 shutil.copy2(str(repo / 'x86/image/trainer-constraints.txt'),str(root / 'locks/trainer-constraints.txt'))
 
 def sha(path):
