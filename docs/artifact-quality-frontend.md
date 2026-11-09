@@ -91,10 +91,22 @@ function recordCountText(row) {
 - `data.scored_artifacts`：各轮评分、质量过滤等中间文件的独立统计，包含 relative_path 和上述计数。不能把各轮数字相加当作最终数据量。
 - `data.unavailable_artifacts`：暂时无法解析/统计的文件路径，应提示后刷新，不能当作 0 分。
 - 每项 metrics 的 count/min/max/mean/histogram 仅计算实际存在的评分；布尔值统计中 true=1、false=0，页面仍应按正确率等语义显示。
-- token_usage/cost 仍为 null，model_evaluation=not_performed；数据评分不代表学生模型效果评测。
+- token_usage/cost 仍为 null；model_evaluation=not_performed 是接口的范围说明，不渲染为学生模型的状态标签。当前蒸馏模块未实现学生独立效果评测，删除“效果尚未测评/独立效果未评测”等标签和评测提示。数据评分仍正常展示。
 
 顶部“全部样本”统计使用 exported_dataset；预览区提示使用 quality.scope=preview_records 的计数。两者不能混用。接口地址、身份与任务归属校验保持一致。
 
 ## 4. 截图任务联调值
 
 UID 338、任务 `f1611f3b-ffe3-4d3c-8948-e420b6351914`：最终 10 条、train 8 条、validation 1 条、test 1 条。其记录数来自实际文件，评分来自已有中间评分记录。具体评分覆盖情况以线上接口返回和验收记录为准。
+
+## 5. 学生模型卡片去掉未实现的效果评测标签
+
+当前模块没有独立的学生模型效果评测，不把“尚未评测”作为任务状态展示：
+
+- 删除学生模型标题旁的“效果尚未测评”标签，不改成另一个“未评测”标签。
+- 完成提示只保留“数据生成与学生训练均已完成”，删除后面的未评测说明及独立评测模块引导。
+- 保留“LoRA 权重已产出”、基模说明、下载权重和训练日志。未完成时按真实 student_train 状态展示等待、训练中或失败。
+- train_loss / eval_loss 若存在可在训练指标中显示；缺失时不填 0，也不作为综合效果分。
+- 不根据 model_evaluation 字段生成标签。这个字段没有实现独立效果评测能力，也不新增效果评测按钮。
+
+这部分是前端展示调整，不需要改训练参数、重跑任务或重启后端。仓库 mock 已同步删除标签；正式平台前端需要在自己的任务详情组件中实施上述修改。
