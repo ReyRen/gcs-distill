@@ -13,6 +13,12 @@ import (
 // WalkRecords accepts a JSON array or a stream of JSON objects, including JSONL.
 // It keeps only one record in memory and rejects malformed or non-object data.
 func WalkRecords(path string, visit func(map[string]interface{}) error) (int, error) {
+	return walkRecords(path, visit, false)
+}
+
+// Artifact files may legitimately be empty after filtering. Seed and export
+// validation continue to reject empty datasets through WalkRecords.
+func walkRecords(path string, visit func(map[string]interface{}) error, allowEmpty bool) (int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, err
@@ -22,6 +28,9 @@ func WalkRecords(path string, visit func(map[string]interface{}) error) (int, er
 	for {
 		b, e := r.Peek(1)
 		if e != nil {
+			if e == io.EOF && allowEmpty {
+				return 0, nil
+			}
 			return 0, fmt.Errorf("empty dataset")
 		}
 		if b[0] == ' ' || b[0] == '\n' || b[0] == '\r' || b[0] == '\t' {
@@ -70,7 +79,7 @@ func WalkRecords(path string, visit func(map[string]interface{}) error) (int, er
 			return count, fmt.Errorf("unexpected data after JSON array")
 		}
 	}
-	if count == 0 {
+	if count == 0 && !allowEmpty {
 		return 0, fmt.Errorf("dataset contains no records")
 	}
 	return count, nil
@@ -125,12 +134,16 @@ func CopySeedRecords(input, output string, limit int, transform func(map[string]
 }
 
 func PreviewRecords(path string, limit int) ([]map[string]interface{}, int, []string, error) {
+	return previewRecords(path, limit, false)
+}
+
+func previewRecords(path string, limit int, allowEmpty bool) ([]map[string]interface{}, int, []string, error) {
 	if limit < 1 || limit > 100 {
 		limit = 10
 	}
 	rows := []map[string]interface{}{}
 	fields := map[string]bool{}
-	total, err := WalkRecords(path, func(row map[string]interface{}) error {
+	total, err := walkRecords(path, func(row map[string]interface{}) error {
 		for key := range row {
 			fields[key] = true
 		}
@@ -138,7 +151,7 @@ func PreviewRecords(path string, limit int) ([]map[string]interface{}, int, []st
 			rows = append(rows, row)
 		}
 		return nil
-	})
+	}, allowEmpty)
 	keys := make([]string, 0, len(fields))
 	for key := range fields {
 		keys = append(keys, key)

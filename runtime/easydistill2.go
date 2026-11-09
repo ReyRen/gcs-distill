@@ -546,6 +546,10 @@ func (e *StageExecutor) executeExport2(ctx context.Context, stage *types.StageRu
 			return err
 		}
 	}
+	qualityIndex, err := exportSampleQuality(root, path)
+	if err != nil {
+		return fmt.Errorf("read output quality: %w", err)
+	}
 	count, err := CopyRecords(path, path, func(row map[string]interface{}) error {
 		if recipe.OutputFormat == "sft_messages" {
 			if messages, ok := row["messages"].([]interface{}); !ok || len(messages) == 0 {
@@ -570,6 +574,10 @@ func (e *StageExecutor) executeExport2(ctx context.Context, stage *types.StageRu
 			provenance["teacher_service_id"] = teacher.ServiceID
 		}
 		metadata["gcs_distill"] = provenance
+		quality := sampleQuality(row, "data/exported/dataset.jsonl", qualityIndex)
+		if quality.Status != "unavailable" {
+			metadata["quality"] = quality
+		}
 		row["metadata"] = metadata
 		return nil
 	})

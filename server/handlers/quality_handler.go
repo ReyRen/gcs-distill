@@ -20,5 +20,5 @@ func (h *WorkflowHandler) Quality(c *gin.Context) {
 		c.Status(404)
 		return
 	}
-	c.JSON(200, gin.H{"code": 200, "data": gin.H{"summary": p.Summary, "scored_artifacts": items, "aggregation": "full_records_per_artifact", "model_evaluation": "not_performed", "token_usage": nil, "cost": nil}})
+	c.JSON(200, gin.H{"code": 200, "data": gin.H{"summary": p.Summary, "scored_artifacts": items.ScoredArtifacts, "exported_dataset": items.ExportedDataset, "unavailable_artifacts": items.Unavailable, "aggregation": "full_records_per_artifact", "model_evaluation": "not_performed", "token_usage": nil, "cost": nil}})
 }

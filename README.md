@@ -12,6 +12,7 @@ teacher_config → dataset_build → distill_data → dataset_export → [studen
 
 - [前端接口与页面交接](docs/easydistill2-frontend-handoff.md)
 - [任务与数据匹配、种子条数和真实生成进度](docs/generation-performance-frontend.md)
+- [产物记录数与样本评分展示](docs/artifact-quality-frontend.md)
 - [扩充目标与数据划分对接](docs/data-expansion-split-frontend.md)、[本次验收记录](docs/data-preparation-verification-20261105.md)
 - [种子格式模板与用法](runtime/seed_templates/00_使用说明.md)，下载入口 `/api/v1/dataset-templates/download`
 - [交互 mock](docs/ui/gcs-distill2-mock.html)

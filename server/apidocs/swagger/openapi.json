@@ -72,6 +72,129 @@
       }
     },
     "schemas": {
+      "Artifact": {
+        "properties": {
+          "bytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "dataset",
+              "dataset_metadata",
+              "model_weights",
+              "model_metadata"
+            ],
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "previewable": {
+            "type": "boolean"
+          },
+          "record_count": {
+            "minimum": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "record_count_status": {
+            "enum": [
+              "counted",
+              "not_applicable",
+              "unavailable"
+            ],
+            "type": "string"
+          },
+          "relative_path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "relative_path",
+          "bytes",
+          "kind",
+          "previewable",
+          "record_count",
+          "record_count_status"
+        ],
+        "type": "object"
+      },
+      "ArtifactListResponse": {
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "items": {
+                "items": {
+                  "$ref": "#/components/schemas/Artifact"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "items"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ],
+        "type": "object"
+      },
+      "ArtifactPreviewResponse": {
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "fields": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "items": {
+                "items": {
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "limit": {
+                "maximum": 100,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "quality": {
+                "$ref": "#/components/schemas/PreviewQuality"
+              },
+              "total": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "items",
+              "total",
+              "limit",
+              "fields",
+              "quality"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ],
+        "type": "object"
+      },
       "AvailableDevice": {
         "description": "Worker telemetry uses MiB. Null means unknown, never zero. Only selectable=true cards may be selected in the UI; refreshing and validation do not reserve resources.",
         "properties": {
@@ -926,6 +1049,43 @@
         },
         "type": "object"
       },
+      "PreviewQuality": {
+        "properties": {
+          "ambiguous_records": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "items": {
+            "description": "Same length and order as data.items; numeric zero and boolean false are real scores.",
+            "items": {
+              "$ref": "#/components/schemas/SampleQuality"
+            },
+            "type": "array"
+          },
+          "scope": {
+            "enum": [
+              "preview_records"
+            ],
+            "type": "string"
+          },
+          "scored_records": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unscored_records": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "scored_records",
+          "unscored_records",
+          "ambiguous_records",
+          "items"
+        ],
+        "type": "object"
+      },
       "Project": {
         "properties": {
           "business_scenario": {
@@ -1016,6 +1176,54 @@
         },
         "type": "object"
       },
+      "QualityReportResponse": {
+        "properties": {
+          "code": {
+            "type": "integer"
+          },
+          "data": {
+            "properties": {
+              "aggregation": {
+                "type": "string"
+              },
+              "cost": {
+                "nullable": true
+              },
+              "exported_dataset": {
+                "$ref": "#/components/schemas/ScoredArtifact",
+                "nullable": true
+              },
+              "model_evaluation": {
+                "type": "string"
+              },
+              "scored_artifacts": {
+                "items": {
+                  "$ref": "#/components/schemas/ScoredArtifact"
+                },
+                "type": "array"
+              },
+              "summary": {
+                "type": "object"
+              },
+              "token_usage": {
+                "nullable": true
+              },
+              "unavailable_artifacts": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "required": [
+          "code",
+          "data"
+        ],
+        "type": "object"
+      },
       "ResourceRequest": {
         "properties": {
           "executor_nodes": {
@@ -1042,6 +1250,115 @@
             "type": "array"
           }
         },
+        "type": "object"
+      },
+      "SampleQuality": {
+        "properties": {
+          "metrics": {
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "type": "object"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "scored",
+              "unavailable",
+              "ambiguous"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "type": "object"
+      },
+      "ScoreSummary": {
+        "properties": {
+          "count": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "histogram": {
+            "additionalProperties": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "histogram_bin_width": {
+            "type": "number"
+          },
+          "max": {
+            "type": "number"
+          },
+          "mean": {
+            "type": "number"
+          },
+          "min": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count",
+          "min",
+          "max",
+          "mean",
+          "histogram_bin_width",
+          "histogram"
+        ],
+        "type": "object"
+      },
+      "ScoredArtifact": {
+        "properties": {
+          "ambiguous_records": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "metrics": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ScoreSummary"
+            },
+            "type": "object"
+          },
+          "records": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "relative_path": {
+            "type": "string"
+          },
+          "scored_records": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unscored_records": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "relative_path",
+          "records",
+          "scored_records",
+          "unscored_records",
+          "ambiguous_records",
+          "metrics"
+        ],
         "type": "object"
       },
       "SeedTemplate": {
@@ -1496,7 +1813,7 @@
             "type": "integer"
           },
           "learning_rate": {
-            "example": 2e-05,
+            "example": 0.00002,
             "format": "double",
             "type": "number"
           },
@@ -1548,7 +1865,7 @@
   "info": {
     "description": "Offline x86 EasyDistill 2 data workflows and optional local student training. UID must be injected by the trusted platform gateway. Legacy local teacher inference is removed.",
     "title": "GCS-Distill API",
-    "version": "2.0.9"
+    "version": "2.0.10"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -1949,6 +2266,53 @@
         "tags": [
           "datasets"
         ]
+      }
+    },
+    "/api/v1/datasets/{id}/compatible-workflows": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "uid",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "seed_limit",
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "seed_selection and items with compatible/reason/invalid_record for every workflow"
+          },
+          "400": {
+            "description": "Invalid limit/UID"
+          },
+          "404": {
+            "description": "Unavailable or not owned"
+          },
+          "422": {
+            "description": "Invalid source JSON"
+          }
+        },
+        "summary": "Single-pass schema compatibility for all workflow types; no model calls"
       }
     },
     "/api/v1/datasets/{id}/download": {
@@ -2770,6 +3134,7 @@
     },
     "/api/v1/pipelines/{id}/artifacts": {
       "get": {
+        "description": "Full JSON/JSONL counts, including empty files. Null counts mean not applicable or unavailable; metadata is not a training dataset.",
         "parameters": [
           {
             "in": "path",
@@ -2794,7 +3159,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/ArtifactListResponse"
                 }
               }
             },
@@ -2864,6 +3229,7 @@
     },
     "/api/v1/pipelines/{id}/artifacts/preview": {
       "get": {
+        "description": "Adds quality aligned with preview items; exact question-and-answer association within the owned run restores existing SFT scores without modifying files. Empty intermediate datasets return total=0. Downloads remain original bytes.",
         "parameters": [
           {
             "in": "path",
@@ -2914,7 +3280,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ArtifactPreviewResponse"
+                    },
+                    {
+                      "description": "Raw manifest.json or expansion.json metadata.",
+                      "type": "object"
+                    }
+                  ]
                 }
               }
             },
@@ -3086,6 +3460,7 @@
     },
     "/api/v1/pipelines/{id}/quality": {
       "get": {
+        "description": "Final dataset counts are separate from intermediate rounds. Missing scores are not zero. No student-effect or cost estimates.",
         "parameters": [
           {
             "in": "path",
@@ -3111,7 +3486,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/QualityReportResponse"
                 }
               }
             },
@@ -3127,7 +3502,7 @@
             "description": "Validation or connectivity failure"
           }
         },
-        "summary": "Full-record score aggregates per intermediate artifact; no student-effect or cost estimates",
+        "summary": "Full-record scores for final dataset and individual intermediate artifacts",
         "tags": [
           "EasyDistill 2"
         ]
@@ -3922,53 +4297,6 @@
         "tags": [
           "health"
         ]
-      }
-    },
-    "/api/v1/datasets/{id}/compatible-workflows": {
-      "get": {
-        "summary": "Single-pass schema compatibility for all workflow types; no model calls",
-        "parameters": [
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "uid",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "minimum": 1
-            }
-          },
-          {
-            "name": "seed_limit",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "minimum": 0,
-              "default": 0
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "seed_selection and items with compatible/reason/invalid_record for every workflow"
-          },
-          "400": {
-            "description": "Invalid limit/UID"
-          },
-          "404": {
-            "description": "Unavailable or not owned"
-          },
-          "422": {
-            "description": "Invalid source JSON"
-          }
-        }
       }
     }
   },

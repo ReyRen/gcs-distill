@@ -212,7 +212,7 @@ Mock 覆盖核心主流程，可用于页面和交互交接；它不是已经接
 - JSON 数组按对象计数；JSONL 严格逐条解析，非法行不静默丢弃。TXT 不作为 2.0 可直接运行的格式推荐。
 - 不丢失 messages、images、工具轨迹、偏好对及 metadata，不能一律压成 instruction/output 两列。
 - 无产物不能显示成功；数据生成失败不叫“模型训练失败”。
-- 预览最多 100 条，不能据此推算全量评分分布。`/quality` 提供按中间产物全量扫描的评分统计；token 和成本返回 null，禁止填演示数字。
+- 预览最多 100 条，不能据此推算全量评分分布。`/quality` 的 exported_dataset 提供最终全量数据统计，scored_artifacts 按中间产物独立统计；token 和成本返回 null，禁止填演示数字。产物条数、空值与样本评分绑定见 [产物记录数与样本评分对接](artifact-quality-frontend.md)。
 - Agent 默认模拟工具，不标注为已接真实业务系统。Agent、图文指令和图文 CoT 已完成真实教师到学生 LoRA 的小样本验收；业务质量仍需单独评估。
 - 导出记录 metadata.model 记录任务实际教师模型；metadata.gcs_distill 记录 pipeline_id、seed_dataset_id、job_type 及选用的 teacher_service_id，不把上游的通用 pipeline 标记作为模型名称。
 - 图像/视频生成等尚未安装额外依赖的能力不能直接开放为“已可运行”。

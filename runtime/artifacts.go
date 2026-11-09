@@ -15,11 +15,16 @@ type Artifact struct {
 	Bytes        int64  `json:"bytes"`
 	Kind         string `json:"kind"`
 	Previewable  bool   `json:"previewable"`
+	RecordCount  *int   `json:"record_count"`
+	CountStatus  string `json:"record_count_status,omitempty"`
 }
 
 func artifactKind(path string) (string, bool) {
 	name := filepath.Base(path)
 	if strings.HasPrefix(path, "data/exported/") || strings.HasPrefix(path, "data/intermediate/") {
+		if name == "manifest.json" || name == "expansion.json" {
+			return "dataset_metadata", true
+		}
 		if strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".jsonl") {
 			return "dataset", true
 		}
@@ -82,6 +87,37 @@ func ListArtifacts(root string) ([]Artifact, error) {
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].RelativePath < items[j].RelativePath })
 	return items, nil
+}
+
+// CountArtifactRecords is deliberately separate from listing: downloading one
+// file must not scan every dataset. Counts never use preview lengths or bytes.
+func CountArtifactRecords(root string, items []Artifact) {
+	for i := range items {
+		item := &items[i]
+		item.CountStatus = "not_applicable"
+		if item.Kind != "dataset" {
+			continue
+		}
+		item.CountStatus = "unavailable"
+		path, err := SafeArtifactPath(root, item.RelativePath)
+		if err != nil {
+			continue
+		}
+		before, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		count, err := walkRecords(path, nil, true)
+		if err != nil {
+			continue
+		}
+		after, err := os.Stat(path)
+		if err != nil || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
+			continue
+		}
+		item.RecordCount = &count
+		item.CountStatus = "counted"
+	}
 }
 
 func SafeArtifactPath(root, relative string) (string, error) {

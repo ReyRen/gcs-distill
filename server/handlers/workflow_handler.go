@@ -186,6 +186,7 @@ func (h *WorkflowHandler) Artifacts(c *gin.Context) {
 		c.JSON(500, gin.H{"code": 500, "message": "读取产物失败"})
 		return
 	}
+	runtime.CountArtifactRecords(root, items)
 	c.JSON(200, gin.H{"code": 200, "data": gin.H{"items": items}})
 }
 
@@ -227,12 +228,12 @@ func (h *WorkflowHandler) PreviewArtifact(c *gin.Context) {
 			c.Data(200, "application/json", data)
 			return
 		}
-		rows, total, fields, err := runtime.PreviewRecords(path, limit)
+		rows, total, fields, quality, err := runtime.PreviewArtifact(root, item.RelativePath, limit)
 		if err != nil {
 			c.JSON(422, gin.H{"code": 422, "message": "产物格式无效"})
 			return
 		}
-		c.JSON(200, gin.H{"code": 200, "data": gin.H{"items": rows, "total": total, "limit": limit, "fields": fields}})
+		c.JSON(200, gin.H{"code": 200, "data": gin.H{"items": rows, "total": total, "limit": limit, "fields": fields, "quality": quality}})
 		return
 	}
 	c.JSON(404, gin.H{"code": 404, "message": "产物不存在"})
