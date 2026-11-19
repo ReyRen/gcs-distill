@@ -8,7 +8,10 @@ from pathlib import Path
 
 p = argparse.ArgumentParser()
 p.add_argument('--shared-root', type=Path, required=True)
-p.add_argument('--data-only', action='store_true')
+images = p.add_mutually_exclusive_group()
+images.add_argument('--data-only', action='store_true')
+images.add_argument('--trainer-only', action='store_true', help='only check the student training image')
+p.add_argument('--trainer-image', help='student training image tag configured on the platform')
 accelerator = p.add_mutually_exclusive_group()
 accelerator.add_argument('--gpu-device')
 accelerator.add_argument('--npu-devices', help='comma-separated physical Ascend device IDs')
@@ -30,11 +33,12 @@ if a.arch == 'arm64':
 else:
     data = 'gcs/distill-data:2.0.0-aeb8ca3-x86_64'
     trainer = 'gcs/distill-trainer:0.9.3-cu124-vl-x86_64'
+trainer = a.trainer_image or trainer
 if (a.gpu_device and a.arch != 'amd64') or (a.npu_devices and a.arch != 'arm64'):
     p.error('accelerator selection must match the target architecture')
 docker = ['docker', 'run', '--rm', '--pull=never', '--network', 'none']
 cpu = docker + (['--runtime', 'runc'] if a.arch == 'arm64' else [])
-tests = [(data, ['easydistill', '--list-jobs'])]
+tests = [] if a.trainer_only else [(data, ['easydistill', '--list-jobs'])]
 if not a.data_only:
     if a.arch == 'arm64':
         tests.append((trainer, ['python3', '-c', 'from importlib.metadata import version; print(version("llamafactory"), version("torch-npu"))']))
@@ -56,13 +60,24 @@ if a.npu_devices:
         board = subprocess.check_output(['npu-smi', 'info', '-t', 'board', '-i', index, '-c', '0'], text=True)
         if not re.search(r'^\s*Chip Name\s*:\s*910B\w*\b', board, re.M | re.I):
             raise RuntimeError('the ARM64 trainer requires Ascend 910B, check card ' + index)
-    code = ('import ctypes, torch, torch_npu, llamafactory, qwen_vl_utils; '
-            'assert ctypes.CDLL("libopapi.so").aclnnMatmul; '
-            'torch_npu.npu.set_compile_mode(jit_compile=False); '
-            'assert torch.npu.device_count() == ' + str(len(indices)) + '; '
-            'x=torch.ones((1,2,8,8),device="npu:0",dtype=torch.float16,requires_grad=True); '
-            'loss=(x@x).sum(); loss.backward(); '
-            'assert loss.item()==1024 and x.grad.sum().item()==2048; print("ASCEND_NPU_OK",torch.npu.device_count())')
+    code = f'''
+import ctypes
+import llamafactory
+import qwen_vl_utils
+import torch
+import torch_npu
+
+assert ctypes.CDLL("libopapi.so").aclnnMatmul
+torch_npu.npu.set_compile_mode(jit_compile=False)
+assert torch.npu.device_count() == {len(indices)}, "device count does not match the assigned cards"
+for index in range({len(indices)}):
+    torch.npu.set_device(index)
+    x = torch.ones((1, 2, 8, 8), device=f"npu:{{index}}", dtype=torch.float16, requires_grad=True)
+    loss = (x @ x).sum()
+    loss.backward()
+    assert loss.item() == 1024 and x.grad.sum().item() == 2048
+    print("ASCEND_NPU_OK", index, torch.npu.get_device_name(index))
+'''
     subprocess.check_call(docker + ['--runtime', 'ascend', '-e', 'ASCEND_VISIBLE_DEVICES='+a.npu_devices, trainer, 'python3', '-c', code])
 if a.model:
     model = a.model.resolve()

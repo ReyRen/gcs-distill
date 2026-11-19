@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-role="${1:?usage: build-image.sh data|trainer source.tar wheelhouse}"
+role="${1:?usage: build-image.sh data|trainer|trainer-hdk25.5.1 source.tar wheelhouse}"
 source_tar="${2:?source must be a git archive in tar format}"
 wheels="${3:?provide the predownloaded ARM64 wheels}"
 
@@ -20,6 +20,13 @@ case "$role" in
     base=172.18.127.43:80/sft-images/llama-factory-ascend910b-gcs:0.9.3-cann8-py310-torch2.2.0
     base_id=151b6854f3062c22ff1d60d5f9a26e302b96af3446807bfdc95b336882260542
     check=(python3 -c 'from importlib.metadata import version; assert version("llamafactory") == "0.9.3"; assert version("torch-npu") == "2.2.0"; assert version("qwen-vl-utils") == "0.0.8"')
+    ;;
+  trainer-hdk25.5.1)
+    revision=ca75f1edf3cb50343ed1c98605141c3e22075b5f
+    tag=gcs/distill-trainer:0.9.3-cann9.0.0-torch2.10.0-hdk25.5.1-vl-arm64
+    base=quay.io/ascend/cann:9.0.0-910b-ubuntu22.04-py3.11
+    base_id=d24afa915a3e423bee809e615e527781b336261f7940581ffcae42ae1724ca0b
+    check=(python3 -c 'from importlib.metadata import version; assert version("llamafactory") == "0.9.3"; assert version("torch") == "2.10.0+cpu"; assert version("torch-npu") == "2.10.0"; assert version("qwen-vl-utils") == "0.0.8"')
     ;;
   *) echo "unknown image role: $role" >&2; exit 2 ;;
 esac
