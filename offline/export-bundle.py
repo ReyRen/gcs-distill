@@ -93,5 +93,5 @@ for role, src, tag in [('data', a.data_image, data_tag), ('trainer', a.trainer_i
     (root / 'locks' / (role+'-requirements.lock')).write_bytes(lock)
 (root / 'manifest.json').write_bytes((json.dumps(manifest, indent=2) + '\n').encode('utf-8'))
 checks = [sha(f) + '  ' + f.relative_to(root).as_posix() for f in sorted(root.rglob('*')) if f.is_file()]
-(root / 'SHA256SUMS').write_bytes(('\n'.join(checks) + '\n').encode('ascii'))
+(root / 'SHA256SUMS').write_text('\n'.join(checks) + '\n', encoding='utf-8')
 print('OFFLINE_BUNDLE_READY', root)
