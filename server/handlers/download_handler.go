@@ -41,10 +41,7 @@ func (h *WorkflowHandler) DownloadDataset(c *gin.Context) {
 }
 
 func (h *WorkflowHandler) DownloadArtifact(c *gin.Context) {
-	q := c.Request.URL.Query()
-	q.Set("download", "true")
-	c.Request.URL.RawQuery = q.Encode()
-	h.PreviewArtifact(c)
+	h.serveArtifact(c, true)
 }
 
 func (h *WorkflowHandler) DownloadModel(c *gin.Context) {

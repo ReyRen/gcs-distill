@@ -33,9 +33,11 @@ func TestArtifactCountsAndSampleQualityHTTP(t *testing.T) {
 		}
 	}
 	h := &WorkflowHandler{storage: storage, pipelines: artifactPipeline{pipeline: p}}
+	auth := &PipelineHandler{pipelineSvc: h.pipelines}
 	r := gin.New()
 	r.GET("/pipelines/:id/artifacts", h.Artifacts)
 	r.GET("/pipelines/:id/artifacts/preview", h.PreviewArtifact)
+	r.GET("/pipelines/:id/artifacts/download", auth.AuthorizePipeline, h.DownloadArtifact)
 	r.GET("/pipelines/:id/quality", h.Quality)
 	get := func(path string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
@@ -87,6 +89,17 @@ func TestArtifactCountsAndSampleQualityHTTP(t *testing.T) {
 	for _, path := range []string{"artifacts?uid=369", "quality?uid=369", "artifacts/preview?uid=369&path=data/exported/dataset.jsonl"} {
 		if w := get(path); w.Code != 404 {
 			t.Fatal("foreign task disclosed", w.Code)
+		}
+	}
+	path := "data/exported/dataset.jsonl"
+	data, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(path)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, endpoint := range []string{"artifacts/download?uid=338&path=", "artifacts/preview?uid=338&download=true&path="} {
+		resp := get(endpoint + path)
+		if resp.Code != 200 || resp.Header().Get("Content-Disposition") == "" || resp.Body.String() != string(data) {
+			t.Fatal("expected a downloadable artifact", endpoint, resp.Code, resp.Body.String())
 		}
 	}
 }

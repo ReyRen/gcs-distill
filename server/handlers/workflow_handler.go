@@ -191,6 +191,10 @@ func (h *WorkflowHandler) Artifacts(c *gin.Context) {
 }
 
 func (h *WorkflowHandler) PreviewArtifact(c *gin.Context) {
+	h.serveArtifact(c, c.Query("download") == "true")
+}
+
+func (h *WorkflowHandler) serveArtifact(c *gin.Context, download bool) {
 	root, ok := h.artifact(c)
 	if !ok {
 		return
@@ -208,7 +212,7 @@ func (h *WorkflowHandler) PreviewArtifact(c *gin.Context) {
 		if err != nil {
 			break
 		}
-		if c.Query("download") == "true" {
+		if download {
 			c.FileAttachment(path, item.Name)
 			return
 		}
