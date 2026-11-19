@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
 	"github.com/ReyRen/gcs-distill/internal/config"
+	"github.com/ReyRen/gcs-distill/internal/types"
 )
 
 func resourcePointer[T any](v T) *T { return &v }
@@ -48,5 +50,18 @@ func TestAscendCatalogPreservesNoncontiguousPhysicalIDs(t *testing.T) {
 	cards := nodes[0].Devices
 	if len(cards) != 2 || cards[0].Index != 2 || cards[0].Selectable || cards[1].Index != 5 || !cards[1].Selectable {
 		t.Fatalf("unexpected Ascend card inventory: %+v", cards)
+	}
+}
+
+func TestARMDeploymentWithNoTrainingWorkersOnlyAcceptsDataJobs(t *testing.T) {
+	resources := NewResourceService(nil, config.ExecutorConfig{
+		Training: config.TrainingRuntime{Accelerator: config.AcceleratorAscend},
+	})
+	if err := resources.Validate(context.Background(), &types.ResourceRequest{}, false, true); err != nil {
+		t.Fatal(err)
+	}
+	request := &types.ResourceRequest{SelectedResources: []types.SelectedResource{{NodeName: "arm", XPUIndices: []int{2}}}}
+	if err := resources.Validate(context.Background(), request, true, true); err == nil {
+		t.Fatal("training was accepted without an enabled worker")
 	}
 }

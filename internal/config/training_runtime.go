@@ -33,14 +33,18 @@ func (r TrainingRuntime) Architecture() string {
 	return "amd64"
 }
 
+func (r TrainingRuntime) Enabled() bool {
+	return r.Accelerator != AcceleratorAscend || len(r.Workers) > 0
+}
+
 func (r TrainingRuntime) AllowsWorker(name string) bool {
-	return (len(r.Workers) == 0 && r.Accelerator != AcceleratorAscend) || slices.Contains(r.Workers, name)
+	return r.Enabled() && (len(r.Workers) == 0 || slices.Contains(r.Workers, name))
 }
 
 func (r TrainingRuntime) Supports(arch, device string) bool {
 	arch, device = strings.ToLower(arch), strings.ToLower(device)
 	if r.Accelerator == AcceleratorAscend {
-		return (arch == "arm64" || arch == "aarch64") && strings.Contains(device, "910")
+		return (arch == "arm64" || arch == "aarch64") && strings.Contains(device, "910b")
 	}
 	return (arch == "amd64" || arch == "x86_64") && strings.Contains(device, "nvidia")
 }

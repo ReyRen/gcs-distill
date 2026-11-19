@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -51,10 +52,17 @@ if a.npu_devices:
     indices = a.npu_devices.split(',')
     if not all(x.isascii() and x.isdigit() for x in indices) or len(set(indices)) != len(indices):
         p.error('provide distinct numeric Ascend card IDs')
-    code = ('import torch, torch_npu, llamafactory, qwen_vl_utils; '
+    for index in indices:
+        board = subprocess.check_output(['npu-smi', 'info', '-t', 'board', '-i', index, '-c', '0'], text=True)
+        if not re.search(r'^\s*Chip Name\s*:\s*910B\w*\b', board, re.M | re.I):
+            raise RuntimeError('the ARM64 trainer requires Ascend 910B, check card ' + index)
+    code = ('import ctypes, torch, torch_npu, llamafactory, qwen_vl_utils; '
+            'assert ctypes.CDLL("libopapi.so").aclnnMatmul; '
+            'torch_npu.npu.set_compile_mode(jit_compile=False); '
             'assert torch.npu.device_count() == ' + str(len(indices)) + '; '
-            'x=torch.ones((8,8),device="npu:0",dtype=torch.float16); '
-            'assert (x@x).sum().item()==512; print("ASCEND_NPU_OK",torch.npu.device_count())')
+            'x=torch.ones((1,2,8,8),device="npu:0",dtype=torch.float16,requires_grad=True); '
+            'loss=(x@x).sum(); loss.backward(); '
+            'assert loss.item()==1024 and x.grad.sum().item()==2048; print("ASCEND_NPU_OK",torch.npu.device_count())')
     subprocess.check_call(docker + ['--runtime', 'ascend', '-e', 'ASCEND_VISIBLE_DEVICES='+a.npu_devices, trainer, 'python3', '-c', code])
 if a.model:
     model = a.model.resolve()

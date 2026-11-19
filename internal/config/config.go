@@ -51,7 +51,8 @@ func (c DatabaseConfig) ResolvePassword() string {
 }
 
 func (c DatabaseConfig) DSN() string {
-	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&loc=Local&charset=utf8mb4",
+	// Matched rows distinguish identical saves from updates to missing records.
+	return fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true&loc=Local&charset=utf8mb4&clientFoundRows=true",
 		c.User, c.ResolvePassword(), c.Host, c.Port, c.Name)
 }
 
@@ -198,8 +199,8 @@ func validate(config *Config) error {
 	switch config.Executor.Training.Accelerator {
 	case AcceleratorNVIDIA:
 	case AcceleratorAscend:
-		if len(config.Executor.DataWorkers) == 0 || len(config.Executor.Training.Workers) == 0 {
-			return fmt.Errorf("executor.data_workers and executor.training_workers are required for Ascend")
+		if len(config.Executor.DataWorkers) == 0 {
+			return fmt.Errorf("executor.data_workers is required for ARM64")
 		}
 		if config.Executor.RuntimeImage == "" || config.Executor.RuntimeImage == NVIDIADataImage ||
 			config.Executor.TrainerImage == "" || config.Executor.TrainerImage == NVIDIATrainerImage {

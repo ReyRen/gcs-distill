@@ -39,7 +39,7 @@ cp "$repo/arm64/image/$role-requirements.lock" "$context/requirements.lock"
 if [ "$role" = data ]; then
   cp "$repo/x86/image/easydistill-command.sh" "$context/gcs-easydistill"
 else
-  cp "$repo/arm64/image/ascend-train.sh" "$context/"
+  cp "$repo/arm64/image/ascend-train.py" "$context/"
 fi
 docker build --platform linux/arm64 --pull=false --network none \
   --build-arg BASE_IMAGE="$base" --build-arg REVISION="$revision" -t "$tag" "$context"

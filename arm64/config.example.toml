@@ -34,4 +34,5 @@ training_accelerator = "ascend"
 runtime_image = "gcs/distill-data:2.0.0-aeb8ca3-arm64"
 trainer_image = "gcs/distill-trainer:0.9.3-cann8-torch2.2-vl-arm64"
 data_workers = "smgpu23"
-training_workers = "smgpu23"
+# Configure confirmed 910B workers after the NPU preflight passes.
+training_workers = ""

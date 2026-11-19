@@ -68,7 +68,7 @@ func TestTeacherDefaultsAndExplicitRetryControls(t *testing.T) {
 	zero := 0
 	w.TeacherModel.RetryAttempts = &zero
 	w.TeacherModel.MaxTokens = 512
-	for _, job := range []string{"instruct_distill", "advanced_instruct_distill", "agent_distill", "mm_instruct_distill"} {
+	for _, job := range []string{"instruct_distill", "advanced_instruct_distill", "agent_distill", "mm_instruct_distill", "cot_distill", "cot_long2short", "cot_short2long"} {
 		w.JobType = job
 		cfg, err := NewConfigGenerator(t.TempDir()).GenerateDistill2Config(project2(), p)
 		if err != nil {
@@ -79,6 +79,11 @@ func TestTeacherDefaultsAndExplicitRetryControls(t *testing.T) {
 		}
 		if generation, ok := cfg["generation"].(map[string]interface{}); ok && generation["retry_attempts"] != 0 {
 			t.Fatal("retry zero ignored", job)
+		}
+		if cot, ok := cfg["cot"].(map[string]interface{}); ok {
+			if _, exists := cot["retry_attempts"]; exists {
+				t.Fatal("the native CoT schema does not allow retry_attempts", job)
+			}
 		}
 	}
 	w.SeedLimit = -1

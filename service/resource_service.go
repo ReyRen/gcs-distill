@@ -140,6 +140,9 @@ func enrichResourceNodes(nodes []AvailableNode, inventory *gcsclient.ResourceInv
 }
 
 func (s *ResourceService) Validate(ctx context.Context, request *types.ResourceRequest, train, requireIdle bool) error {
+	if train && !s.executor.Training.Enabled() {
+		return fmt.Errorf("当前部署未启用学生训练节点")
+	}
 	if err := types.NormalizeResourceRequest(request, train); err != nil {
 		return err
 	}

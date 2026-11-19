@@ -45,10 +45,8 @@ func InspectSeedSelection(ctx context.Context, path string, w *types.Distillatio
 // Apply to each native generation section and pipeline operator, including
 // operators whose embedded defaults do not explicitly declare retry_attempts.
 func applyTeacherRetries(cfg map[string]interface{}, retries int) {
-	for _, key := range []string{"generation", "cot"} {
-		if section, ok := cfg[key].(map[string]interface{}); ok {
-			section["retry_attempts"] = retries
-		}
+	if generation, ok := cfg["generation"].(map[string]interface{}); ok {
+		generation["retry_attempts"] = retries
 	}
 	if stages, ok := cfg["pipeline"].([]interface{}); ok {
 		for _, raw := range stages {

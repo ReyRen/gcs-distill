@@ -4101,7 +4101,7 @@
     },
     "/api/v1/runtime": {
       "get": {
-        "description": "Read data_image, trainer_images and the eligible workers from this endpoint. training_accelerator is nvidia or ascend. For Ascend, show NPU labels and use the physical xpu_indices returned by the resource inventory.",
+        "description": "Read data_image, trainer_images and the eligible workers from this endpoint. training_accelerator is nvidia or ascend. When student_training_enabled is false, only data generation is available. For Ascend, show NPU labels and use the physical xpu_indices returned by the resource inventory.",
         "parameters": [],
         "responses": {
           "200": {

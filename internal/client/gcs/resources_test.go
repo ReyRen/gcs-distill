@@ -74,6 +74,11 @@ func TestGPUSelectionUsesPhysicalProcessesAndSchedulerReservations(t *testing.T)
 	if err := validate(true); err != nil {
 		t.Fatalf("idle Ascend card not selectable by physical ID: %v", err)
 	}
+	node.Devices[0].Name = "Ascend 910A"
+	if err := validate(true); err == nil {
+		t.Fatal("a device outside the 910B trainer profile was accepted")
+	}
+	node.Devices[0].Name = "910B"
 	target.Workers = []string{"other"}
 	if err := validate(true); err == nil {
 		t.Fatal("worker without the ARM trainer image was accepted")
