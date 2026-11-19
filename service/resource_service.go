@@ -5,18 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
-	"strings"
 	"time"
 
 	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
+	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/types"
 )
 
 type AvailableResources struct {
-	Nodes            []AvailableNode `json:"nodes"`
-	TrainingScope    string          `json:"training_scope"`
-	MaxTrainingNodes int             `json:"max_training_nodes"`
-	TelemetryError   string          `json:"telemetry_error,omitempty"`
+	Nodes               []AvailableNode `json:"nodes"`
+	TrainingScope       string          `json:"training_scope"`
+	TrainingAccelerator string          `json:"training_accelerator"`
+	MaxTrainingNodes    int             `json:"max_training_nodes"`
+	TelemetryError      string          `json:"telemetry_error,omitempty"`
 }
 
 type AvailableNode struct {
@@ -41,12 +42,12 @@ type AvailableNode struct {
 }
 
 type ResourceService struct {
-	gcs         *gcsclient.Client
-	dataWorkers []string
+	gcs      *gcsclient.Client
+	executor config.ExecutorConfig
 }
 
-func NewResourceService(gcsClient *gcsclient.Client, dataWorkers []string) *ResourceService {
-	return &ResourceService{gcs: gcsClient, dataWorkers: append([]string(nil), dataWorkers...)}
+func NewResourceService(gcsClient *gcsclient.Client, executor config.ExecutorConfig) *ResourceService {
+	return &ResourceService{gcs: gcsClient, executor: executor}
 }
 
 func (s *ResourceService) Available(ctx context.Context) (*AvailableResources, error) {
@@ -58,12 +59,13 @@ func (s *ResourceService) Available(ctx context.Context) (*AvailableResources, e
 	if err != nil {
 		return nil, err
 	}
-	out := &AvailableResources{Nodes: availableNodesFromGCS(brain, nodes), TrainingScope: "single_node_multi_gpu", MaxTrainingNodes: 1}
+	out := &AvailableResources{Nodes: availableNodesFromGCS(brain, nodes), TrainingScope: "single_node_multi_gpu",
+		TrainingAccelerator: s.executor.Training.Accelerator, MaxTrainingNodes: 1}
 	inventory, telemetryErr := s.gcs.GetResourceInventory(ctx)
 	if telemetryErr != nil {
 		out.TelemetryError = "读取卡级监控失败，请重试"
 	}
-	enrichResourceNodes(out.Nodes, inventory, s.dataWorkers, time.Now())
+	enrichResourceNodes(out.Nodes, inventory, s.executor, time.Now())
 	return out, nil
 }
 
@@ -74,7 +76,7 @@ type AvailableDevice struct {
 	State              string `json:"state"`
 }
 
-func enrichResourceNodes(nodes []AvailableNode, inventory *gcsclient.ResourceInventory, dataWorkers []string, now time.Time) {
+func enrichResourceNodes(nodes []AvailableNode, inventory *gcsclient.ResourceInventory, executor config.ExecutorConfig, now time.Time) {
 	measurements := map[string]gcsclient.NodeResources{}
 	if inventory != nil {
 		for _, node := range inventory.Nodes {
@@ -85,12 +87,17 @@ func enrichResourceNodes(nodes []AvailableNode, inventory *gcsclient.ResourceInv
 		node := &nodes[i]
 		measured := measurements[node.Name]
 		node.ObservedAt = measured.ObservedAt
-		node.TrainingSupported = (node.NodeArchitecture == "amd64" || node.NodeArchitecture == "x86_64") && strings.Contains(strings.ToLower(node.WorkersXPUName), "nvidia")
-		node.DataSupported = node.Available && slices.Contains(dataWorkers, node.Name)
+		node.TrainingSupported = executor.Training.AllowsWorker(node.Name) && executor.Training.Supports(node.NodeArchitecture, node.WorkersXPUName)
+		node.DataSupported = node.Available && slices.Contains(executor.DataWorkers, node.Name)
 		cards := map[int]gcsclient.DeviceResource{}
 		indices := make([]int, 0, node.WorkersXPUCount)
-		for index := 0; index < node.WorkersXPUCount; index++ {
-			indices = append(indices, index)
+		if node.NodeArchitecture == "arm64" || node.NodeArchitecture == "aarch64" {
+			// Ascend uses physical IDs, which are not necessarily 0..count-1.
+			indices = append(indices, node.EnableXPUIndices...)
+		} else {
+			for index := 0; index < node.WorkersXPUCount; index++ {
+				indices = append(indices, index)
+			}
 		}
 		for _, device := range measured.Devices {
 			cards[device.Index] = device
@@ -99,6 +106,7 @@ func enrichResourceNodes(nodes []AvailableNode, inventory *gcsclient.ResourceInv
 			}
 		}
 		slices.Sort(indices)
+		indices = slices.Compact(indices)
 		node.Devices = make([]AvailableDevice, 0, len(indices))
 		for _, index := range indices {
 			device := cards[index]
@@ -111,6 +119,10 @@ func enrichResourceNodes(nodes []AvailableNode, inventory *gcsclient.ResourceInv
 			case !node.Available || node.NodeState != "ready" || node.NodeAvailability != "active":
 				card.State = "node_unavailable"
 			case !node.TrainingSupported:
+				card.State = "unsupported_runtime"
+			case device.Name == "":
+				card.State = "telemetry_unknown"
+			case !executor.Training.Supports(node.NodeArchitecture, device.Name):
 				card.State = "unsupported_runtime"
 			default:
 				card.State = device.UnavailableReason(measured.ObservedAt, now, true)
@@ -132,7 +144,7 @@ func (s *ResourceService) Validate(ctx context.Context, request *types.ResourceR
 		return err
 	}
 	for _, node := range request.ExecutorNodes {
-		if !slices.Contains(s.dataWorkers, node) {
+		if !slices.Contains(s.executor.DataWorkers, node) {
 			return fmt.Errorf("数据执行节点不在已配置的离线节点目录中: %s", node)
 		}
 	}
@@ -143,7 +155,7 @@ func (s *ResourceService) Validate(ctx context.Context, request *types.ResourceR
 	for i, node := range request.SelectedResources {
 		selected[i] = gcsclient.SelectedResource{NodeName: node.NodeName, NodeAddress: node.NodeAddress, XPUIndices: node.XPUIndices}
 	}
-	return s.gcs.ValidateGPUSelection(ctx, selected, requireIdle)
+	return s.gcs.ValidateTrainingSelection(ctx, selected, requireIdle, s.executor.Training)
 }
 
 type brainWorkerSnapshot struct {

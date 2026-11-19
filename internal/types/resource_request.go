@@ -21,23 +21,23 @@ func NormalizeResourceRequest(request *ResourceRequest, train bool) error {
 		return nil
 	}
 	if len(request.SelectedResources) != 1 {
-		return fmt.Errorf("当前学生训练支持单节点多 GPU，请只选择一个训练节点")
+		return fmt.Errorf("当前学生训练支持单节点多卡，请只选择一个训练节点")
 	}
 	selected := &request.SelectedResources[0]
 	selected.NodeName = strings.TrimSpace(selected.NodeName)
 	selected.NodeAddress = strings.TrimSpace(selected.NodeAddress)
 	if selected.NodeName == "" || len(selected.XPUIndices) == 0 {
-		return fmt.Errorf("请选择训练节点及至少一张 GPU")
+		return fmt.Errorf("请选择训练节点及至少一张加速卡")
 	}
 	seen := map[int]bool{}
 	for _, index := range selected.XPUIndices {
 		if index < 0 || seen[index] {
-			return fmt.Errorf("GPU 卡号不能为负数或重复")
+			return fmt.Errorf("加速卡号不能为负数或重复")
 		}
 		seen[index] = true
 	}
 	if request.GPUCount != 0 && request.GPUCount != len(selected.XPUIndices) {
-		return fmt.Errorf("GPU 数量必须与所选卡号数量一致")
+		return fmt.Errorf("加速卡数量必须与所选卡号数量一致")
 	}
 	request.GPUCount = len(selected.XPUIndices)
 	return nil

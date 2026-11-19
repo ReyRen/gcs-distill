@@ -158,7 +158,7 @@ func (h *WorkflowHandler) List(c *gin.Context) {
 		items = append(items, item)
 	}
 	c.JSON(http.StatusOK, gin.H{"code": 200, "data": gin.H{"engine": "easydistill", "version": "2.0.0", "upstream_revision": runtime.EasyDistill2Revision,
-		"runtime_image": runtime.EasyDistill2Image, "items": items, "default_job_type": "instruct_distill",
+		"runtime_image": h.executor.RuntimeImage, "items": items, "default_job_type": "instruct_distill",
 		"data_resource_mode": "cpu", "student_training": "optional_llamafactory", "model_evaluation": "separate_workflow"}})
 }
 

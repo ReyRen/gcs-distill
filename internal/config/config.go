@@ -87,6 +87,7 @@ type ExecutorConfig struct {
 	MaxConcurrent int
 	RuntimeImage  string
 	DataWorkers   []string
+	Training      TrainingRuntime
 }
 
 func Load(configPath string) (*Config, error) {
@@ -157,9 +158,10 @@ func Default() *Config {
 			Compress: true,
 		},
 		Executor: ExecutorConfig{
-			TrainerImage:  "gcs/distill-trainer:0.9.3-cu124-vl-x86_64",
+			TrainerImage:  NVIDIATrainerImage,
 			MaxConcurrent: 5,
-			RuntimeImage:  "gcs/distill-data:2.0.0-aeb8ca3-x86_64",
+			RuntimeImage:  NVIDIADataImage,
+			Training:      TrainingRuntime{Accelerator: AcceleratorNVIDIA},
 		},
 	}
 	normalizeStorage(&cfg.Storage)
@@ -192,6 +194,19 @@ func validate(config *Config) error {
 	}
 	if config.Storage.RootPath == "" {
 		return fmt.Errorf("storage.root_path must not be empty")
+	}
+	switch config.Executor.Training.Accelerator {
+	case AcceleratorNVIDIA:
+	case AcceleratorAscend:
+		if len(config.Executor.DataWorkers) == 0 || len(config.Executor.Training.Workers) == 0 {
+			return fmt.Errorf("executor.data_workers and executor.training_workers are required for Ascend")
+		}
+		if config.Executor.RuntimeImage == "" || config.Executor.RuntimeImage == NVIDIADataImage ||
+			config.Executor.TrainerImage == "" || config.Executor.TrainerImage == NVIDIATrainerImage {
+			return fmt.Errorf("Ascend requires ARM64 executor.runtime_image and executor.trainer_image")
+		}
+	default:
+		return fmt.Errorf("executor.training_accelerator must be nvidia or ascend")
 	}
 
 	validLogLevels := map[string]bool{"debug": true, "info": true, "warn": true, "error": true}
@@ -325,14 +340,23 @@ func applyValue(cfg *Config, section, key, value string) error {
 	case "model_center.timeout_seconds":
 		return setInt(value, &cfg.ModelCenter.TimeoutSeconds, "model_center.timeout_seconds")
 	case "executor.data_workers":
-		cfg.Executor.DataWorkers = nil
-		for _, item := range strings.Split(value, ",") {
-			if node := strings.TrimSpace(item); node != "" {
-				cfg.Executor.DataWorkers = append(cfg.Executor.DataWorkers, node)
-			}
-		}
+		cfg.Executor.DataWorkers = splitWorkers(value)
+	case "executor.training_accelerator":
+		cfg.Executor.Training.Accelerator = strings.ToLower(value)
+	case "executor.training_workers":
+		cfg.Executor.Training.Workers = splitWorkers(value)
 	}
 	return nil
+}
+
+func splitWorkers(value string) []string {
+	var nodes []string
+	for _, item := range strings.Split(value, ",") {
+		if node := strings.TrimSpace(item); node != "" {
+			nodes = append(nodes, node)
+		}
+	}
+	return nodes
 }
 
 func setInt(value string, target *int, name string) error {

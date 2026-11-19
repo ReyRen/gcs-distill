@@ -11,6 +11,7 @@ import (
 	"time"
 
 	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
+	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/logger"
 	"github.com/ReyRen/gcs-distill/internal/types"
 	mysqlrepo "github.com/ReyRen/gcs-distill/repository/mysql"
@@ -25,19 +26,24 @@ type StageExecutor struct {
 	gcsClient    *gcsclient.Client
 	runtimeImage string
 	dataWorkers  []string
+	training     config.TrainingRuntime
 }
 
-type StageExecutorOptions struct{ DataWorkers []string }
+type StageExecutorOptions struct {
+	DataWorkers []string
+	Training    config.TrainingRuntime
+}
 
 func NewStageExecutor(storageRoot string, datasetRepo mysqlrepo.DatasetRepository, gcsClient *gcsclient.Client, runtimeImage string, stageRepo mysqlrepo.StageRepository, pipelineRepo mysqlrepo.PipelineRepository, options ...StageExecutorOptions) *StageExecutor {
 	if strings.TrimSpace(runtimeImage) == "" {
-		runtimeImage = EasyDistill2Image
+		runtimeImage = config.NVIDIADataImage
 	}
-	var workers []string
+	var opt StageExecutorOptions
 	if len(options) > 0 {
-		workers = append(workers, options[0].DataWorkers...)
+		opt = options[0]
 	}
-	return &StageExecutor{configGen: NewConfigGenerator(storageRoot), datasetRepo: datasetRepo, stageRepo: stageRepo, pipelineRepo: pipelineRepo, gcsClient: gcsClient, runtimeImage: runtimeImage, dataWorkers: workers}
+	return &StageExecutor{configGen: NewConfigGenerator(storageRoot), datasetRepo: datasetRepo, stageRepo: stageRepo, pipelineRepo: pipelineRepo,
+		gcsClient: gcsClient, runtimeImage: runtimeImage, dataWorkers: opt.DataWorkers, training: opt.Training}
 }
 
 func (e *StageExecutor) ExecuteStage(ctx context.Context, stage *types.StageRun, pipeline *types.PipelineRun, project *types.Project) (resultErr error) {
@@ -155,8 +161,8 @@ func (e *StageExecutor) prepareRunDirectories(uid int, root string) error {
 	return os.Chmod(filepath.Join(root, "configs"), 0700)
 }
 
-func containerCacheEnv(root string) string {
-	values := []string{"HOME=" + filepath.Join(root, "cache", "home"), "TMPDIR=" + filepath.Join(root, "tmp")}
+func containerCacheEnv(root, tempDir string) string {
+	values := []string{"HOME=" + filepath.Join(root, "cache", "home"), "TMPDIR=" + tempDir}
 	for _, item := range [][2]string{{"HF_HOME", "huggingface"}, {"HF_DATASETS_CACHE", "huggingface/datasets"}, {"TORCH_HOME", "torch"}, {"TORCH_EXTENSIONS_DIR", "torch_extensions"}, {"TRITON_CACHE_DIR", "triton"}, {"MPLCONFIGDIR", "matplotlib"}, {"XDG_CACHE_HOME", "."}} {
 		values = append(values, item[0]+"="+filepath.Join(root, "cache", filepath.FromSlash(item[1])))
 	}
@@ -267,9 +273,15 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 		xpuCount = 0
 	}
 	if req.ResourceMode != "cpu" && len(req.SelectedResources) > 0 {
-		if err := e.gcsClient.ValidateGPUSelection(ctx, selectedResourcesForGCS(req.SelectedResources), true); err != nil {
+		if err := e.gcsClient.ValidateTrainingSelection(ctx, selectedResourcesForGCS(req.SelectedResources), true, e.training); err != nil {
 			return "", fmt.Errorf("训练资源已变化，请重新选择: %w", err)
 		}
+	}
+	tempDir := filepath.Join(workDir, "tmp")
+	if req.ResourceMode != "cpu" && e.training.Accelerator == config.AcceleratorAscend {
+		// TorchNPU creates multiprocessing Unix sockets under TMPDIR. Keep those
+		// paths short and local to the training container.
+		tempDir = "/tmp"
 	}
 	resp, err := e.gcsClient.CreateContainerTask(ctx, gcsclient.ContainerTaskRequest{
 		TaskUID:           req.TaskUID,
@@ -281,7 +293,7 @@ func (e *StageExecutor) runContainerTask(ctx context.Context, req *ContainerRequ
 		Args:              args,
 		WorkingDir:        workDir,
 		LogPath:           req.LogPath,
-		Envs:              "GCS_APPLICATION=gcs-distill;HF_HUB_OFFLINE=1;TRANSFORMERS_OFFLINE=1;HF_DATASETS_OFFLINE=1;HF_HUB_DISABLE_TELEMETRY=1;PIP_NO_INDEX=1;" + req.Env + ";" + containerCacheEnv(workDir),
+		Envs:              "GCS_APPLICATION=gcs-distill;HF_HUB_OFFLINE=1;TRANSFORMERS_OFFLINE=1;HF_DATASETS_OFFLINE=1;HF_HUB_DISABLE_TELEMETRY=1;PIP_NO_INDEX=1;" + req.Env + ";" + containerCacheEnv(workDir, tempDir),
 		WorkerNums:        1,
 		WorkersName:       append([]string(nil), req.WorkersName...),
 		Mounts:            append([]gcsclient.ContainerTaskMount(nil), req.Mounts...),

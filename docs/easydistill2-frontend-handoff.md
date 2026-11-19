@@ -126,6 +126,8 @@ SFT 用质量阈值；CoT 用逻辑正确性、RV/CD 和难度分组；DPO 用�
 
 数据生产为 GCS CPU 容器任务，教师推理使用已有服务。`resource_request.executor_nodes` 选择已加载镜像的数据节点；训练 GPU 仍用 `selected_resources`。
 
+ARM 与 x86 使用同一套接口。通过 `GET /api/v1/runtime` 读取 `training_accelerator`，在资源页显示 NPU 或 GPU。训练卡从 `/resources/available` 中选择 `selectable=true` 的设备，`selected_resources[].xpu_indices` 提交对应 `devices[].index` 的物理号。`gpu_count` 填选中的设备数量。训练镜像由服务端默认，页面如果提交 `trainer_image`，取自 `/runtime.trainer_images`。
+
 教师服务选择调用 distill 的 `GET /api/v1/teachers?uid=...`；提交 `teacher_model.service_id` 即可，后端校验归属、在线状态并从模型中心取得连接信息和凭据。手工 API 配置提交 `endpoint`、`model_name`、`api_secret_ref`。`POST /api/v1/teachers/test` 会验证鉴权、模型发现和少量聊天推理；不会自动证明视觉能力。执行地址必须从 worker 可达，不得使用浏览器代理相对地址或 localhost。密钥只提交一次，回包中的 `********` 不能作为新密钥提交。
 
 已有 Ollama 等内网服务通过模型中心的“外部模型引接”登记，每个模型单独使用真实的 upstream_model_name；蒸馏只复用该服务，不创建教师容器或为教师申请训练卡。教师使用哪些 GPU 由原服务的启动配置决定。仅开启学生训练时，蒸馏页面才要求选择学生训练节点和卡。当前接入 `http://172.18.127.67:11434/v1` 的 `qwen2.5vl:7b`、`qwen3-vl:32b`，不使用另起的独立教师实例。

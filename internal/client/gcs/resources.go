@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
+
+	"github.com/ReyRen/gcs-distill/internal/config"
 )
 
 type ResourceInventory struct {
@@ -73,11 +74,15 @@ func (d DeviceResource) UnavailableReason(observedAt *time.Time, now time.Time, 
 	return ""
 }
 
-// ValidateGPUSelection checks a snapshot only. The existing GCS allocator still
+// ValidateTrainingSelection checks a snapshot only. The GCS allocator still
 // acquires the final reservation atomically when the training container starts.
-func (c *Client) ValidateGPUSelection(ctx context.Context, selected []SelectedResource, requireIdle bool) error {
+func (c *Client) ValidateTrainingSelection(ctx context.Context, selected []SelectedResource, requireIdle bool, target config.TrainingRuntime) error {
+	label := target.DeviceLabel()
 	if len(selected) != 1 || selected[0].NodeName == "" || len(selected[0].XPUIndices) == 0 {
-		return fmt.Errorf("请选择一台训练节点及至少一张 GPU")
+		return fmt.Errorf("请选择一台训练节点及至少一张 %s", label)
+	}
+	if !target.AllowsWorker(selected[0].NodeName) {
+		return fmt.Errorf("训练节点未配置对应的训练镜像: %s", selected[0].NodeName)
 	}
 	brain, err := c.GetBrain(ctx)
 	if err != nil {
@@ -123,14 +128,11 @@ func (c *Client) ValidateGPUSelection(ctx context.Context, selected []SelectedRe
 	}
 	inventory, err := c.GetResourceInventory(ctx)
 	if err != nil {
-		return fmt.Errorf("读取 GPU 监控失败: %w", err)
+		return fmt.Errorf("读取 %s 监控失败: %w", label, err)
 	}
 	for _, node := range inventory.Nodes {
 		if node.Name != selection.NodeName {
 			continue
-		}
-		if node.Architecture != "amd64" && node.Architecture != "x86_64" {
-			return fmt.Errorf("当前训练镜像仅支持 x86_64 NVIDIA GPU 节点")
 		}
 		cards := make(map[int]DeviceResource, len(node.Devices))
 		for _, card := range node.Devices {
@@ -140,20 +142,20 @@ func (c *Client) ValidateGPUSelection(ctx context.Context, selected []SelectedRe
 		for _, index := range selection.XPUIndices {
 			card, exists := cards[index]
 			if index < 0 || seen[index] || !exists {
-				return fmt.Errorf("GPU 卡号不存在或重复: %d", index)
+				return fmt.Errorf("%s 卡号不存在或重复: %d", label, index)
 			}
 			seen[index] = true
-			if !strings.Contains(strings.ToLower(card.Name), "nvidia") {
-				return fmt.Errorf("当前训练镜像仅支持 NVIDIA GPU")
+			if !target.Supports(node.Architecture, card.Name) {
+				return fmt.Errorf("当前训练镜像需要 %s %s，节点 %s 的卡 %d 不匹配", target.Architecture(), label, node.Name, index)
 			}
 			if requireIdle && !enabled[index] {
-				return fmt.Errorf("GPU %d 已被占用或不可调度", index)
+				return fmt.Errorf("%s %d 已被占用或不可调度", label, index)
 			}
 			if reason := card.UnavailableReason(node.ObservedAt, time.Now(), requireIdle); reason != "" {
-				return fmt.Errorf("GPU %d 暂不可用: %s", index, reason)
+				return fmt.Errorf("%s %d 暂不可用: %s", label, index, reason)
 			}
 		}
 		return nil
 	}
-	return fmt.Errorf("训练节点缺少 GPU 监控: %s", selection.NodeName)
+	return fmt.Errorf("训练节点缺少 %s 监控: %s", label, selection.NodeName)
 }

@@ -25,6 +25,6 @@ for item in manifest['images']:
         raise RuntimeError('image checksum mismatch: ' + str(path))
     subprocess.check_call(['docker', 'load', '-i', str(path)])
     actual = json.loads(subprocess.check_output(['docker', 'image', 'inspect', item['tag']]))[0]
-    if actual['Id'] != item['id'] or actual['Architecture'] != 'amd64':
+    if actual['Id'] != item['id'] or actual['Os'] + '/' + actual['Architecture'] != manifest['architecture']:
         raise RuntimeError('loaded image ID/architecture mismatch')
     print('VERIFIED', item['tag'], actual['Id'])

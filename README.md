@@ -1,8 +1,8 @@
 # GCS Distill 2
 
-x86 离线蒸馏控制服务。官方 EasyDistill 2 调用内网教师服务生成、评分、筛选和导出数据；独立 LLaMA-Factory 容器可选加载共享学生基模进行 SFT 或 DPO 训练。
+x86 与 ARM64 离线蒸馏控制服务。官方 EasyDistill 2 调用内网教师服务生成、评分、筛选和导出数据；独立 LLaMA-Factory 容器可选加载共享学生基模进行 SFT 或 DPO 训练。
 
-`gcs-distill → gcs-v2 → gcs-info-catch-v2` 复用平台调度、GPU 分配、共享存储和日志。数据任务使用 CPU 容器，教师推理运行在已有服务，学生训练加载本地完整权重。旧 EasyDistill 1 推理、治理、训练和 ARM 适配已删除，旧任务不能重新启动。
+`gcs-distill → gcs-v2 → gcs-info-catch-v2` 复用平台调度、加速卡分配、共享存储和日志。数据任务使用 CPU 容器，教师推理运行在已有服务，学生训练加载本地完整权重。x86 使用 NVIDIA GPU，ARM64 使用昇腾 NPU。
 
 ```text
 teacher_config → dataset_build → distill_data → dataset_export → [student_train]
@@ -17,6 +17,7 @@ teacher_config → dataset_build → distill_data → dataset_export → [studen
 - [种子格式模板与用法](runtime/seed_templates/00_使用说明.md)，下载入口 `/api/v1/dataset-templates/download`
 - [交互 mock](docs/ui/gcs-distill2-mock.html)
 - [离线部署与基础环境](offline/README.md)
+- [ARM64 昇腾镜像与部署](arm64/README.md)
 - [OpenAPI](server/apidocs/swagger/openapi.json)，服务入口 `/swagger/`
 
 现有 x86 联调环境部署在 `172.18.29.80`，前端可直接使用：

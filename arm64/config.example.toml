@@ -1,0 +1,37 @@
+[server]
+host = "172.18.127.43"
+port = 8080
+mode = "release"
+
+[database]
+enabled = true
+driver = "mysql"
+host = "172.18.127.43"
+port = 3306
+name = "gcs_distill_arm_v2_prod"
+user = "gcs_distill_arm_prod"
+password_env = "GCS_DISTILL_DB_PASSWORD"
+
+[storage]
+type = "jfs"
+root_path = "/storage-root-jfs"
+
+[gcs]
+base_url = "http://172.18.127.43:8072/api/v1"
+timeout_seconds = 15
+
+[model_center]
+base_url = "http://172.18.127.43:8090/api/v1"
+timeout_seconds = 15
+
+[logging]
+output = "stdout"
+level = "info"
+
+[executor]
+max_concurrent = 3
+training_accelerator = "ascend"
+runtime_image = "gcs/distill-data:2.0.0-aeb8ca3-arm64"
+trainer_image = "gcs/distill-trainer:0.9.3-cann8-torch2.2-vl-arm64"
+data_workers = "smgpu23"
+training_workers = "smgpu23"

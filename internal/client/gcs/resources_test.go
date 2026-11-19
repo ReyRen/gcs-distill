@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/ReyRen/gcs-distill/internal/config"
 )
 
 func ptr[T any](v T) *T { return &v }
@@ -29,33 +31,51 @@ func TestGPUSelectionUsesPhysicalProcessesAndSchedulerReservations(t *testing.T)
 	defer server.Close()
 	client := NewClient(server.URL, time.Second)
 	selection := []SelectedResource{{NodeName: "worker", XPUIndices: []int{6}}}
-	if err := client.ValidateGPUSelection(context.Background(), selection, true); err != nil {
+	target := config.TrainingRuntime{Accelerator: config.AcceleratorNVIDIA}
+	validate := func(requireIdle bool) error {
+		return client.ValidateTrainingSelection(context.Background(), selection, requireIdle, target)
+	}
+	if err := validate(true); err != nil {
 		t.Fatal(err)
 	}
 	node.Devices[0].ProcessCount = ptr(1)
-	if err := client.ValidateGPUSelection(context.Background(), selection, true); err == nil {
+	if err := validate(true); err == nil {
 		t.Fatal("external compute process treated as idle")
 	}
-	if err := client.ValidateGPUSelection(context.Background(), selection, false); err != nil {
+	if err := validate(false); err != nil {
 		t.Fatalf("pending snapshots should not reserve cards: %v", err)
 	}
 	node.Devices[0].ProcessCount = ptr(0)
 	enabled = nil
-	if err := client.ValidateGPUSelection(context.Background(), selection, true); err == nil {
+	if err := validate(true); err == nil {
 		t.Fatal("scheduler reservation ignored")
 	}
 	enabled = []int{6}
 	node.ObservedAt = ptr(now.Add(-3 * time.Minute))
-	if err := client.ValidateGPUSelection(context.Background(), selection, true); err == nil {
+	if err := validate(true); err == nil {
 		t.Fatal("stale measurement accepted")
 	}
 	node.ObservedAt = &now
 	node.Devices[0].ProcessCount = nil
-	if err := client.ValidateGPUSelection(context.Background(), selection, true); err == nil {
+	if err := validate(true); err == nil {
 		t.Fatal("unknown process count treated as zero")
 	}
 	node.Architecture = "arm64"
-	if err := client.ValidateGPUSelection(context.Background(), selection, false); err == nil {
+	if err := validate(false); err == nil {
 		t.Fatal("unsupported training architecture accepted")
+	}
+	target = config.TrainingRuntime{Accelerator: config.AcceleratorAscend, Workers: []string{"worker"}}
+	node.Architecture = "aarch64"
+	node.Devices[0].Name = "910B"
+	node.Devices[0].ProcessCount = ptr(0)
+	node.Devices[0].Index = 5
+	enabled = []int{5}
+	selection[0].XPUIndices = []int{5}
+	if err := validate(true); err != nil {
+		t.Fatalf("idle Ascend card not selectable by physical ID: %v", err)
+	}
+	target.Workers = []string{"other"}
+	if err := validate(true); err == nil {
+		t.Fatal("worker without the ARM trainer image was accepted")
 	}
 }

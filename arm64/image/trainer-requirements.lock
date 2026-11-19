@@ -1,0 +1,3 @@
+av==12.3.0
+qwen-vl-utils==0.0.8
+torchvision==0.17.0

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	gcsclient "github.com/ReyRen/gcs-distill/internal/client/gcs"
+	"github.com/ReyRen/gcs-distill/internal/config"
 	"github.com/ReyRen/gcs-distill/internal/types"
 )
 
@@ -74,6 +75,14 @@ func TestContainerRequestPinsCachesToItsOwnRun(t *testing.T) {
 	}
 	if env["HF_HUB_OFFLINE"] != "1" || request.ImagePullPolicy != "never" {
 		t.Fatal("offline policy missing")
+	}
+	e.training.Accelerator = config.AcceleratorAscend
+	_, err = e.runContainerTask(context.Background(), &ContainerRequest{TaskUID: 380, ContainerName: "train", Image: "trainer", HostWorkDir: root, ConfigPath: filepath.Join(root, "configs", "train.json"), ResourceMode: "gpu"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(";"+request.Envs+";", ";TMPDIR=/tmp;") {
+		t.Fatal("Ascend multiprocessing sockets need a short container-local temporary path")
 	}
 	_, err = e.runContainerTask(context.Background(), &ContainerRequest{TaskUID: 381, ContainerName: "foreign", Image: "data", HostWorkDir: root, ConfigPath: filepath.Join(root, "configs", "data.json"), ResourceMode: "cpu"})
 	if err == nil {

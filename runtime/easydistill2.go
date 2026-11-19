@@ -20,7 +20,6 @@ import (
 )
 
 const EasyDistill2Revision = "aeb8ca3eab8b2a82f754c01c3d1f59ad276268c3"
-const EasyDistill2Image = "gcs/distill-data:2.0.0-aeb8ca3-x86_64"
 
 //go:embed recipes/*.yaml
 var recipes embed.FS
@@ -712,6 +711,17 @@ func (e *StageExecutor) executeStudentTrain2(ctx context.Context, stage *types.S
 	if err != nil {
 		return err
 	}
+	command, args := "llamafactory-cli", []string{"train"}
+	if e.training.Accelerator == config.AcceleratorAscend {
+		cfg["flash_attn"] = "disabled"
+		// Safetensors interprets integer device IDs as CUDA IDs. Let the
+		// trainer place the CPU-loaded weights on the assigned NPU instead.
+		cfg["low_cpu_mem_usage"] = false
+		if p.ResourceRequest.GPUCount > 1 {
+			cfg["ddp_backend"] = "hccl"
+		}
+		command, args = "gcs-ascend-train", nil
+	}
 	root := e.configGen.GetRunWorkspace(p.UID, project.ID, p.ID)
 	path := filepath.Join(root, "configs", "student_train.json")
 	if err := writePrivateJSON(path, cfg); err != nil {
@@ -722,7 +732,7 @@ func (e *StageExecutor) executeStudentTrain2(ctx context.Context, stage *types.S
 	}
 	stage.ConfigPath = path
 	id, err := e.runContainerTask(ctx, &ContainerRequest{ContainerName: stageContainerName(p.ID, stage.StageType), TaskUID: p.UID,
-		Image: p.TrainingConfig.Distillation.TrainerImage, Command: "llamafactory-cli", Args: []string{"train", path},
+		Image: p.TrainingConfig.Distillation.TrainerImage, Command: command, Args: append(args, path),
 		HostWorkDir: root, ConfigPath: path, LogPath: e.configGen.GetLogPath(p.UID, project.ID, p.ID, "student_train"),
 		GPUs: p.ResourceRequest.GPUCount, SelectedResources: p.ResourceRequest.SelectedResources,
 		Mounts: []gcsclient.ContainerTaskMount{{Path: w.StudentModel.ModelPath, ReadOnly: true}, {Path: filepath.Join(e.configGen.storageRoot, fmt.Sprintf("user-%d", p.UID)), ReadOnly: true}}})

@@ -1865,7 +1865,7 @@
   "info": {
     "description": "Offline x86 EasyDistill 2 data workflows and optional local student training. UID must be injected by the trusted platform gateway. Legacy local teacher inference is removed.",
     "title": "GCS-Distill API",
-    "version": "2.0.10"
+    "version": "2.0.11"
   },
   "openapi": "3.0.3",
   "paths": {
@@ -4093,7 +4093,7 @@
             "description": "Resources changed, busy, stale, missing or unsupported"
           }
         },
-        "summary": "Validate one node and multiple physical GPU indices without reserving them",
+        "summary": "Validate one node and physical GPU or Ascend NPU indices without reserving them",
         "tags": [
           "Resources"
         ]
@@ -4101,6 +4101,7 @@
     },
     "/api/v1/runtime": {
       "get": {
+        "description": "Read data_image, trainer_images and the eligible workers from this endpoint. training_accelerator is nvidia or ascend. For Ascend, show NPU labels and use the physical xpu_indices returned by the resource inventory.",
         "parameters": [],
         "responses": {
           "200": {
