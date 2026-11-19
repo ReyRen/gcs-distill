@@ -69,5 +69,7 @@ if a.model:
     if root not in model.parents:
         raise RuntimeError('model must be under the shared root')
     code = 'from transformers import AutoConfig,AutoTokenizer; AutoConfig.from_pretrained("/model",local_files_only=True); AutoTokenizer.from_pretrained("/model",local_files_only=True); print("OFFLINE_MODEL_OK")'
-    subprocess.check_call(cpu + ['-v', str(model)+':/model:ro', trainer, 'python3', '-c', code])
+    # The offline tokenizer check runs without host driver libraries on ARM.
+    tokenizer_env = ['-e', 'USE_TORCH=0'] if a.arch == 'arm64' else []
+    subprocess.check_call(cpu + tokenizer_env + ['-v', str(model)+':/model:ro', trainer, 'python3', '-c', code])
 print('PREFLIGHT_OK; verify cross-node shared mounts and teacher reachability separately')
